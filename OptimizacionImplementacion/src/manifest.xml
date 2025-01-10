@@ -1,0 +1,40 @@
+<manifest projecttype="ACCOUNTCUSTOMIZATION">
+  <projectname>TestMejoras01</projectname>
+  <frameworkversion>1.0</frameworkversion>
+  <dependencies>
+    <features>
+      <feature required="true">CLASSES</feature>
+      <feature required="true">ACCOUNTINGPERIODS</feature>
+      <feature required="true">LOCATIONS</feature>
+      <feature required="false">ADVANCEDPRINTING</feature>
+      <feature required="true">ITEMOPTIONS</feature>
+      <feature required="true">DEPARTMENTS</feature>
+      <feature required="true">ACCOUNTING</feature>
+      <feature required="true">WORKFLOW</feature>
+      <feature required="false">SUBSCRIPTIONBILLING</feature>
+      <feature required="true">SUBSIDIARIES</feature>
+      <feature required="true">ADVRECEIVING</feature>
+      <feature required="true">UNITSOFMEASURE</feature>
+      <feature required="true">CUSTOMTRANSACTIONS</feature>
+      <feature required="true">PAYABLES</feature>
+      <feature required="true">BILLSCOSTS</feature>
+      <feature required="true">MULTICURRENCY</feature>
+      <feature required="false">MULTILANGUAGE</feature>
+      <feature required="true">SERVERSIDESCRIPTING</feature>
+      <feature required="false">CRM</feature>
+      <feature required="false">CUSTOMSEGMENTS</feature>
+      <feature required="false">EXTREMELIST</feature>
+      <feature required="false">MAILMERGE</feature>
+      <feature required="true">CUSTOMRECORDS</feature>
+    </features>
+    <objects>
+      <object>customscript_l54_obt_inf_cae_fe</object>
+      <object>customscript_l54_obt_info_cae_fe_lotes</object>
+      <object>customscript_l54_act_inf_cae_fe</object>
+      <object>customscript_l54_act_inf_cae_fe_lotes</object>
+      <object>customscript_l54_log_cae_fe_lotes</object>
+      <object>customrecord_l54_conf_middleware</object>
+      <object>customscript_l54_enviar_email_fe_lotes</object>
+    </objects>
+  </dependencies>
+</manifest>

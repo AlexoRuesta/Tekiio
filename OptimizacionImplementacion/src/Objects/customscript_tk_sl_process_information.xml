@@ -1,0 +1,25 @@
+<suitelet scriptid="customscript_tk_sl_process_information">
+  <description></description>
+  <isinactive>F</isinactive>
+  <name>TK - SL Procesar Información</name>
+  <notifyadmins>F</notifyadmins>
+  <notifyemails></notifyemails>
+  <notifyowner>T</notifyowner>
+  <notifyuser>F</notifyuser>
+  <scriptfile>[/SuiteScripts/TK Implementación Automática/TK - SL Procesar Configuración.js]</scriptfile>
+  <scriptdeployments>
+    <scriptdeployment scriptid="customdeploy_tk_sl_process_information">
+      <allemployees>F</allemployees>
+      <allpartners>F</allpartners>
+      <allroles>T</allroles>
+      <audslctrole></audslctrole>
+      <eventtype></eventtype>
+      <isdeployed>T</isdeployed>
+      <isonline>T</isonline>
+      <loglevel>DEBUG</loglevel>
+      <runasrole>ADMINISTRATOR</runasrole>
+      <status>RELEASED</status>
+      <title>TK - SL Procesar Información</title>
+    </scriptdeployment>
+  </scriptdeployments>
+</suitelet>
