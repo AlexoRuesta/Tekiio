@@ -1,0 +1,1239 @@
+<pdf>
+
+    <head>
+        <#if .locale=="ru_RU">
+            <link name="verdana" type="font" subtype="opentype" src="${nsfont.verdana}"
+                src-bold="${nsfont.verdana_bold}" bytes="2" />
+        </#if>
+        <macrolist>
+            <macro id="nlheader">
+                <!--Vars definition LOGO & SIGNATURE-->
+                <!-- <#list recLogo as logo> -->
+                <!-- <#assign urlLogo = results.logoUrl> -->
+                <!-- </#list> -->
+
+                <#assign urlFirma=''>
+                    <#assign urlLogo=''>
+                        <#assign anchoFirma=0>
+                            <#assign anchoLogo=0>
+                                <#assign alturaFirma=0>
+                                    <#assign alturaLogo=0>
+
+                                        <#if resultsConfigPagosMultiples?has_content>
+                                            <#list resultsConfigPagosMultiples as datosConfigPagosMultiples>
+                                                <#assign
+                                                    urlLogo=datosConfigPagosMultiples.custrecord_3k_imp_pag_mult_conf_img_logo>
+                                                    <#assign
+                                                        urlFirma=datosConfigPagosMultiples.custrecord_3k_imp_pag_mult_conf_img_firm>
+                                                        <#assign
+                                                            anchoFirma=datosConfigPagosMultiples.custrecord_3k_imp_pag_mult_conf_anc_firm>
+                                                            <#assign
+                                                                anchoLogo=datosConfigPagosMultiples.custrecord_3k_imp_pag_mult_conf_anc_logo>
+                                                                <#assign
+                                                                    alturaFirma=datosConfigPagosMultiples.custrecord_3k_imp_pag_mult_conf_alt_firm>
+                                                                    <#assign
+                                                                        alturaLogo=datosConfigPagosMultiples.custrecord_3k_imp_pag_mult_conf_alt_logo>
+                                            </#list>
+                                        </#if>
+
+                                        <#if datosImpositivos?has_content>
+                                            <#list datosImpositivos as datos>
+                                                <#assign resIva=datos.custrecord_l54_resol_ret_iva>
+                                                    <#assign resGan=datos.custrecord_l54_resol_ret_ganancias>
+                                                        <#assign resIIBB=datos.custrecord_l54_resol_ret_iibb>
+                                                            <#assign resSUSS=datos.custrecord_l54_resol_ret_suss>
+                                            </#list>
+                                        </#if>
+
+
+                                        <!--end vars definitions-->
+            </macro>
+            <macro id="nlfooter">
+                <table class="footer" style="width: 100%;">
+                    <tr>
+                        <td align="right">
+                            <pagenumber /><span style="font-size: 12px;">&nbsp;de </span>
+                            <totalpages />
+                        </td>
+                    </tr>
+                </table>
+            </macro>
+        </macrolist>
+
+        <!--Styles-->
+        <style type="text/css">
+            table {
+                <#if .locale=="zh_CN">font-family: stsong, sans-serif;
+                <#elseif .locale=="zh_TW">font-family: msung, sans-serif;
+                <#elseif .locale=="ja_JP">font-family: heiseimin, sans-serif;
+                <#elseif .locale=="ko_KR">font-family: hygothic, sans-serif;
+                <#elseif .locale=="ru_RU">font-family: verdana;
+                <#else>font-family: sans-serif;
+                </#if>font-size: 9pt;
+                table-layout: fixed;
+            }
+
+            th {
+                font-weight: bold;
+                vertical-align: middle;
+                background-color: #AAAAAA;
+                color: #FFFFFF;
+            }
+
+            td {
+                padding: 4px 6px;
+            }
+
+            b {
+                font-weight: bold;
+                color: #333333;
+            }
+
+            table.header td {
+                padding: 0;
+                font-size: 10pt;
+            }
+
+            table.footer td {
+                padding: 0;
+                font-size: 8pt;
+            }
+
+            table.body td {
+                padding-top: 2px;
+            }
+
+            table.total {
+                page-break-inside: avoid;
+            }
+
+            tr.totalrow {
+                background-color: #AAAAAA;
+                line-height: 200%;
+            }
+
+            td.totalboxtop {
+                font-size: 12pt;
+                background-color: #AAAAAA;
+            }
+
+            td.addressheader {
+                font-size: 8pt;
+                padding-top: 6px;
+                padding-bottom: 2px;
+            }
+
+            td.address {
+                padding-top: 0;
+            }
+
+            td.totalboxmid {
+                font-size: 28pt;
+                padding-top: 20px;
+                background-color: #AAAAAA;
+            }
+
+            span.title {
+                font-size: 20pt;
+            }
+
+            span.number {
+                font-size: 16pt;
+            }
+
+            hr {
+                width: 100%;
+                color: #FFFFFF;
+                background-color: #AAAAAA;
+                height: 2px;
+            }
+        </style>
+        <!--end style-->
+    </head>
+
+    <body header="nlheader" header-height="0%" footer="nlfooter" footer-height="10pt" padding="0.5in 0.5in 0.5in 0.5in"
+        size="Letter">
+
+        <table class="header" style="width: 100%;">
+            <tr>
+                <#if urlLogo !=''>
+                    <td colspan="2" rowspan="12"><img src="${urlLogo}" width="${anchoLogo}" height="${alturaLogo}" />
+                    </td>
+                </#if>
+
+                <#if infoPago.type=='custpymt'>
+                    <td align="left" valign="top" rowspan="12" colspan="2"><span class="title">Pago de Cliente</span>
+                    </td>
+                    <#elseif infoPago.type=='vendpymt'>
+                        <td align="left" valign="top" rowspan="12" colspan="2"><span class="title">Pago de
+                                Proveedor</span></td>
+                        <#else>
+                            <td align="left" valign="top" rowspan="12" colspan="2"><span class="title">Depósito de
+                                    Cliente</span></td>
+                </#if>
+            </tr>
+        </table>
+
+        <!--Primary Information vendrpayment-->
+        <table class="header" style="width: 100%; margin-top: 20px;">
+            <tr>
+                <#if infoPago.type=="vendpymt">
+                    <td align="left" colspan="2">${recSubsidiary.legalname}</td>
+                </#if>
+            </tr>
+            <tr>
+                <#if recSubsidiary?has_content>
+                    <#if recSubsidiary.country?has_content>
+                        <td align="left" rowspan="7" colspan="2">${recSubsidiary.mainaddress_text}</td>
+                    </#if>
+                    <#else>
+                        <#if infoPago.type=="vendpymt">
+                            <td align="left" rowspan="7" colspan="2">${recSubsidiary.address}</td>
+                            <#else>
+                                <td align="left" rowspan="7" colspan="2">${results.customerInfo.addressCompany}</td>
+                        </#if>
+                </#if>
+                <td align="left"><b><span style="color: #6f6f6f;">Fecha</span></b></td>
+                <td align="left">${infoPago.trandate}</td>
+            </tr>
+            <tr>
+                <td align="left"><b><span style="color: #6f6f6f;">Nro. Transacción</span></b></td>
+                <td align="left">${infoPago.transactionnumber}</td>
+            </tr>
+            <#if infoPago.type=="vendpymt" || infoPago.type=="custpymt">
+                <tr>
+                    <td align="left"><b><span style="color: #6f6f6f;">Nro. Localizado</span></b></td>
+                    <td align="left">${infoPago.custbody_l54_numero_localizado}</td>
+                </tr>
+            </#if>
+            <tr>
+                <td align="left"><b><span style="color: #6f6f6f;">Moneda</span></b></td>
+                <td align="left">${infoPago.currency}</td>
+            </tr>
+            <tr>
+                <td align="left"><b><span style="color: #6f6f6f;">Nota</span></b></td>
+                <td align="left">${infoPago.memo}</td>
+            </tr>
+            <tr>
+                <td align="left">&nbsp;</td>
+            </tr>
+            <#if infoPago.type=="vendpymt">
+                <tr>
+                    <td align="left" colspan="2" rowspan="7" style="padding-right:20px">
+                        <table align="left" class="itemtable" style="width: 100%; border: 1px; border-color: #BDBDBD">
+                            <thead>
+                                <tr>
+                                    <th
+                                        style="padding-left:5px; line-height: 20px;background-color: #E0E6EF; color: #262626;">
+                                        Pagar a:</th>
+                                </tr>
+                                <tr>
+                                    <td style="padding-left:5px; padding: 10px;">${infoPago.payeeaddress_text}</td>
+                                </tr>
+                            </thead>
+                        </table>
+                    </td>
+                </tr>
+            <#else>
+                <tr>
+                    <td align="left" colspan="2" rowspan="7" style="padding-right:20px">
+                        <table align="left" class="itemtable" style="width: 100%; border: 0px; border-color: #BDBDBD">
+                            <thead>
+                                <tr>
+                                    <td style="padding-left:0px;"><b><span style="color: #6f6f6f;">Nombre Cliente:</span></b></td>
+                                    <td style="padding-left:10px;">${results.customerInfo.companyName}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding-left:0px;"><b><span style="color: #6f6f6f;">Dirección Cliente:</span></b></td>
+                                    <td style="padding-left:10px;">${results.customerInfo.addressCustomer}</td>
+                                </tr>
+                            </thead>
+                        </table>
+                    </td>
+                </tr>    
+            </#if>
+        </table>
+        <!--end primary information-->
+
+        <#if infoPago.type=="vendpymt" || infoPago.type=="custpymt">
+            <table class="itemtable" style="width: 100%; margin-top: 30px; border: 1px; border-color: #BDBDBD">
+                <thead>
+                    <tr>
+                        <td align="center" colspan="40" style="background-color: #E0E6EF; color: #262626;">
+                            <b><span>FACTURAS A PAGAR</span></b></td>
+                    </tr>
+                    <tr>
+                        <th align="center" colspan="5"
+                            style="line-height: 20px; background-color: #E0E6EF; color: #262626;">Fecha</th>
+                        <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Factura</th>
+                        <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Moneda</th>
+                        <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Tipo Cambio
+                        </th>
+                        <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Imp. Aplicado
+                            (ARS)</th>
+                        <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Imp. Original
+                        </th>
+                        <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Imp. Adeudado
+                        </th>
+                        <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Imp. Aplicado
+                        </th>
+                    </tr>
+                </thead>
+                <#assign resultFacturasStr="">
+                    <#assign trandateAnt="">
+                        <#assign typeAnt="">
+                            <#assign tranidAnt="">
+                                <#assign formulanumericAnt=0>
+                                    <#assign valorFact=0>
+                                        <#assign valorOrigen=0>
+                                            <#assign valorDeuda=0>
+                                                <#assign valorAplicado=0>
+                                                    <#assign inicio=1>
+
+                                                        <#list resultsFacturas as facturasPagas>
+                                                            <#if inicio !=1>
+                                                                <#if facturasPagas.tranid !=tranidAnt>
+                                                                    <#assign resultFacturasStr=tranidAnt + "|" +
+                                                                        resultFacturasStr>
+                                                                        <tr>
+                                                                            <td align="center" colspan="5">
+                                                                                ${trandateAnt}</td>
+                                                                            <td align="center" colspan="5">
+                                                                                ${typeAnt}#${tranidAnt}</td>
+                                                                            <td align="center" colspan="5">
+                                                                                ${infoPago.currency}</td>
+                                                                            <td align="center" colspan="5">
+                                                                                ${infoPago.exchangerate?string("#,##0.00")}
+                                                                            </td>
+                                                                            <td align="center" colspan="5">
+                                                                                ${amountARS?string("#,##0.00")}</td>
+                                                                            <td align="center" colspan="5">
+                                                                                ${valorOrigen?string("#,##0.00")}</td>
+                                                                            <td align="center" colspan="5">
+                                                                                ${valorDeuda?string("#,##0.00")}</td>
+                                                                            <td align="center" colspan="5">
+                                                                                ${valorAplicado?string("#,##0.00")}</td>
+                                                                        </tr>
+                                                                        <#if infoPago.type=="vendpymt">
+                                                                            <#assign
+                                                                                trandateAnt=facturasPagas.custbody_l54_fecha_factura_prov>
+                                                                                <#else>
+                                                                                    <#assign
+                                                                                        trandateAnt=facturasPagas.trandate>
+                                                                        </#if>
+                                                                        <#assign
+                                                                            amountARS=facturasPagas.payingtransaction.appliedtoforeignamount
+                                                                            * infoPago.exchangerate>
+                                                                            <#assign typeAnt=facturasPagas.type>
+                                                                                <#assign tranidAnt=facturasPagas.tranid>
+                                                                                    <#assign
+                                                                                        valorFact=facturasPagas.formulanumeric>
+                                                                                        <#assign
+                                                                                            formulanumericAnt=facturasPagas.formulanumeric>
+                                                                                            <#assign
+                                                                                                valorOrigen=facturasPagas.fxamount>
+                                                                                                <#assign
+                                                                                                    valorDeuda=facturasPagas.fxamountremaining>
+                                                                                                    <#assign
+                                                                                                        valorAplicado=facturasPagas.payingtransaction.appliedtoforeignamount>
+                                                                                                        <#else>
+                                                                                                            <#assign
+                                                                                                                valorFact=valorFact
+                                                                                                                +
+                                                                                                                facturasPagas.formulanumeric>
+                                                                                                                <#assign
+                                                                                                                    valorOrigen=valorOrigen
+                                                                                                                    +
+                                                                                                                    facturasPagas.fxamount>
+                                                                                                                    <#assign
+                                                                                                                        valorDeuda=valorDeuda
+                                                                                                                        +
+                                                                                                                        facturasPagas.fxamountremaining>
+                                                                                                                        <#assign
+                                                                                                                            valorAplicado=valorAplicado
+                                                                                                                            +
+                                                                                                                            facturasPagas.payingtransaction.appliedtoforeignamount>
+                                                                </#if>
+                                                                <#else>
+                                                                    <#assign inicio=0>
+                                                                        <#if infoPago.type=="vendpymt">
+                                                                            <#assign
+                                                                                trandateAnt=facturasPagas.custbody_l54_fecha_factura_prov>
+                                                                                <#else>
+                                                                                    <#assign
+                                                                                        trandateAnt=facturasPagas.trandate>
+                                                                        </#if>
+                                                                        <#assign
+                                                                            amountARS=facturasPagas.payingtransaction.appliedtoforeignamount
+                                                                            * infoPago.exchangerate>
+                                                                            <#assign typeAnt=facturasPagas.type>
+                                                                                <#assign tranidAnt=facturasPagas.tranid>
+                                                                                    <#assign
+                                                                                        formulanumericAnt=facturasPagas.formulanumeric>
+                                                                                        <#assign valorFact=valorFact +
+                                                                                            facturasPagas.formulanumeric>
+                                                                                            <#assign
+                                                                                                valorOrigen=valorOrigen
+                                                                                                +
+                                                                                                facturasPagas.fxamount>
+                                                                                                <#assign
+                                                                                                    valorDeuda=valorDeuda
+                                                                                                    +
+                                                                                                    facturasPagas.fxamountremaining>
+                                                                                                    <#assign
+                                                                                                        valorAplicado=valorAplicado
+                                                                                                        +
+                                                                                                        facturasPagas.payingtransaction.appliedtoforeignamount>
+                                                            </#if>
+                                                        </#list>
+                                                        <#assign resultFacturasStr=tranidAnt + "|" + resultFacturasStr>
+                                                            <tr>
+                                                                <td align="center" colspan="5" line-height="150%">
+                                                                    ${trandateAnt}</td>
+                                                                <td align="center" colspan="5">${typeAnt}#${tranidAnt}
+                                                                </td>
+                                                                <td align="center" colspan="5">${infoPago.currency}</td>
+                                                                <td align="center" colspan="5">
+                                                                    ${infoPago.exchangerate?string("#,##0.00")}</td>
+                                                                <td align="center" colspan="5">
+                                                                    ${amountARS?string("#,##0.00")}</td>
+                                                                <td align="center" colspan="5">
+                                                                    ${valorOrigen?string("#,##0.00")}</td>
+                                                                <td align="center" colspan="5">
+                                                                    ${valorDeuda?string("#,##0.00")}</td>
+                                                                <td align="center" colspan="5">
+                                                                    ${valorAplicado?string("#,##0.00")}</td>
+                                                            </tr>
+                                                            <tr>
+                                                                <td align="center">&nbsp;</td>
+                                                            </tr>
+            </table>
+            <!--end vendorpayment apply to-->
+            <#else>
+                <!-- ORDEN DE VENTA -->
+                <table class="itemtable" style="width: 100%; margin-top: 30px; border: 1px; border-color: #BDBDBD">
+                    <thead>
+                        <tr>
+                            <td align="center" colspan="25" style="background-color: #E0E6EF; color: #262626;"><b>ORDEN
+                                    DE VENTA</b></td>
+                        </tr>
+                        <tr>
+                            <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Fecha</th>
+                            <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Orden de
+                                Venta</th>
+                            <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Moneda
+                            </th>
+                            <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Tipo
+                                Cambio</th>
+                            <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Importe
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <#assign totalpagar=0>
+                            <#list resultsFacturas as salesorder>
+                                <#assign totalpagar=salesorder.fxamount>
+                                    <tr>
+                                        <td align="center" colspan="5" line-height="150%">${salesorder.trandate}</td>
+                                        <td align="center" colspan="5">${salesorder.transactionname}</td>
+                                        <td align="center" colspan="5">${salesorder.currency}</td>
+                                        <td align="center" colspan="5">${salesorder.exchangerate?string("#,##0.00")}
+                                        </td>
+                                        <td align="center" colspan="5">${salesorder.fxamount?string("#,##0.00")}</td>
+                                    </tr>
+                            </#list>
+                    </tbody>
+                </table>
+        </#if>
+
+        <!--Total amount applied-->
+        <table style="width: 100%; margin-top: 10px;">
+            <tr>
+                <td align="right">
+                    <span font-size="14px">
+                        <#if infoPago.type=="vendpymt">
+                            <b>
+                                <#assign valorTotal=infoPago.total>
+                                    Importe total: &nbsp;&nbsp;&nbsp;&nbsp;${valorTotal?string("#,##0.00")}
+                            </b>
+
+                            <#elseif infoPago.type=="custdep">
+                                <b>
+                                    <#assign valorTotal=infoPago.payment>
+                                        Importe total: &nbsp;&nbsp;&nbsp;&nbsp;${valorTotal?string("#,##0.00")}
+                                </b>
+                                <#else>
+                                    <b>
+                                        <#assign valorTotal=infoPago.applied>
+                                            Importe total: &nbsp;&nbsp;&nbsp;&nbsp;${valorTotal?string("#,##0.00")}
+                                    </b>
+                        </#if>
+                    </span>
+                </td>
+            </tr>
+        </table>
+        <!--end total amount applied-->
+
+        <#if infoPago.type=="vendpymt">
+            <#if results?has_content>
+                <#if results.arrayImporteRetenciones?has_content>
+                    <table class="itemtable" style="width: 100%; margin-top: 30px; border: 1px; border-color: #BDBDBD">
+                        <thead>
+                            <tr>
+                                <td align="center" colspan="22" style="background-color: #E0E6EF; color: #262626;">
+                                    <b><span>INFORMACIÓN RETENCIONES</span></b></td>
+                            </tr>
+                            <tr>
+                                <th align="center" colspan="5"
+                                    style="line-height: 20px; background-color: #E0E6EF; color: #262626;">Tipo Retención
+                                </th>
+                                <th align="center" colspan="6" style="background-color: #E0E6EF; color: #262626;">Imp. a
+                                    Retener (ARS)</th>
+                                <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Tipo
+                                    Cambio</th>
+                                <th align="center" colspan="6" style="background-color: #E0E6EF; color: #262626;">Imp. a
+                                    Retener (Moneda Origen)</th>
+                            </tr>
+                        </thead>
+
+                        <#list results.arrayImporteRetenciones as arrayImporteRetenciones>
+                            <tr>
+                                <td align="center" colspan="5" line-height="150%">${arrayImporteRetenciones.tipo}</td>
+                                <td align="center" colspan="6" line-height="150%">
+                                    ${arrayImporteRetenciones.originAmount}</td>
+                                <td align="center" colspan="5" line-height="150%">
+                                    ${infoPago.exchangerate?string("#,##0.00")}</td>
+                                <td align="center" colspan="6" line-height="150%">${arrayImporteRetenciones.amount}</td>
+                            </tr>
+                        </#list>
+                    </table>
+
+                    <#assign importeTotalAbonar=infoPago.custbody_l54_importe_neto_a_abonar>
+                        <#assign importeTotal=infoPago.total>
+                            <table align="right" class="itemtable"
+                                style="width: 40%; margin-top: 10px; border: 1px; border-color: #BDBDBD">
+                                <thead>
+                                    <tr>
+                                        <th
+                                            style="padding-left:5px; line-height: 20px;background-color: #E0E6EF; color: #262626;">
+                                            Resumen (Moneda Origen):</th>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding-left:5px; padding: 5px;">Importe Total Retenciones:
+                                            &nbsp;&nbsp;&nbsp;&nbsp;${infoPago.custbody_l54_importe_total_retencion?string("#,##0.00")}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding-left:5px; padding: 5px;">Importe Total a Abonar:
+                                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${importeTotalAbonar?string("#,##0.00")}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding-left:5px; padding: 5px;">Importe Total:
+                                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${importeTotal?string("#,##0.00")}
+                                        </td>
+                                    </tr>
+                                </thead>
+                            </table>
+                </#if>
+            </#if>
+            <#else>
+                <#assign importeAbonado=results.objImportesCustomerPayment.importeAbonadoCurrencyTransaction>
+                    <#assign importeFavor=results.objImportesCustomerPayment.importeFavor>
+                        <#assign esDeuda=results.objImportesCustomerPayment.esDeuda>
+                            <#assign valorTotalListas=infoPago.custbody_3k_cob_mult_total_cash +
+                                infoPago.custbody_3k_cob_mult_total_other + infoPago.custbody_3k_cob_mult_total_transf +
+                                infoPago.custbody_3k_cob_mult_total_cheque +
+                                infoPago.custbody_3k_cob_mult_total_retenciones>
+                                <table align="right" class="itemtable"
+                                    style="width: 40%; margin-top: 10px; border: 1px; border-color: #BDBDBD">
+                                    <thead>
+                                        <tr>
+                                            <th
+                                                style="padding-left:5px; line-height: 20px;background-color: #E0E6EF; color: #262626;">
+                                                Resumen (Moneda Origen):</th>
+                                        </tr>
+                                        <#if infoPago.type=="custpymt">
+                                            <tr>
+                                                <td style="padding-left:5px; padding: 5px;">Importe Total a Pagar:
+                                                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${infoPago.applied?string("#,##0.00")}
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding-left:5px; padding: 5px;">Importe Total Abonado:
+                                                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${importeAbonado}
+                                                </td>
+                                            </tr>
+                                            <#if esDeuda=='false'>
+                                                <tr>
+                                                    <td style="padding-left:5px; padding: 5px;">Saldo a Favor:
+                                                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${importeFavor}
+                                                    </td>
+                                                </tr>
+                                                <#else>
+                                                    <tr>
+                                                        <td style="padding-left:5px; padding: 5px;">Saldo Adeudado:
+                                                            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${importeFavor}
+                                                        </td>
+                                                    </tr>
+                                            </#if>
+                                            <#elseif infoPago.type=="custdep">
+                                                <tr>
+                                                    <td style="padding-left:5px; padding: 5px;">Importe Total a Pagar:
+                                                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${infoPago.payment?string("#,##0.00")}
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td style="padding-left:5px; padding: 5px;">Importe Total Abonado:
+                                                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;${valorTotalListas?string("#,##0.00")}
+                                                    </td>
+                                                </tr>
+                                        </#if>
+                                    </thead>
+                                </table>
+        </#if>
+
+        <#if results.arrayPagosTransferencias?has_content>
+            <table class="itemtable" style="width: 100%; margin-top: 30px; border: 1px; border-color: #BDBDBD">
+                <thead>
+                    <tr>
+                        <td align="center" colspan="30" style="background-color: #E0E6EF; color: #262626;">
+                            <b><span>TRANSFERENCIAS</span></b></td>
+                    </tr>
+                    <tr>
+                        <th align="center" colspan="5"
+                            style="line-height: 20px; background-color: #E0E6EF; color: #262626;">Forma Pago</th>
+                        <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Moneda</th>
+                        <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Imp. Moneda
+                            Pago</th>
+                        <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Tipo Cambio
+                        </th>
+                        <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Fecha</th>
+                        <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Imp. Moneda
+                            Factura</th>
+                    </tr>
+                </thead>
+
+                <#list results.arrayPagosTransferencias as transferencia>
+
+                    <#list transferencia as infoPagosMultiples>
+                        <tr>
+                            <td align="left" colspan="5" line-height="150%">${infoPagosMultiples.formaPago}</td>
+                            <td align="center" colspan="5">${infoPagosMultiples.moneda}</td>
+                            <td align="center" colspan="5">${infoPagosMultiples.amount}</td>
+                            <td align="center" colspan="5">${infoPagosMultiples.tipoCambio}</td>
+                            <td align="center" colspan="5">${infoPagosMultiples.fecha}</td>
+                            <td align="center" colspan="5">${infoPagosMultiples.originAmount}</td>
+                        </tr>
+                        <!-- <tr>
+                            <td align="right">&nbsp;&nbsp;&nbsp;&nbsp;</td>
+                        </tr> -->
+                    </#list>
+
+                </#list>
+            </table>
+
+            <table class="itemtable" style="width: 100%; margin-top: 30px; border: 1px; border-color: #BDBDBD">
+                <thead>
+                    <tr>
+                        <td align="center" colspan="15"
+                            style="line-height: 20px; background-color: #E0E6EF; color: #262626;"><b><span>TOTAL
+                                    TRANSFERENCIAS</span></b></td>
+                    </tr>
+                    <tr>
+                        <th align="center" colspan="5"
+                            style="line-height: 20px; background-color: #E0E6EF; color: #262626;">Moneda</th>
+                        <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Total Imp.
+                            Moneda Pago</th>
+                        <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Total Imp.
+                            Moneda Factura</th>
+                    </tr>
+                </thead>
+
+                <#list results.arrayCurrencyTransferencias as totales>
+
+                    <#list totales as infoTotales>
+                        <tr>
+                            <td align="center" colspan="5">${infoTotales.moneda}</td>
+                            <td align="center" colspan="5">${infoTotales.amount}</td>
+                            <td align="center" colspan="5">${infoTotales.originAmount}</td>
+                        </tr>
+                        <!-- <tr>
+                            <td align="right">&nbsp;&nbsp;&nbsp;&nbsp;</td>
+                        </tr> -->
+                    </#list>
+
+                </#list>
+            </table>
+        </#if>
+        <!-- end informacion pago transferencias -->
+
+        <#if results.arrayPagosTarjetas?has_content>
+            <table class="itemtable" style="width: 100%; margin-top: 30px; border: 1px; border-color: #BDBDBD">
+                <thead>
+                    <tr>
+                        <td align="center" colspan="30" style="background-color: #E0E6EF; color: #262626;">
+                            <b><span>TARJETAS</span></b></td>
+                    </tr>
+                    <tr>
+                        <th align="center" colspan="5"
+                            style="line-height: 20px; background-color: #E0E6EF; color: #262626;">Forma Pago</th>
+                        <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Moneda</th>
+                        <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Imp. Moneda
+                            Pago</th>
+                        <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Tipo Cambio
+                        </th>
+                        <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Cod.
+                            Autorizacion</th>
+                        <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Imp. Moneda
+                            Factura</th>
+                    </tr>
+                </thead>
+
+                <#list results.arrayPagosTarjetas as tarjeta>
+
+                    <#list tarjeta as infoPagosMultiples>
+                        <tr>
+                            <td align="left" colspan="5" line-height="150%">${infoPagosMultiples.formaPago}</td>
+                            <td align="center" colspan="5">${infoPagosMultiples.moneda}</td>
+                            <td align="center" colspan="5">${infoPagosMultiples.amount}</td>
+                            <td align="center" colspan="5">${infoPagosMultiples.tipoCambio}</td>
+                            <td align="center" colspan="5">${infoPagosMultiples.codAutorizacion}</td>
+                            <td align="center" colspan="5">${infoPagosMultiples.originAmount}</td>
+                        </tr>
+                        <!-- <tr>
+                            <td align="right">&nbsp;&nbsp;&nbsp;&nbsp;</td>
+                        </tr> -->
+                    </#list>
+
+                </#list>
+            </table>
+
+            <table class="itemtable" style="width: 100%; margin-top: 30px; border: 1px; border-color: #BDBDBD">
+                <thead>
+                    <tr>
+                        <td align="center" colspan="15"
+                            style="line-height: 20px; background-color: #E0E6EF; color: #262626;"><b><span>TOTAL
+                                    TARJETAS</span></b></td>
+                    </tr>
+                    <tr>
+                        <th align="center" colspan="5"
+                            style="line-height: 20px; background-color: #E0E6EF; color: #262626;">Moneda</th>
+                        <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Total Imp.
+                            Moneda Pago</th>
+                        <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Total Imp.
+                            Moneda Factura</th>
+                    </tr>
+                </thead>
+
+                <#list results.arrayCurrencyTarjetas as totales>
+
+                    <#list totales as infoTotales>
+                        <tr>
+                            <td align="center" colspan="5">${infoTotales.moneda}</td>
+                            <td align="center" colspan="5">${infoTotales.amount}</td>
+                            <td align="center" colspan="5">${infoTotales.originAmount}</td>
+                        </tr>
+                        <!-- <tr>
+                            <td align="right">&nbsp;&nbsp;&nbsp;&nbsp;</td>
+                        </tr> -->
+                    </#list>
+
+                </#list>
+            </table>
+        </#if>
+        <!-- end informacion pago tarjetas -->
+
+        <#if results.arrayPagosCartera?has_content>
+            <table class="itemtable" style="width: 100%; margin-top: 30px; border: 1px; border-color: #BDBDBD">
+                <thead>
+                    <tr>
+                        <td align="center" colspan="35" style="background-color: #E0E6EF; color: #262626;">
+                            <b><span>CHEQUES DE TERCEROS</span></b></td>
+                    </tr>
+                    <tr>
+                        <th align="center" colspan="5"
+                            style="line-height: 20px; background-color: #E0E6EF; color: #262626;">Forma Pago</th>
+                        <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Moneda</th>
+                        <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Imp. Moneda
+                            Pago</th>
+                        <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Tipo Cambio
+                        </th>
+                        <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Nro Cheque
+                        </th>
+                        <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Fecha Diferida
+                        </th>
+                        <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Imp. Moneda
+                            Factura</th>
+                    </tr>
+                </thead>
+
+                <#list results.arrayPagosCartera as cartera>
+
+                    <#list cartera as infoPagosMultiples>
+                        <tr>
+                            <td align="left" colspan="5" line-height="150%">${infoPagosMultiples.formaPago}</td>
+                            <td align="center" colspan="5">${infoPagosMultiples.moneda}</td>
+                            <td align="center" colspan="5">${infoPagosMultiples.amount}</td>
+                            <td align="center" colspan="5">${infoPagosMultiples.tipoCambio}</td>
+                            <td align="center" colspan="5">${infoPagosMultiples.nroCheque}</td>
+                            <td align="center" colspan="5">${infoPagosMultiples.fechaDiferida}</td>
+                            <td align="center" colspan="5">${infoPagosMultiples.originAmount}</td>
+                        </tr>
+                        <!-- <tr>
+                            <td align="right">&nbsp;&nbsp;&nbsp;&nbsp;</td>
+                        </tr> -->
+                    </#list>
+
+                </#list>
+            </table>
+
+            <table class="itemtable" style="width: 100%; margin-top: 30px; border: 1px; border-color: #BDBDBD">
+                <thead>
+                    <tr>
+                        <td align="center" colspan="15"
+                            style="line-height: 20px; background-color: #E0E6EF; color: #262626;"><b><span>TOTAL CHEQUES
+                                    DE TERCEROS</span></b></td>
+                    </tr>
+                    <tr>
+                        <th align="center" colspan="5"
+                            style="line-height: 20px; background-color: #E0E6EF; color: #262626;">Moneda</th>
+                        <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Total Imp.
+                            Moneda Pago</th>
+                        <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Total Imp.
+                            Moneda Factura</th>
+                    </tr>
+                </thead>
+
+                <#list results.arrayCurrencyCartera as totales>
+
+                    <#list totales as infoTotales>
+                        <tr>
+                            <td align="center" colspan="5">${infoTotales.moneda}</td>
+                            <td align="center" colspan="5">${infoTotales.amount}</td>
+                            <td align="center" colspan="5">${infoTotales.originAmount}</td>
+                        </tr>
+                        <!-- <tr>
+                            <td align="right">&nbsp;&nbsp;&nbsp;&nbsp;</td>
+                        </tr> -->
+                    </#list>
+
+                </#list>
+            </table>
+        </#if>
+        <!-- end informacion pago cartera cheques -->
+
+        <#if results.arrayPagosEfectivo?has_content>
+            <table class="itemtable" style="width: 100%; margin-top: 30px; border: 1px; border-color: #BDBDBD">
+                <thead>
+                    <tr>
+                        <td align="center" colspan="25" style="background-color: #E0E6EF; color: #262626;">
+                            <b><span>EFECTIVO</span></b></td>
+                    </tr>
+                    <tr>
+                        <th align="center" colspan="5"
+                            style="line-height: 20px; background-color: #E0E6EF; color: #262626;">Forma Pago</th>
+                        <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Moneda</th>
+                        <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Imp. Moneda
+                            Pago</th>
+                        <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Tipo Cambio
+                        </th>
+                        <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Imp. Moneda
+                            Factura</th>
+                    </tr>
+                </thead>
+
+                <#list results.arrayPagosEfectivo as efectivo>
+
+                    <#list efectivo as infoPagosMultiples>
+                        <tr>
+                            <td align="left" colspan="5" line-height="150%">${infoPagosMultiples.formaPago}</td>
+                            <td align="center" colspan="5">${infoPagosMultiples.moneda}</td>
+                            <td align="center" colspan="5">${infoPagosMultiples.amount}</td>
+                            <td align="center" colspan="5">${infoPagosMultiples.tipoCambio}</td>
+                            <td align="center" colspan="5">${infoPagosMultiples.originAmount}</td>
+                        </tr>
+                        <!-- <tr>
+                            <td align="right">&nbsp;&nbsp;&nbsp;&nbsp;</td>
+                        </tr> -->
+                    </#list>
+
+                </#list>
+            </table>
+
+            <table class="itemtable" style="width: 100%; margin-top: 30px; border: 1px; border-color: #BDBDBD">
+                <thead>
+                    <tr>
+                        <td align="center" colspan="15"
+                            style="line-height: 20px; background-color: #E0E6EF; color: #262626;"><b><span>TOTAL
+                                    EFECTIVO</span></b></td>
+                    </tr>
+                    <tr>
+                        <th align="center" colspan="5"
+                            style="line-height: 20px; background-color: #E0E6EF; color: #262626;">Moneda</th>
+                        <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Total Imp.
+                            Moneda Pago</th>
+                        <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Total Imp.
+                            Moneda Factura</th>
+                    </tr>
+                </thead>
+
+                <#list results.arrayCurrencyEfectivo as totales>
+
+                    <#list totales as infoTotales>
+                        <tr>
+                            <td align="center" colspan="5">${infoTotales.moneda}</td>
+                            <td align="center" colspan="5">${infoTotales.amount}</td>
+                            <td align="center" colspan="5">${infoTotales.originAmount}</td>
+                        </tr>
+                        <!-- <tr>
+                            <td align="right">&nbsp;&nbsp;&nbsp;&nbsp;</td>
+                        </tr> -->
+                    </#list>
+
+                </#list>
+            </table>
+        </#if>
+        <!-- end informacion pago efectivo -->
+
+        <#if infoPago.type !="vendpymt">
+            <#if results.arrayPagosRetenciones?has_content>
+                <table class="itemtable" style="width: 100%; margin-top: 30px; border: 1px; border-color: #BDBDBD">
+                    <thead>
+                        <tr>
+                            <td align="center" colspan="36" style="background-color: #E0E6EF; color: #262626;">
+                                <b><span>RETENCION</span></b></td>
+                        </tr>
+                        <tr>
+                            <th align="center" colspan="5"
+                                style="line-height: 20px; background-color: #E0E6EF; color: #262626;">Forma Pago</th>
+                            <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Moneda
+                            </th>
+                            <th align="center" colspan="4" style="background-color: #E0E6EF; color: #262626;">Imp.
+                                Moneda Pago</th>
+                            <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Tipo
+                                Cambio</th>
+                            <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Numero de
+                                Comprobante</th>
+                            <th align="center" colspan="7" style="background-color: #E0E6EF; color: #262626;">Fecha
+                                Comprobante</th>
+                            <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Imp.
+                                Moneda Factura</th>
+                        </tr>
+                    </thead>
+
+                    <#list results.arrayPagosRetenciones as retencion>
+
+                        <#list retencion as infoPagosMultiples>
+                            <tr>
+                                <td align="left" colspan="5" line-height="150%">${infoPagosMultiples.formaPago}</td>
+                                <td align="center" colspan="5">${infoPagosMultiples.moneda}</td>
+                                <td align="center" colspan="4">${infoPagosMultiples.amount}</td>
+                                <td align="center" colspan="5">${infoPagosMultiples.tipoCambio}</td>
+                                <td align="center" colspan="5">${infoPagosMultiples.nroComprobante}</td>
+                                <td align="center" colspan="7">${infoPagosMultiples.fechaComprobante}</td>
+                                <td align="center" colspan="5">${infoPagosMultiples.originAmount}</td>
+                            </tr>
+                            <!-- <tr>
+                                <td align="right">&nbsp;&nbsp;&nbsp;&nbsp;</td>
+                            </tr> -->
+                        </#list>
+
+                    </#list>
+                </table>
+
+                <table class="itemtable" style="width: 100%; margin-top: 30px; border: 1px; border-color: #BDBDBD">
+                    <thead>
+                        <tr>
+                            <td align="center" colspan="15"
+                                style="line-height: 20px; background-color: #E0E6EF; color: #262626;"><b><span>TOTAL
+                                        RETENCION</span></b></td>
+                        </tr>
+                        <tr>
+                            <th align="center" colspan="5"
+                                style="line-height: 20px; background-color: #E0E6EF; color: #262626;">Moneda</th>
+                            <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Total Imp.
+                                Moneda Pago</th>
+                            <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Total Imp.
+                                Moneda Factura</th>
+                        </tr>
+                    </thead>
+
+                    <#list results.arrayCurrencyRetenciones as totales>
+
+                        <#list totales as infoTotales>
+                            <tr>
+                                <td align="center" colspan="5">${infoTotales.moneda}</td>
+                                <td align="center" colspan="5">${infoTotales.amount}</td>
+                                <td align="center" colspan="5">${infoTotales.originAmount}</td>
+                            </tr>
+                            <!-- <tr>
+                                <td align="right">&nbsp;&nbsp;&nbsp;&nbsp;</td>
+                            </tr> -->
+                        </#list>
+
+                    </#list>
+                </table>
+            </#if>
+        </#if>
+        <!-- end informacion pago retencion -->
+
+        <#if infoPago.type=="vendpymt">
+            <#if results.arrayPagosChequesPropios?has_content>
+                <table class="itemtable" style="width: 100%; margin-top: 30px; border: 1px; border-color: #BDBDBD">
+                    <thead>
+                        <tr>
+                            <td align="center" colspan="35" style="background-color: #E0E6EF; color: #262626;">
+                                <b><span>CHEQUES PROPIOS</span></b></td>
+                        </tr>
+                        <tr>
+                            <th align="center" colspan="5"
+                                style="line-height: 20px; background-color: #E0E6EF; color: #262626;">Chequera</th>
+                            <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Moneda
+                            </th>
+                            <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Imp.
+                                Moneda Pago</th>
+                            <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Tipo
+                                Cambio</th>
+                            <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Nro Cheque
+                            </th>
+                            <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Fecha
+                                Diferida</th>
+                            <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Imp.
+                                Moneda Factura</th>
+                        </tr>
+                    </thead>
+
+                    <#list results.arrayPagosChequesPropios as chequespropios>
+
+                        <#list chequespropios as infoPagosMultiples>
+                            <tr>
+                                <td align="left" colspan="5" line-height="150%">${infoPagosMultiples.chequera}</td>
+                                <td align="center" colspan="5">${infoPagosMultiples.moneda}</td>
+                                <td align="center" colspan="5">${infoPagosMultiples.amount}</td>
+                                <td align="center" colspan="5">${infoPagosMultiples.tipoCambio}</td>
+                                <td align="center" colspan="5">${infoPagosMultiples.nroChequePropio}</td>
+                                <td align="center" colspan="5">${infoPagosMultiples.fechaVencimiento}</td>
+                                <td align="center" colspan="5">${infoPagosMultiples.originAmount}</td>
+                            </tr>
+                            <!-- <tr>
+                                <td align="right">&nbsp;&nbsp;&nbsp;&nbsp;</td>
+                            </tr> -->
+                        </#list>
+
+                    </#list>
+                </table>
+
+                <table class="itemtable" style="width: 100%; margin-top: 30px; border: 1px; border-color: #BDBDBD">
+                    <thead>
+                        <tr>
+                            <td align="center" colspan="15"
+                                style="line-height: 20px; background-color: #E0E6EF; color: #262626;"><b><span>TOTAL
+                                        CHEQUES PROPIOS</span></b></td>
+                        </tr>
+                        <tr>
+                            <th align="center" colspan="5"
+                                style="line-height: 20px; background-color: #E0E6EF; color: #262626;">Moneda</th>
+                            <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Total Imp.
+                                Moneda Pago</th>
+                            <th align="center" colspan="5" style="background-color: #E0E6EF; color: #262626;">Total Imp.
+                                Moneda Factura</th>
+                        </tr>
+                    </thead>
+
+                    <#list results.arrayCurrencyChequesPropios as totales>
+
+                        <#list totales as infoTotales>
+                            <tr>
+                                <td align="center" colspan="5">${infoTotales.moneda}</td>
+                                <td align="center" colspan="5">${infoTotales.amount}</td>
+                                <td align="center" colspan="5">${infoTotales.originAmount}</td>
+                            </tr>
+                            <!-- <tr>
+                                <td align="right">&nbsp;&nbsp;&nbsp;&nbsp;</td>
+                            </tr> -->
+                        </#list>
+
+                    </#list>
+                </table>
+            </#if>
+        </#if>
+        <!-- end informacion pago cheques propios -->
+
+        <#if resultsRetenciones?has_content>
+            <#list resultsRetenciones as retenciones>
+                <pbr />
+                <table border="0" style="width: 100%;">
+                    <tr>
+                        <td>&nbsp;</td>
+                    </tr>
+                    <tr style="background-color: #E0E6EF; color: #607799;">
+                        <td colspan="4"><b><span style="font-size:16px;">${retenciones.formulatext}</span></b></td>
+                    </tr>
+                    <tr>
+                        <td>&nbsp;</td>
+                    </tr>
+                    <tr>
+                        <td colspan="2"><b><span style="color: #6f6f6f;">Certificado nro: </span><span
+                                    style="color: #262626;">${retenciones.custrecord_l54_ret_numerador}</span></b></td>
+                        <td colspan="1"><b><span style="color: #6f6f6f;">O/P: </span><span
+                                    style="color: #262626;">${retenciones.custrecord_l54_ret_cod_pago_prov}</span></b>
+                        </td>
+                        <td colspan="1"><b><span style="color: #6f6f6f;">Fecha: </span><span
+                                    style="color: #262626;">${infoPago.trandate}</span></b></td>
+                    </tr>
+                    <tr>
+                        <td>&nbsp;</td>
+                    </tr>
+                    <tr style="background-color: #E0E6EF; color: #607799;">
+                        <td colspan="4"><b>A. - Datos del Agente de retención</b></td>
+                    </tr>
+                    <tr>
+                        <td colspan="2"><span style="color: #6f6f6f;">Apellido y Nombre o Denominación</span></td>
+                        <td><span style="color: #6f6f6f;">C.U.I.T. Nro</span></td>
+                        <td><span style="color: #6f6f6f;">Domicilio</span></td>
+                    </tr>
+                    <#if recSubsidiary.country?has_content>
+                        <tr>
+                            <td colspan="2"><span style="color: #262626;">${recSubsidiary.legalname}</span></td>
+                            <td><span style="color: #262626;">${recSubsidiary.federalidnumber}</span></td>
+                            <td><span style="color: #262626;">${recSubsidiary.mainaddress_text}</span></td>
+                        </tr>
+                        <#else>
+                            <tr>
+                                <td colspan="2"><span
+                                        style="color: #262626;">${recSubsidiary.custbody_l54_razon_social_prov}</span>
+                                </td>
+                                <td><span style="color: #262626;">${recSubsidiary.custbody_54_cuit_entity}</span></td>
+                                <td><span style="color: #262626;">${recSubsidiary.address}</span></td>
+                            </tr>
+                    </#if>
+                    <tr>
+                        <td>&nbsp;</td>
+                    </tr>
+
+                    <tr style="background-color: #E0E6EF; color: #607799;">
+                        <td colspan="4"><b>B. - Datos del Sujeto retenido</b></td>
+                    </tr>
+                    <tr>
+                        <td colspan="2"><span style="color: #6f6f6f;">Apellido y Nombre o Denominación</span></td>
+                        <td><span style="color: #6f6f6f;">C.U.I.T. Nro</span></td>
+                        <td><span style="color: #6f6f6f;">Domicilio</span></td>
+                    </tr>
+                    <tr>
+                        <td colspan="2"><span style="color: #262626;">${infoPago.entity}</span></td>
+                        <td><span style="color: #262626;">${infoPago.entity.custentity_l54_cuit_entity}</span></td>
+                        <td><span
+                                style="color: #262626;">${infoPago.address?replace(infoPago.custbody_l54_razon_social_prov,
+                                "")}</span></td>
+                    </tr>
+
+                    <!--<tr><td>Apellido y Nombre o Denominación: ${infoPago.entity}</td></tr>
+                    <tr><td>C.U.I.T. Nro: ${infoPago.entity.custentity_l54_cuit_entity}</td></tr>
+                    <tr><td>Domicilio: ${infoPago.address?replace(infoPago.custbody_l54_razon_social_prov, "")}</td></tr>
+                    <tr><td>&nbsp;</td></tr>	-->
+
+                    <#assign impuestos="">
+                        <#if retenciones.custrecord_l54_ret_res_iibb?has_content>
+                            <#assign impuestos=retenciones.custrecord_l54_ret_res_iibb>
+                                <#else>
+                                    <#if
+                                        retenciones.formulatext=="GANANCIAS – Retenciones Régimen General de Ganancias">
+                                        <#assign impuestos=resGan>
+                                    </#if>
+                                    <#if
+                                        retenciones.formulatext=="SUSS – Retenciones Régimen General de Seguridad Social y Obra Social">
+                                        <#assign impuestos=resSUSS>
+                                    </#if>
+                                    <#if retenciones.formulatext=="IVA – Retenciones Régimen IVA">
+                                        <#assign impuestos=resIva>
+                                    </#if>
+                                    <#if retenciones.formulatext=="IIBB - Retenciones Régimen IIBB">
+                                        <#assign impuestos=resIIBB>
+                                    </#if>
+                        </#if>
+
+                        <#assign total=infoPago.total * infoPago.exchangerate>
+                            <#assign base=retenciones.custrecord_l54_ret_base_calculo_imp * infoPago.exchangerate>
+                                <#assign importe=retenciones.custrecord_l54_ret_importe * infoPago.exchangerate>
+                                    <#assign alicuota=retenciones.custrecord_l54_ret_alicuota>
+                                        <tr style="background-color: #E0E6EF; color: #607799;">
+                                            <td colspan="4"><b>C. - Datos de la Retenciones practicadas</b></td>
+                                        </tr>
+
+                                        <tr>
+                                            <td colspan="2"><span style="color: #6f6f6f;">Concepto del pago</span></td>
+                                            <td><span style="color: #6f6f6f;">Código de régimen</span></td>
+                                            <td><span style="color: #6f6f6f;">Impuesto</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan="2"><span
+                                                    style="color: #262626;">${retenciones.custrecord_l54_ret_descrip_ret}</span>
+                                            </td>
+                                            <td><span
+                                                    style="color: #262626;">${retenciones.custrecord_l54_ret_codigo_regimen}</span>
+                                            </td>
+                                            <td><span style="color: #262626;">${impuestos}</span></td>
+                                        </tr>
+
+                                        <tr>
+                                            <td colspan="2"><span style="color: #6f6f6f;">Comprobante que origina la
+                                                    retención</span></td>
+                                            <td colspan="2"><span style="color: #6f6f6f;">Monto del comprobante que
+                                                    origina la retención:</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan="2"><span style="color: #262626;">${resultFacturasStr}</span>
+                                            </td>
+                                            <td><span style="color: #262626;">${total?string("#,##0.00")}</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td>&nbsp;</td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan="2"><span style="color: #6f6f6f;">Base de Cálculo</span></td>
+                                            <td><span style="color: #6f6f6f;">Alicuota</span></td>
+                                            <td><span style="color: #6f6f6f;">Monto de la retención</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan="2"><span
+                                                    style="color: #262626;">${base?string("#,##0.00")}</span></td>
+                                            <td><span style="color: #262626;">${alicuota}%</span></td>
+                                            <td><span style="color: #262626;">${importe?string("#,##0.00")}</span></td>
+                                        </tr>
+                                        <!--<tr><td>Concepto del pago: ${retenciones.custrecord_l54_ret_descrip_ret}</td></tr>
+                    <tr><td>Código de régimen: ${retenciones.custrecord_l54_ret_codigo_regimen}</td></tr>
+                    <tr><td>Impuesto: ${impuestos}</td></tr>-->
+                                        <!--<tr><td>Comprobante que origina la retención: ${resultFacturasStr}</td></tr>
+                    <tr><td>Monto del comprobante que origina la retención: ${total?string("#,##0.00")}</td></tr>-->
+                                        <!--<tr><td>Base de Cálculo: ${base?string("#,##0.00")}</td></tr>
+                    <tr><td>Alicuota: ${alicuota}</td></tr>
+                    <tr><td>Monto de la retención: ${importe?string("#,##0.00")}</td></tr>-->
+                                        <tr>
+                                            <td>&nbsp;</td>
+                                        </tr>
+                                        <tr>
+                                            <td>&nbsp;</td>
+                                        </tr>
+                                        <#if urlFirma !=''>
+                                            <tr>
+                                                <td><img src="${urlFirma}" width="${anchoFirma}"
+                                                        height="${alturaFirma}" /></td>
+                                            </tr>
+                                        </#if>
+                                        <tr>
+                                            <td>&nbsp;</td>
+                                        </tr>
+                                        <tr>
+                                            <td>.........................................</td>
+                                        </tr>
+                                        <tr>
+                                            <td font-size="7"> Por</td>
+                                        </tr>
+                </table>
+            </#list>
+        </#if>
+        <!--end withholding tax pages-->
+
+    </body>
+</pdf>

@@ -1,0 +1,675 @@
+<pdf>
+
+    <head>
+        <#if .locale=="ru_RU">
+            <link name="verdana" type="font" subtype="opentype" src="${nsfont.verdana}"
+                src-bold="${nsfont.verdana_bold}" bytes="2" />
+        </#if>
+        <macrolist>
+            <macro id="nlheader">
+                <!--Vars definition LOGO & SIGNATURE-->
+                <#assign urlLogo="">
+                    <#list recLogo as logo>
+                        <#assign urlLogo=logo.url>
+                    </#list>
+
+                    <#assign urlFirma=''>
+                        <#assign anchoFirma=60>
+                            <#assign anchoLogo=60>
+                                <#assign alturaFirma=30>
+                                    <#assign alturaLogo=25>
+
+                                        <#list datosImpositivos as datos>
+                                            <#assign resIva=datos.custrecord_l54_resol_ret_iva>
+                                                <#assign resGan=datos.custrecord_l54_resol_ret_ganancias>
+                                                    <#assign resIIBB=datos.custrecord_l54_resol_ret_iibb>
+                                                        <#assign resSUSS=datos.custrecord_l54_resol_ret_suss>
+                                                            <#assign urlFirma=datos.custrecord_l54_img_firma>
+
+                                                                <#if anchoFirma gt 0>
+                                                                    <#assign
+                                                                        anchoFirma=datos.custrecord_l54_ancho_firma>
+                                                                </#if>
+                                                                <#if anchoFirma gt 0>
+                                                                    <#assign anchoLogo=datos.custrecord_l54_ancho_logo>
+                                                                </#if>
+                                                                <#if anchoFirma gt 0>
+                                                                    <#assign
+                                                                        alturaFirma=datos.custrecord_l54_altura_firma>
+                                                                </#if>
+                                                                <#if anchoFirma gt 0>
+                                                                    <#assign
+                                                                        alturaLogo=datos.custrecord_l54_altura_logo>
+                                                                </#if>
+                                        </#list>
+                                        <!--end vars definitions-->
+            </macro>
+            <macro id="nlfooter">
+                <table class="footer" style="width: 100%;">
+                    <tr>
+                        <td align="right">
+                            <pagenumber /><span style="font-size: 12px;">&nbsp;de </span>
+                            <totalpages />
+                        </td>
+                    </tr>
+                </table>
+            </macro>
+        </macrolist>
+
+        <!--Styles-->
+        <style type="text/css">
+            table {
+                <#if .locale=="zh_CN">font-family: stsong, sans-serif;
+                <#elseif .locale=="zh_TW">font-family: msung, sans-serif;
+                <#elseif .locale=="ja_JP">font-family: heiseimin, sans-serif;
+                <#elseif .locale=="ko_KR">font-family: hygothic, sans-serif;
+                <#elseif .locale=="ru_RU">font-family: verdana;
+                <#else>font-family: sans-serif;
+                </#if>font-size: 9pt;
+                table-layout: fixed;
+            }
+
+            th {
+                font-weight: bold;
+                vertical-align: middle;
+                background-color: #E0E6EF;
+                color: black;
+            }
+
+            td {
+                padding: 4px 6px;
+            }
+
+            b {
+                font-weight: bold;
+                color: #333333;
+            }
+
+            table.header td {
+                padding: 0;
+                font-size: 10pt;
+            }
+
+            table.footer td {
+                padding: 0;
+                font-size: 8pt;
+            }
+
+            table.body td {
+                padding-top: 2px;
+            }
+
+            table.total {
+                page-break-inside: avoid;
+            }
+
+            tr.totalrow {
+                background-color: #AAAAAA;
+                line-height: 200%;
+            }
+
+            td.totalboxtop {
+                font-size: 12pt;
+                background-color: #AAAAAA;
+            }
+
+            td.addressheader {
+                font-size: 8pt;
+                padding-top: 6px;
+                padding-bottom: 2px;
+            }
+
+            td.address {
+                padding-top: 0;
+            }
+
+            td.totalboxmid {
+                font-size: 28pt;
+                padding-top: 20px;
+                background-color: #AAAAAA;
+            }
+
+            span.title {
+                font-size: 20pt;
+            }
+
+            span.number {
+                font-size: 16pt;
+            }
+
+            hr {
+                width: 100%;
+                color: #FFFFFF;
+                background-color: #AAAAAA;
+                height: 2px;
+            }
+
+            .no-wrap-cell {
+                white-space: nowrap;
+            }
+        </style><!--end style-->
+    </head>
+
+    <body header="nlheader" header-height="0%" footer="nlfooter" footer-height="10pt" padding="0.5in 0.5in 0.5in 0.5in"
+        size="Letter">
+
+        <table class="header" style="width: 100%;">
+            <tr>
+                <td colspan="2" rowspan="12"><img src="${urlLogo}" width="${anchoLogo}" height="${alturaLogo}" /></td>
+                <td align="center" valign="top" rowspan="12" colspan="5"><span class="title">Orden de Pago</span></td>
+            </tr>
+        </table>
+
+        <!--Primary Information vendrpayment-->
+        <table class="header" style="width: 100%; margin-top: 20px;">
+            <tr>
+                <#if recSubsidiary.country?has_content>
+                    <td align="left" rowspan="8" colspan="2">${recSubsidiary.mainaddress_text}</td>
+                    <#else>
+                        <td align="left" rowspan="8" colspan="2">${recSubsidiary.address}</td>
+                </#if>
+                <td></td>
+                <td align="left" colspan="2"><b><span style="color: #6f6f6f;">Fecha</span></b></td>
+                <td align="left">${infoPago.trandate}</td>
+                <td></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td align="left" colspan="2"><b><span style="color: #6f6f6f;">Número de Transacción</span></b></td>
+                <td align="left" colspan="2">${infoPago.transactionnumber}</td>
+                <td></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td align="left" colspan="2"><b><span style="color: #6f6f6f;">Nro Localizado</span></b></td>
+                <td align="left" colspan="2">${infoPago.custbody_l54_numero_localizado}</td>
+                <td></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td align="left" colspan="2"><b><span style="color: #6f6f6f;">Nota</span></b></td>
+                <td align="left" colspan="2">${infoPago.memo}</td>
+                <td></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td align="left" colspan="2"><b><span style="color: #6f6f6f;">Moneda</span></b></td>
+                <td align="left" colspan="2">${infoPago.currency}</td>
+                <td></td>
+            </tr>
+            <tr>
+                <td></td>
+                 <td align="left" colspan="2"><b><span style="color: #6f6f6f;">Tipo de Cambio</span></b></td>
+                 <td align="left" colspan="2">${infoPago.exchangerate}</td>
+                 <td></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td align="left" colspan="2"><b><span style="color: #6f6f6f;">Imp. a retener (Ganancias)</span></b></td>
+                <td align="left">${infoPago.custbody_l54_gan_imp_a_retener}</td>
+                <td></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td align="left" colspan="2"><b><span style="color: #6f6f6f;">Imp. a retener (IIBB)</span></b></td>
+                <td align="left"><span style="color: #262626;">${infoPago.custbody_l54_iibb_imp_a_retener}</span></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td align="left" colspan="2"><b><span style="color: #6f6f6f;">Imp. a retener (Municipal)</span></b></td>
+                <td align="left"><span style="color: #262626;">${infoPago.custbody_l54_municipal_imp_a_retener}</span></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td align="left" colspan="2"><b><span style="color: #6f6f6f;">Imp. a retener (SUSS)</span></b></td>
+                <td align="left">${infoPago.custbody_l54_suss_imp_a_retener}</td>
+                <td></td>
+            </tr>
+            <tr>
+                <td align="left" colspan="2" rowspan="5" style="padding-right:20px">
+                    <table class="itemtable" style="width: 100%; border: 1px; border-color: #BDBDBD">
+                        <thead>
+                            <tr>
+                                <th
+                                    style="padding-left:5px; line-height: 20px;background-color: #E0E6EF; color: #262626;">
+                                    Pagar a:</th>
+                            </tr>
+                            <tr>
+                                <td style="padding-left:5px; padding: 10px;">${infoPago.address}</td>
+                            </tr>
+                        </thead>
+                    </table>
+                </td>
+                <td></td>
+                <td align="left" colspan="2"><b><span style="color: #6f6f6f;">Imp. a retener (IVA)</span></b></td>
+                <td align="left"><span style="color: #262626;">${infoPago.custbody_l54_iva_imp_a_retener}</span></td>
+                <td></td>
+            </tr>
+            <!--  <tr>
+            <td align="left" colspan="2"><b><span style="color: #6f6f6f;">Imp. a retener (SUSS)</span></b></td>
+            <td align="left"><span style="color: #262626;">${infoPago.custbody_l54_suss_imp_a_retener}</span></td>
+            </tr>-->
+            <tr>
+                <td></td>
+                <td align="left" colspan="2"><b><span style="color: #6f6f6f;">Imp. total de Retención</span></b></td>
+                <td align="left"><span style="color: #262626;">${infoPago.custbody_l54_importe_total_retencion}</span>
+                </td>
+                <td></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td align="left" colspan="2"><b><span style="color: #6f6f6f;">Importe neto a abonar</span></b></td>
+                <td align="left"><span style="color: #262626;">${infoPago.custbody_l54_importe_neto_a_abonar}</span>
+                </td>
+                <td></td>
+            </tr>
+            <tr>
+                <td align="left" colspan="2">&nbsp;</td>
+            </tr>
+            <tr>
+                <td></td>
+                <td align="left"><b><span style="color: #6f6f6f;" colspan="2">Cuenta</span></b></td>
+                <td></td>
+                <td align="left" colspan="2"><span style="color: #262626;">${infoPago.account}</span></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td colspan="2"></td>
+                <td></td>
+                <td align="left" class="no-wrap-cell"><b><span style="color: #6f6f6f;" colspan="2">Forma de
+                            Pago</span></b></td>
+                <td align="left"><span style="color: #262626;">${infoPago.custbody_l54_tipo_pago}</span></td>
+                <td></td>
+            </tr>
+        </table><!--end primary information-->
+
+
+
+        <main>
+        </main>
+
+        <!--Total amount applied-->
+        <table class="total" style="width: 100%; margin-top: 10px;">
+            <tr class="totalrow" style="background-color: #E0E6EF">
+                <td background-color="#ffffff" colspan="4">&nbsp;</td>
+                <td align="right"><b>Importe Total</b></td>
+                <td align="right">${infoPago.total}</td>
+            </tr>
+        </table>
+        <!--end total amount applied-->
+
+
+        <!--Withholding tax pages-->
+
+        <#if resultsRetenciones?has_content>
+            <#list resultsRetenciones as retenciones>
+                <pbr />
+                <table border="0" style="width: 100%;">
+                    <#if urlLogo !=''>
+                        <tr>
+                            <td><img src="${urlLogo}" width="${anchoLogo}" height="${alturaLogo}" /></td>
+                        </tr>
+                    </#if>
+                    <tr>
+                        <td>&nbsp;</td>
+                    </tr>
+                    <tr style="background-color: #E0E6EF; color: #607799;">
+                        <td colspan="4"><b><span style="font-size:16px;">${retenciones.formulatext}</span></b></td>
+                    </tr>
+                    <tr>
+                        <td>&nbsp;</td>
+                    </tr>
+                    <tr>
+                        <td colspan="2"><b><span style="color: #6f6f6f;">Certificado nro: </span><span
+                                    style="color: #262626;">${retenciones.custrecord_l54_ret_numerador}</span></b>
+                        </td>
+                        <td colspan="1"><b><span style="color: #6f6f6f;">O/P: </span><span
+                                    style="color: #262626;">${retenciones.custrecord_l54_ret_cod_pago_prov}</span></b>
+                        </td>
+                        <td colspan="1"><b><span style="color: #6f6f6f;">Fecha: </span><span
+                                    style="color: #262626;">${infoPago.trandate}</span></b></td>
+                    </tr>
+                    <tr>
+                        <td>&nbsp;</td>
+                    </tr>
+                    <tr style="background-color: #E0E6EF; color: #607799;">
+                        <td colspan="4"><b>A. - Datos del Agente de retención</b></td>
+                    </tr>
+                    <tr>
+                        <td colspan="2"><span style="color: #6f6f6f;">Apellido y Nombre o Denominación</span></td>
+                        <td><span style="color: #6f6f6f;">C.U.I.T. Nro</span></td>
+                        <td><span style="color: #6f6f6f;">Domicilio</span></td>
+                    </tr>
+                    <#if recSubsidiary.country?has_content>
+                        <tr>
+                            <td colspan="2"><span style="color: #262626;">${recSubsidiary.legalname}</span></td>
+                            <td><span style="color: #262626;">${recSubsidiary.federalidnumber}</span></td>
+                            <td><span style="color: #262626;">${recSubsidiary.mainaddress_text}</span></td>
+                        </tr>
+                        <#else>
+                            <tr>
+                                <td colspan="2"><span
+                                        style="color: #262626;">${recSubsidiary.custbody_l54_razon_social_prov}</span>
+                                </td>
+                                <td><span style="color: #262626;">${recSubsidiary.custbody_54_cuit_entity}</span>
+                                </td>
+                                <td><span style="color: #262626;">${recSubsidiary.address}</span></td>
+                            </tr>
+                    </#if>
+                    <tr>
+                        <td>&nbsp;</td>
+                    </tr>
+
+                    <tr style="background-color: #E0E6EF; color: #607799;">
+                        <td colspan="4"><b>B. - Datos del Sujeto retenido</b></td>
+                    </tr>
+                    <tr>
+                        <td colspan="2"><span style="color: #6f6f6f;">Apellido y Nombre o Denominación</span></td>
+                        <td><span style="color: #6f6f6f;">C.U.I.T. Nro</span></td>
+                        <td><span style="color: #6f6f6f;">Domicilio</span></td>
+                    </tr>
+                    <tr>
+                        <td colspan="2"><span style="color: #262626;">${infoPago.entity}</span></td>
+                        <td><span style="color: #262626;">${infoPago.entity.custentity_l54_cuit_entity}</span></td>
+                        <td><span
+                                style="color: #262626;">${infoPago.address?replace(infoPago.custbody_l54_razon_social_prov,
+                                "")}</span></td>
+                    </tr>
+
+                    <!--<tr><td>Apellido y Nombre o Denominación: ${infoPago.entity}</td></tr>
+                    <tr><td>C.U.I.T. Nro: ${infoPago.entity.custentity_l54_cuit_entity}</td></tr>
+                    <tr><td>Domicilio: ${infoPago.address?replace(infoPago.custbody_l54_razon_social_prov, "")}</td></tr>
+                    <tr><td>&nbsp;</td></tr>    -->
+
+                    <#assign impuestos="">
+                        <#if retenciones.custrecord_l54_ret_res_iibb?has_content>
+                            <#assign impuestos=retenciones.custrecord_l54_ret_res_iibb>
+                                <#else>
+                                    <#if
+                                        retenciones.formulatext=="GANANCIAS – Retenciones Régimen General de Ganancias">
+                                        <#assign impuestos=resGan>
+                                    </#if>
+                                    <#if
+                                        retenciones.formulatext=="SUSS – Retenciones Régimen General de Seguridad Social y Obra Social">
+                                        <#assign impuestos=resSUSS>
+                                    </#if>
+                                    <#if retenciones.formulatext=="IVA – Retenciones Régimen IVA">
+                                        <#assign impuestos=resIVA>
+                                    </#if>
+                                    <#if retenciones.formulatext=="IIBB - Retenciones Régimen IIBB">
+                                        <#assign impuestos=resIIBB>
+                                    </#if>
+                                    <#if retenciones.formulatext=="Retención Municipal">
+                                        <#assign impuestos=resIIBB>
+                                    </#if>
+                        </#if>
+
+                        <#assign total=infoPago.total * infoPago.exchangerate>
+                            <#assign base=retenciones.formulanumeric>
+                                <#assign importe=retenciones.custrecord_l54_ret_importe * infoPago.exchangerate>
+                                    <#assign alicuota=retenciones.custrecord_l54_ret_alicuota>
+                                        <tr style="background-color: #E0E6EF; color: #607799;">
+                                            <td colspan="4"><b>C. - Datos de la Retenciones practicadas</b></td>
+                                        </tr>
+
+                                        <tr>
+                                            <td colspan="2"><span style="color: #6f6f6f;">Concepto del pago</span>
+                                            </td>
+                                            <td><span style="color: #6f6f6f;">Código de régimen</span></td>
+                                            <td><span style="color: #6f6f6f;">Impuesto</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan="2"><span
+                                                    style="color: #262626;">${retenciones.custrecord_l54_ret_descrip_ret}</span>
+                                            </td>
+                                            <td><span
+                                                    style="color: #262626;">${retenciones.custrecord_l54_ret_codigo_regimen}</span>
+                                            </td>
+                                            <td><span style="color: #262626;">${impuestos}</span></td>
+                                        </tr>
+
+                                        <tr>
+                                            <td colspan="2"><span style="color: #6f6f6f;">Comprobante que origina la
+                                                    retención</span></td>
+                                            <td colspan="2"><span style="color: #6f6f6f;">Monto del comprobante que
+                                                    origina la retención:</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan="2"><span style="color: #262626;">${resultFacturasStr}</span>
+                                            </td>
+                                            <td><span style="color: #262626;">${total?string("$#,##0.00")}</span>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>&nbsp;</td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan="2"><span style="color: #6f6f6f;">Base de Cálculo</span>
+                                            </td>
+                                            <td><span style="color: #6f6f6f;">Alicuota</span></td>
+                                            <td><span style="color: #6f6f6f;">Monto de la retención</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td colspan="2"><span
+                                                    style="color: #262626;">${base?string("$#,##0.00")}</span></td>
+                                            <td><span style="color: #262626;">${alicuota}%</span></td>
+                                            <td><span style="color: #262626;">${importe?string("$#,##0.00")}</span>
+                                            </td>
+                                        </tr>
+                                        <!--<tr><td>Concepto del pago: ${retenciones.custrecord_l54_ret_descrip_ret}</td></tr>
+                    <tr><td>Código de régimen: ${retenciones.custrecord_l54_ret_codigo_regimen}</td></tr>
+                    <tr><td>Impuesto: ${impuestos}</td></tr>-->
+                                        <!--<tr><td>Comprobante que origina la retención: ${resultFacturasStr}</td></tr>
+                    <tr><td>Monto del comprobante que origina la retención: ${total?string("$#,##0.00")}</td></tr>-->
+                                        <!--<tr><td>Base de Cálculo: ${base?string("$#,##0.00")}</td></tr>
+                    <tr><td>Alicuota: ${alicuota}</td></tr>
+                    <tr><td>Monto de la retención: ${importe?string("$#,##0.00")}</td></tr>-->
+                                        <tr>
+                                            <td>&nbsp;</td>
+                                        </tr>
+                                        <tr>
+                                            <td>&nbsp;</td>
+                                        </tr>
+                                        <#if urlFirma !=''>
+                                            <tr>
+                                                <td><img src="${urlFirma}" width="${anchoFirma}"
+                                                        height="${alturaFirma}" /></td>
+                                            </tr>
+                                        </#if>
+                                        <!--    <tr><td>&nbsp;</td></tr> -->
+                                        <tr>
+                                            <td>..............................................</td>
+                                        </tr>
+                                        <tr>
+                                            <td font-size="7"> Por</td>
+                                        </tr>
+                </table>
+            </#list>
+        </#if><!--end withholding tax pages-->
+
+
+        <!-- RETENCIONES ANULADAS -->
+        <#if resultsRetenciones?has_content>
+        <#list resultsRetenciones as retenciones>
+        <#if retenciones.custrecord_l54_ret_ref_anul.custrecord_l54_anul_ret_numerador?has_content || retenciones.custrecord_l54_ret_ref_anul.custrecord_l54_anul_ret_fecha?has_content>
+        <pbr />
+        <table border="0" style="width: 100%;">
+            <#if urlLogo !=''>
+                <tr>
+                    <td><img src="${urlLogo}" width="${anchoLogo}" height="${alturaLogo}" /></td>
+                </tr>
+            </#if>
+            <tr>
+                <td>&nbsp;</td>
+            </tr>
+            <tr style="background-color: #E0E6EF; color: #607799;">
+                <td colspan="4"><b><span style="font-size:16px;">${retenciones.formulatext} - Anulación</span></b></td>
+            </tr>
+            <tr>
+                <td>&nbsp;</td>
+            </tr>
+            <tr>
+                <td colspan="2"><b><span style="color: #6f6f6f;">Certificado anulación nro: </span><span 
+                            style="color: #262626;">${retenciones.custrecord_l54_ret_ref_anul.custrecord_l54_anul_ret_numerador}</span></b>
+                </td>
+                <td colspan="1"><b><span style="color: #6f6f6f;">O/P: </span><span
+                            style="color: #262626;">${retenciones.custrecord_l54_ret_cod_pago_prov}</span></b>
+                </td>
+                <td colspan="1"><b><span style="color: #6f6f6f;">Fecha anulación: </span><span
+                            style="color: #262626;">${retenciones.custrecord_l54_ret_ref_anul.custrecord_l54_anul_ret_fecha}</span></b></td>
+            </tr>
+            <tr>
+                <td>&nbsp;</td>
+            </tr>
+            <tr style="background-color: #E0E6EF; color: #607799;">
+                <td colspan="4"><b>A. - Datos del Agente de retención</b></td>
+            </tr>
+            <tr>
+                <td colspan="2"><span style="color: #6f6f6f;">Apellido y Nombre o Denominación</span></td>
+                <td><span style="color: #6f6f6f;">C.U.I.T. Nro</span></td>
+                <td><span style="color: #6f6f6f;">Domicilio</span></td>
+            </tr>
+            <#if recSubsidiary.country?has_content>
+                <tr>
+                    <td colspan="2"><span style="color: #262626;">${recSubsidiary.legalname}</span></td>
+                    <td><span style="color: #262626;">${recSubsidiary.federalidnumber}</span></td>
+                    <td><span style="color: #262626;">${recSubsidiary.mainaddress_text}</span></td>
+                </tr>
+                <#else>
+                    <tr>
+                        <td colspan="2"><span
+                                style="color: #262626;">${recSubsidiary.custbody_l54_razon_social_prov}</span>
+                        </td>
+                        <td><span style="color: #262626;">${recSubsidiary.custbody_54_cuit_entity}</span>
+                        </td>
+                        <td><span style="color: #262626;">${recSubsidiary.address}</span></td>
+                    </tr>
+            </#if>
+            <tr>
+                <td>&nbsp;</td>
+            </tr>
+
+            <tr style="background-color: #E0E6EF; color: #607799;">
+                <td colspan="4"><b>B. - Datos del Sujeto retenido</b></td>
+            </tr>
+            <tr>
+                <td colspan="2"><span style="color: #6f6f6f;">Apellido y Nombre o Denominación</span></td>
+                <td><span style="color: #6f6f6f;">C.U.I.T. Nro</span></td>
+                <td><span style="color: #6f6f6f;">Domicilio</span></td>
+            </tr>
+            <tr>
+                <td colspan="2"><span style="color: #262626;">${infoPago.entity}</span></td>
+                <td><span style="color: #262626;">${infoPago.entity.custentity_l54_cuit_entity}</span></td>
+                <td><span
+                        style="color: #262626;">${infoPago.address?replace(infoPago.custbody_l54_razon_social_prov,
+                        "")}</span></td>
+            </tr>
+            <#assign impuestos="">
+                <#if retenciones.custrecord_l54_ret_res_iibb?has_content>
+                    <#assign impuestos=retenciones.custrecord_l54_ret_res_iibb>
+                        <#else>
+                            <#if
+                                retenciones.formulatext=="GANANCIAS – Retenciones Régimen General de Ganancias">
+                                <#assign impuestos=resGan>
+                            </#if>
+                            <#if
+                                retenciones.formulatext=="SUSS – Retenciones Régimen General de Seguridad Social y Obra Social">
+                                <#assign impuestos=resSUSS>
+                            </#if>
+                            <#if retenciones.formulatext=="IVA – Retenciones Régimen IVA">
+                                <#assign impuestos=resIVA>
+                            </#if>
+                            <#if retenciones.formulatext=="IIBB - Retenciones Régimen IIBB">
+                                <#assign impuestos=resIIBB>
+                            </#if>
+                            <#if retenciones.formulatext=="Retención Municipal">
+                                <#assign impuestos=resIIBB>
+                            </#if>
+                </#if>
+
+                <#assign total=infoPago.total * infoPago.exchangerate>
+                    <#assign base=retenciones.formulanumeric>
+                        <#assign importe=retenciones.custrecord_l54_ret_importe * infoPago.exchangerate>
+                            <#assign alicuota=retenciones.custrecord_l54_ret_alicuota>
+                                <tr style="background-color: #E0E6EF; color: #607799;">
+                                    <td colspan="4"><b>C. - Datos de la Retenciones practicadas</b></td>
+                                </tr>
+
+                                <tr>
+                                    <td colspan="2"><span style="color: #6f6f6f;">Concepto del pago</span>
+                                    </td>
+                                    <td><span style="color: #6f6f6f;">Código de régimen</span></td>
+                                    <td><span style="color: #6f6f6f;">Impuesto</span></td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2"><span
+                                            style="color: #262626;">${retenciones.custrecord_l54_ret_descrip_ret}</span>
+                                    </td>
+                                    <td><span
+                                            style="color: #262626;">${retenciones.custrecord_l54_ret_codigo_regimen}</span>
+                                    </td>
+                                    <td><span style="color: #262626;">${impuestos}</span></td>
+                                </tr>
+
+                                <tr>
+                                    <td colspan="2"><span style="color: #6f6f6f;">Comprobante que origina la
+                                            retención</span></td>
+                                    <td colspan="2"><span style="color: #6f6f6f;">Monto del comprobante que
+                                            origina la retención:</span></td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2"><span style="color: #262626;">${resultFacturasStr}</span>
+                                    </td>
+                                    <td><span style="color: #262626;">${total?string("$#,##0.00")}</span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>&nbsp;</td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2"><span style="color: #6f6f6f;">Base de Cálculo</span>
+                                    </td>
+                                    <td><span style="color: #6f6f6f;">Alicuota</span></td>
+                                    <td><span style="color: #6f6f6f;">Monto de la retención</span></td>
+                                </tr>
+                                <tr>
+                                    <td colspan="2"><span
+                                            style="color: #262626;">${base?string("$#,##0.00")}</span></td>
+                                    <td><span style="color: #262626;">${alicuota}%</span></td>
+                                    <td><span style="color: #262626;">${importe?string("$#,##0.00")}</span>
+                                    </td>
+                                </tr>
+
+                                <tr>
+                                    <td>&nbsp;</td>
+                                </tr>
+                                <tr>
+                                    <td>&nbsp;</td>
+                                </tr>
+                                <#if urlFirma !=''>
+                                    <tr>
+                                        <td><img src="${urlFirma}" width="${anchoFirma}"
+                                                height="${alturaFirma}" /></td>
+                                    </tr>
+                                </#if>
+                                <tr>
+                                    <td>..............................................</td>
+                                </tr>
+                                <tr>
+                                    <td font-size="7"> Por</td>
+                                </tr>
+        </table>
+        </#if>
+        </#list>
+    </#if>
+    <!-- FIN RETENCIONES ANULADAS -->
+
+
+    </body>
+</pdf>
