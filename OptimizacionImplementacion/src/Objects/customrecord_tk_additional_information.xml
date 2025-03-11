@@ -54,6 +54,7 @@
       <displaytype>NORMAL</displaytype>
       <displaywidth></displaywidth>
       <dynamicdefault></dynamicdefault>
+      <enabletextenhance>F</enabletextenhance>
       <encryptatrest>F</encryptatrest>
       <fieldtype>SELECT</fieldtype>
       <globalsearch>F</globalsearch>
@@ -93,6 +94,7 @@
       <displaytype>NORMAL</displaytype>
       <displaywidth></displaywidth>
       <dynamicdefault></dynamicdefault>
+      <enabletextenhance>F</enabletextenhance>
       <encryptatrest>F</encryptatrest>
       <fieldtype>TEXTAREA</fieldtype>
       <globalsearch>F</globalsearch>
@@ -120,4 +122,16 @@
       <subtab></subtab>
     </customrecordcustomfield>
   </customrecordcustomfields>
+  <instances>
+    <instance scriptid="val_71034_td2936643_383">
+      <custrecord_tk_additional_information_cou>11</custrecord_tk_additional_information_cou>
+      <custrecord_tk_additional_information_jso>{&quot;siglas&quot;: [&quot;AR&quot;, &quot;ARG&quot;, &quot;L54&quot;], &quot;scriptid&quot;: [&quot;_l54_&quot;], &quot;scripts&quot;:[&quot;customscript_datos_domicilio&quot;, &quot;customscript_3k_txt_pagos_santander_suit&quot;, &quot;customscript_3k_guid_password_generator&quot;, &quot;customscript_3k_fec_venc_fact&quot;], &quot;records&quot;:[&quot;customrecord_chequera_arg&quot;, &quot;customrecord_54_sic_codigo_regimenes&quot;, &quot;customrecord_54_iva_codigo_regimenes&quot;, &quot;customrecord_3k_txt_pagos_std_num_envio&quot;, &quot;customrecord_3k_txt_pagos_std_log_header&quot;, &quot;customrecord_3k_txt_pagos_std_log_detail&quot;, &quot;customrecord_3k_txt_pagos_std_forma&quot;, &quot;customrecord_3k_txt_pagos_std_conf&quot;, &quot;customrecord_3k_txt_pagos_std_canal&quot;, &quot;customrecord_3k_txt_pagos_std_c_prod&quot;, &quot;customrecord_3k_tipos_serv_middleware&quot;, &quot;customrecord_3k_tipos_estados&quot;, &quot;customrecord_3k_tipos_errores&quot;, &quot;customrecord_3k_tarjeta&quot;, &quot;customrecord_3k_panel_conf_imp_int&quot;, &quot;customrecord_3k_origen_estado_log&quot;, &quot;customrecord_3k_middl_log&quot;, &quot;customrecord_3k_middl_detalle_log&quot;, &quot;customrecord_3k_guia_transporte&quot;, &quot;customrecord_3k_generador_libro_iva&quot;, &quot;customrecord_3k_est_proc_txt_pagos_std&quot;, &quot;customrecord_3k_det_guia_transp&quot;, &quot;customrecord_3k_concepto_transaccion&quot;],&quot;tag&quot;:&quot;AR&quot;, &quot;custom&quot;:&quot;L54 - Argentina Automatico&quot;}</custrecord_tk_additional_information_jso>
+      <isinactive>F</isinactive>
+    </instance>
+    <instance scriptid="val_71036_td2936643_628">
+      <custrecord_tk_additional_information_cou>231</custrecord_tk_additional_information_cou>
+      <custrecord_tk_additional_information_jso>{&quot;siglas&quot;: [&quot;UY&quot;, &quot;URU&quot;], &quot;scriptid&quot;: [&quot;_l598_&quot;], &quot;scripts&quot;:[&quot;&quot;], &quot;records&quot;:[&quot;&quot;]}</custrecord_tk_additional_information_jso>
+      <isinactive>F</isinactive>
+    </instance>
+  </instances>
 </customrecordtype>
