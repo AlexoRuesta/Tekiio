@@ -410,6 +410,23 @@
                                     </#if>
                         </#if>
 
+                        <#assign resultFacturasStr = "">
+                        <#assign tranidAnt = "">
+                        <#assign inicio = 1>
+                        <#list resultsFacturas as facturasPagas>
+                            <#if inicio != 1>
+                                <#if facturasPagas.tranid != tranidAnt>
+                                    <#assign resultFacturasStr = tranidAnt + "|" + resultFacturasStr>
+                                    <#assign tranidAnt = facturasPagas.tranid>
+                                </#if>
+                            <#else>
+                                <#assign inicio = 0>
+                                <#assign tranidAnt = facturasPagas.tranid>
+                            </#if>
+                        </#list>
+                        <#assign resultFacturasStr = tranidAnt + "|" + resultFacturasStr>
+                        <#assign resultFacturasStr =  resultFacturasStr?keep_before_last("|") >
+
                         <#assign total=infoPago.total * infoPago.exchangerate>
                             <#assign base=retenciones.formulanumeric>
                                 <#assign importe=retenciones.custrecord_l54_ret_importe * infoPago.exchangerate>

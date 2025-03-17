@@ -1,467 +1,705 @@
-<pdf>
-<head>
-    <#if .locale == "ru_RU">
-        <link name="verdana" type="font" subtype="opentype" src="${nsfont.verdana}" src-bold="${nsfont.verdana_bold}" bytes="2" />
-    </#if>
-    <macrolist>
-        <macro id="nlheader">
-            <!--Vars definition LOGO & SIGNATURE-->
-            <#assign urlLogo = "">  
-            <#list recLogo as logo>
-                <#assign urlLogo = logo.url>
-            </#list>
-
-            <#assign urlFirma = ''> 
-            <#assign anchoFirma = 60>
-            <#assign anchoLogo = 60>
-            <#assign alturaFirma = 30>
-            <#assign alturaLogo = 20>
+/**
+ * @NApiVersion 2.1
+ * @NAmdConfig /SuiteScripts/configuration.json
+ * @NScriptType ScheduledScript
+ * @NModuleScope Public
+ */
+define([
+    "N/https",
+    "N/http",
+    "N/file",
+    "N/xml",
+    "N/task",
+    "N/runtime",
+    "N/format",
+    "L54/utilidades",
+    "N/email",
+  ], function (https, http, file, xml, task, runtime, format, utilidades, email) {
+    /* global define log */
+    /**
+     * Definition of the Scheduled script trigger point.
+     *
+     * @param {Object} scriptContext
+     * @param {string} scriptContext.type - The context in which the script is executed. It is one of the values from the scriptContext.InvocationType enum.
+     * @Since 2015.2
+     */
+    function execute(scriptContext) {
+      const proceso = "execute - Tipo de Cambio BNA (Scheduled)";
+      const error = false;
+      let mensaje = "";
+  
+      try {
+        log.debug(proceso, "INICIO - obtencion de TC en el BNA");
+  
+        //Retrieve array of objects
+        const currentScript = runtime.getCurrentScript();
+        const params = JSON.parse(
+          currentScript.getParameter("custscript_l54_params_monedas")
+        );
+        log.debug(proceso, "params: " + JSON.stringify(params));
+  
+        if (utilidades.isEmpty(params)) {
+  
+            const config = obtenerConfiguracionBNA();
+            let emailEmployee = "";
+            let idEmployee = "";
+  
+            if (!config.error) {
+              const urlservicio = config.config.urlservicio;
+              const monedas = config.monedas;
+              const consulta = consultarServicioBNA(urlservicio, monedas);
+              const idCarpeta = config.config.idCarpeta;
+              emailEmployee = config.config.emailEmployee;
+              idEmployee = config.config.idEmployee;
+  
+              if (!consulta.error) {
+                const monedasActualizar = consulta.monedasActualizar;
+                log.debug(
+                  proceso,
+                  "monedasActualizar: " + JSON.stringify(monedasActualizar)
+                );
+                const update = actualizarMonedaNetsuite(monedasActualizar);
+                if (update.error) {
+                  mensaje = update.mensaje;
+                  log.debug(proceso, "LINE 54 -  " + update.mensaje);
+                } else if (!update.error && !utilidades.isEmpty(update.mensaje)) {
+                  mensaje = update.mensaje;
+                  log.debug(proceso, "LINE 57 - " + mensaje);
+                }
+              } else {
+                mensaje = consulta.mensaje;
+                log.error(proceso, "LINE 61 - " + mensaje);
+              }
+            } else {
+              mensaje = config.mensaje;
+              log.error(proceso, "LINE 65 - " + mensaje);
+            }
+  
+            sendEmailEmployee(mensaje, idEmployee);
+  
+        } else {
+          /*
+           * ScheduledScript was excuted from a SuitletScript process.
+           * Retrieve array of objects with currencies info
+           */
+          var monedasActualizar = params.monedasActualizar;
+          const idCarpeta = params.idCarpeta;
+          const idEmployee = params.idEmployee;
+  
+          if (monedasActualizar.length > 0) {
+            const update = actualizarMonedaNetsuite(monedasActualizar);
+            if (update.error) {
+              mensaje = update.mensaje;
+              log.debug(proceso, "LINE 94 -  " + update.mensaje);
+            } else if (!update.error && !utilidades.isEmpty(update.mensaje)) {
+              mensaje = update.mensaje;
+              log.debug(proceso, "LINE 97 - " + mensaje);
+            }
+  
+            sendEmailEmployee(mensaje, idEmployee);
+          }
+        }
+        log.debug(proceso, "FIN - obtencion de TC en el BNA");
+      } catch (e) {
+        log.error(
+          proceso,
+          "Error NetSuite Excepcion - execute function - Detalles: " + e.message
+        );
+      }
+    }
+  
+    /**
+     * @param {string}   mensaje          Message to email
+     * @param {integer}   idEmployee       Employee Email
+     */
+    function sendEmailEmployee(mensaje, idEmployee) {
+      const proceso = "sendEmailEmployee";
+  
+      try {
+        log.debug(
+          proceso,
+          "idEmployee: " + idEmployee + " - mensaje: " + mensaje
+        );
+        let mensajeBody = "Buen día estimado/a, esperamos que esté bien,\n \n A continuación le enviamos los resultados de la importación CSV en NetSuite de los tipos de cambios de las monedas según el BNA: \n \n";
+  
+        if (!utilidades.isEmpty(idEmployee)) {
+          mensajeBody += mensaje + "\n";
+          mensajeBody +=
+            "Adicionalmente, se recomienda la revisión de la importación realizada y la verificación del correcto tipo de cambio en NetSuite según el BNA. \n \n";
+          mensajeBody += "Que tenga felíz día, saludos cordiales, \n Tekiio.";
+  
+          email.send({
+            author: idEmployee,
+            recipients: idEmployee,
+            subject: "LOC ARG - Actualización de Tipos de Cambio de Monedas en NetSuite según el BNA",
+            body: mensajeBody,
+          });
+  
+          log.debug(proceso, "Email enviado con exito, fin del proceso.");
+        } else {
+          log.error(
+            proceso,
+            "Error, no se encuentra configurado el email del empleado, por lo tanto no se enviará notificación al culminar el proceso."
+          );
+        }
+      } catch (error) {
+        log.error(
+          proceso,
+          "Error NetSuite Excepcion al enviar Email - sendEmailEmployee - Detalles: " +
+          error.message
+        );
+      }
+    }
+  
+  
+    /**
+     * @return {object}  return             An object with the following properties:
+     * @return {array}   return.monedas     An array of objects with all available currencies for the service
+     * @return {object}  return.config      An object containing the config (urlservicio)
+     * @return {boolean} return.error       True on error
+     * @return {string}  return.mensaje     An error message if there is any
+     */
+    function obtenerConfiguracionBNA() {
+      const response = { error: false, mensaje: "" };
+      const proceso = "obtenerConfiguracionBNA";
+  
+      try {
+        // INICIO Consultar URL Servicio
+        const objResultSet = utilidades.searchSavedPro(
+          "customsearch_l54_config_tc_bna",
+          null
+        );
+  
+        if (objResultSet.error) {
+          response.error = true;
+          response.mensaje =
+            "Ocurrió un error al consultar el SS de Configuracion de Tipos de Cambio BNA - Detalles: " +
+            objResultSet.descripcion;
+          return response;
+        }
+  
+        const resultSet = objResultSet.objRsponseFunction.result;
+        const resultSearch = objResultSet.objRsponseFunction.search;
+  
+        if (!utilidades.isEmpty(resultSet) && resultSet.length > 0) {
+          const config = {
+            urlservicio: "",
+            monedaBase: "",
+            idCarpeta: "",
+            emailEmployee: "",
+            idEmployee: "",
+          };
+          const codigosMonedas = [];
+  
+          for (let i = 0; !utilidades.isEmpty(resultSet) && i < resultSet.length; i++) {
+            config.urlservicio = resultSet[i].getValue({
+              name: resultSearch.columns[1],
+            });
+            config.monedaBase = resultSet[i].getValue({
+              name: resultSearch.columns[2],
+            });
+            config.idCarpeta = resultSet[i].getValue({
+              name: resultSearch.columns[6],
+            });
+            config.idEmployee = resultSet[i].getValue({
+              name: resultSearch.columns[7],
+            });
+            config.emailEmployee = resultSet[i].getValue({
+              name: resultSearch.columns[8],
+            });
+  
+            const infoCodigoMoneda = {};
+            infoCodigoMoneda.monedaBase = config.monedaBase;
+            infoCodigoMoneda.idMonedaConsultarBNA = resultSet[i].getValue({
+              name: resultSearch.columns[3],
+            });
+            infoCodigoMoneda.nombreTagHTML = resultSet[i].getValue({
+              name: resultSearch.columns[4],
+            });
+            infoCodigoMoneda.consultarEnBNA = resultSet[i].getValue({
+              name: resultSearch.columns[5],
+            });
+            infoCodigoMoneda.idContenedorHtml = resultSet[i].getValue({
+              name: resultSearch.columns[9],
+            });
+            infoCodigoMoneda.aplicarInverso = resultSet[i].getValue({ name: resultSearch.columns[10] });
+            codigosMonedas.push(infoCodigoMoneda);
+          }
+  
+          if (utilidades.isEmpty(config.urlservicio)) {
+            response.error = true;
+            response.mensaje =
+              "No se encuentra configurada la URL del Servicio de Consulta de Tipos de Cambio del BNA";
+            return response;
+          }
+  
+          log.debug(
+            proceso,
+            "URL Servicio Tipos de Cambios BNA: " +
+            config.urlservicio +
+            " - Moneda Base : " +
+            config.monedaBase +
+            " - codigosMonedas: " +
+            JSON.stringify(codigosMonedas)
+          );
+          response.config = config;
+          response.monedas = codigosMonedas;
+        } else {
+          response.error = true;
+          response.mensaje =
+            "No se encontraron registros de configuracion del servicio de consulta de Tipos de Cambios BNA.";
+        }
+      } catch (err) {
+        response.error = true;
+        response.mensaje = err.message;
+      }
+      return response;
+    }
+  
+    /**
+     * @param {string}   urlservicio    A hyperlink specifying the webservice
+     * @param {array}    monedasConsultar    An array of objects with all available currencies for the service
+     *
+     * @return {object}  return         An object with the following properties
+     * @return {boolean} return.error   True on error
+     * @return {string}  return.mensaje An error message if there is any
+     * @return {string}  return.monedasActualizar Array with the information of currenciees to update
+     */
+    function consultarServicioBNA(urlservicio, monedasConsultar) {
+      const proceso = "consultarServicioBNA";
+      const response = { error: false, mensaje: "", monedasActualizar: [] };
+  
+      log.audit(
+        proceso,
+        "Inicio - Consulta Servicio Tipos de Cambios BNA - URL : " +
+        urlservicio +
+        " - Monedas : " +
+        JSON.stringify(monedasConsultar)
+      );
+  
+      try {
+        //Consulta tipos de cambios al servicio web
+        let request = "";
+        let errorHttp = false;
+        let errorHttps = false;
+        let mensajeErrorHttp = "";
+  
+        try {
+          request = https.get({
+            url: urlservicio,
+          });
+        } catch (error) {
+          if (error.name == "SSS_INVALID_URL") {
+            errorHttps = true;
+          }
+          mensajeErrorHttp =
+            "Error al consultar por https al sitio web del BNA - Detalles: " +
+            JSON.stringify(error);
+          log.error(proceso, mensajeErrorHttp);
+        }
+  
+        try {
+          if (errorHttps) {
+            request = http.get({
+              url: urlservicio,
+            });
+          }
+        } catch (error) {
+          errorHttp = true;
+          mensajeErrorHttp =
+            "Error al consultar por http al sitio web del BNA - Detalles: " +
+            JSON.stringify(error);
+          log.error(proceso, mensajeErrorHttp);
+        }
+  
+        if (!utilidades.isEmpty(request) && !errorHttp) {
+          log.audit(
+            proceso,
+            "INICIO procesamiento de HTML por consulta Servicio Tipos de Cambios BNA"
+          );
+          let objResp = request.body;
+          log.debug(proceso, "content html: " + JSON.stringify(objResp));
+          objResp = objResp.replace(/(?:\r\n|\r|\n|\t)/g, "");
+  
+          if (!utilidades.isEmpty(objResp)) {
+            /**
+             * Como cada moneda puede solicitar informacion de una tabla distinta, hay que obtener todas las tablas, que haya por moneda.
+             */
+            const idDivs = [
+              ...new Set(
+                monedasConsultar.map((moneda) => moneda.idContenedorHtml)
+              ),
+            ];
+  
+            const datosFinales = idDivs.map((idDiv) => {
+              const regex = new RegExp(
+                `<div.*?id="${idDiv}".*?>[^]*?(<table .*?>[^]*?<\/table>)[^]*?<\/div>`
+              );
+              const match = regex.exec(objResp);
+              const datos = match[1];
+              if (utilidades.isEmpty(datos)) {
+                log.debug(proceso, "no hay tabla con el ID: " + idDiv);
+              }
+              return { idContenedorHtml: idDiv, xmlString: datos };
+            });
+  
+            if (!utilidades.isEmpty(datosFinales)) {
+              const xmlRespuestas = datosFinales.map((o) => {
+                const xmlRespuesta = xml.Parser.fromString({
+                  text: o.xmlString,
+                });
+                return {
+                  idContenedorHtml: o.idContenedorHtml,
+                  xml: xmlRespuesta,
+                };
+              });
+  
+              if (!utilidades.isEmpty(xmlRespuestas)) {
+                const arrayXMLNodosTD = xmlRespuestas.map((objXml) => {
+                  const arrayNodosTD = xml.XPath.select({
+                    node: objXml.xml,
+                    xpath: "//*[name()='td']",
+                  });
+                  return {
+                    idContenedorHtml: objXml.idContenedorHtml,
+                    arrayNodosTD: arrayNodosTD,
+                  };
+                });
+  
+                const noVacioCheck = arrayXMLNodosTD.every((arrayNodosTD) => {
+                  return (
+                    !utilidades.isEmpty(arrayNodosTD.arrayNodosTD) &&
+                    arrayNodosTD.arrayNodosTD.length > 0
+                  );
+                });
+  
+                if (noVacioCheck) {
+                  log.debug(
+                    proceso,
+                    "arrayNodosTD: " + JSON.stringify(arrayXMLNodosTD)
+                  );
+  
+                  const arrayXMLFinalTD = arrayXMLNodosTD.map((arrayNodos) => {
+                    const arrayFinalTD = [];
+                    arrayNodos.arrayNodosTD.forEach((element, index) => {
+                      element.textContent = element.textContent.toUpperCase();
+                      element.textContent = element.textContent.replace(
+                        /(?:\r\n|\r|\n|\t)/g,
+                        ""
+                      );
+                      element.textContent = element.textContent.replace(
+                        /&nbsp/g,
+                        " "
+                      );
+                      element.indice = index;
+                      arrayFinalTD.push(element);
+                    });
+                    return {
+                      idContenedorHtml: arrayNodos.idContenedorHtml,
+                      arrayFinalTD: arrayFinalTD,
+                    };
+                  });
+  
+                  log.debug(
+                    proceso,
+                    "arrayFinalTD: " + JSON.stringify(arrayXMLFinalTD)
+                  );
+  
+                  for (let i = 0; i < monedasConsultar.length; i++) {
+                    monedasConsultar[i].errorConsultando = false;
+                    monedasConsultar[i].mensajeError = "";
+  
+                    const arrayFinalTD = arrayXMLFinalTD.find(
+                      (arrayFinalTD) => arrayFinalTD.idContenedorHtml ==
+                        monedasConsultar[i].idContenedorHtml
+                    ).arrayFinalTD;
+  
+                    const resultadoMoneda = arrayFinalTD.filter((obj) => {
+                      return obj.textContent == monedasConsultar[i].nombreTagHTML;
+                    });
+  
+                    log.debug(
+                      proceso,
+                      "resultadoMoneda: " + JSON.stringify(resultadoMoneda)
+                    );
+  
+                    if (!utilidades.isEmpty(resultadoMoneda) &&
+                      resultadoMoneda.length > 0) {
+                      // se busca el tipo de cambio de venta del dolar en el BNA, este se ubica dos posiciones despues del TAG "Dolar U.S.A"
+                      const indiceTCVenta = resultadoMoneda[0].indice + 2;
+                      log.debug(
+                        proceso,
+                        "indice coincidencia moneda: " +
+                        i +
+                        " - indiceTCVenta: " +
+                        indiceTCVenta +
+                        " - arrayFinalTD.length: " +
+                        arrayFinalTD.length
+                      );
+  
+                      if (indiceTCVenta <= arrayFinalTD.length &&
+                        !utilidades.isEmpty(arrayFinalTD[indiceTCVenta])) {
+                        log.debug(
+                          proceso,
+                          "datosMonedaHtml: " +
+                          JSON.stringify(arrayFinalTD[indiceTCVenta])
+                        );
+                        const tipoCambioVenta = arrayFinalTD[indiceTCVenta].textContent.replace(/,/g, ".");
+                        log.debug(proceso, "tipoCambioVenta: " + tipoCambioVenta);
+  
+                        monedasConsultar[i].tipoCambioVenta = tipoCambioVenta;
+                        response.monedasActualizar.push(monedasConsultar[i]);
+                      } else {
+                        monedasConsultar[i].errorConsultando = true;
+                        monedasConsultar[i].mensajeError =
+                          "No se puede acceder al tipo de cambio de venta de la moneda " +
+                          monedasConsultar[i].nombreTagHTML +
+                          ".";
+                      }
+                    } else {
+                      monedasConsultar[i].errorConsultando = true;
+                      monedasConsultar[i].mensajeError =
+                        "No se encontró coincidencia de la solicitada moneda en el HTML, la moneda que no se pudo consultar es: " +
+                        monedasConsultar[i].nombreTagHTML +
+                        ".";
+                    }
+                  }
+                } else {
+                  response.error = true;
+                  response.mensaje =
+                    "Ocurrió un error obteniendo NODO/TAGS de tipos de cambio del XML de respuesta del sitio web del BNA.";
+                }
+              } else {
+                response.error = true;
+                response.mensaje =
+                  "Ocurrió un error parseando HTML/XML de respuesta del sitio web del BNA.";
+              }
+            } else {
+              response.error = true;
+              response.mensaje =
+                "Ocurrió un error Obteniendo respuesta del sitio web del BNA.";
+            }
+          } else {
+            response.error = true;
+            response.mensaje =
+              "Ocurrió un error parseando respuesta del sitio web del BNA.";
+          }
+        } else {
+          response.error = true;
+          response.mensaje = "No se recibió respuesta del sitio web del BNA.";
+        }
+  
+        return response;
+      } catch (eSend) {
+        response.error = true;
+        response.code = 500;
+        response.body =
+          "Ocurrió una excepción Tratando de procesar información de tipo de cambio del BNA: " +
+          eSend.message +
+          ".";
+        response.mensaje = response.body;
+        return response;
+      }
+    }
+  
+    /**
+     * @param {array} monedasActualizar An array of objects
+     */
+    function actualizarMonedaNetsuite(monedasActualizar) {
+      const proceso = "actualizarMonedaNetsuite";
+      log.debug(
+        proceso,
+        "Monedas a actualizar y moneda base: " + JSON.stringify(monedasActualizar)
+      );
+      const response = { error: false, mensaje: "" };
+  
+      try {
+        //Set date value for today
+        const fechaActualImportacion = format.format({
+          value: obtenerFechaServidor("HOY"),
+          type: format.Type.DATE,
+        });
+  
+        // INICIO Actualizar Tipos de Cambio Moneda NetSuite
+        let lineasCSV = "";
+        let mensajeErrorCorreo = "";
+        if (!utilidades.isEmpty(monedasActualizar) &&
+          monedasActualizar.length > 0) {
+          for (let i = 0; i < monedasActualizar.length; i++) {
+            if (!monedasActualizar[i].errorConsultando) {
+              lineasCSV = lineasCSV + monedasActualizar[i].monedaBase + ";" + fechaActualImportacion + ";" + monedasActualizar[i].tipoCambioVenta + ";" + monedasActualizar[i].idMonedaConsultarBNA + "\n";
             
-            <#list datosImpositivos as datos>
-                <#assign resIva = datos.custrecord_l54_resol_ret_iva>
-                <#assign resGan = datos.custrecord_l54_resol_ret_ganancias>
-                <#assign resIIBB = datos.custrecord_l54_resol_ret_iibb>
-                <#assign resSUSS = datos.custrecord_l54_resol_ret_suss>
-                <#assign urlFirma = datos.custrecord_l54_img_firma>
-            
-                <#if anchoFirma gt 0>
-                    <#assign anchoFirma = datos.custrecord_l54_ancho_firma>
-                </#if>
-                <#if anchoFirma gt 0>
-                    <#assign anchoLogo = datos.custrecord_l54_ancho_logo>
-                </#if>
-                <#if anchoFirma gt 0>
-                    <#assign alturaFirma = datos.custrecord_l54_altura_firma>
-                </#if>
-                <#if anchoFirma gt 0>
-                    <#assign alturaLogo = datos.custrecord_l54_altura_logo>
-                </#if>
-            </#list>
-            <!--end vars definitions-->
-        </macro>
-        <macro id="nlfooter">
-            <table class="footer" style="width: 100%;">
-                <tr>
-                    <td align="right"><pagenumber/><span style="font-size: 12px;">&nbsp;de  </span><totalpages/></td>
-                </tr>
-            </table>
-        </macro>
-    </macrolist>
-
-    <!--Styles-->
-    <style type="text/css">
-        table {
-            <#if .locale == "zh_CN">
-                font-family: stsong, sans-serif;
-            <#elseif .locale == "zh_TW">
-                font-family: msung, sans-serif;
-            <#elseif .locale == "ja_JP">
-                font-family: heiseimin, sans-serif;
-            <#elseif .locale == "ko_KR">
-                font-family: hygothic, sans-serif;
-            <#elseif .locale == "ru_RU">
-                font-family: verdana;
-            <#else>
-                font-family: sans-serif;
-            </#if>
-                font-size: 9pt;
-                table-layout: fixed;
+              if(!utilidades.isEmpty(monedasActualizar[i].aplicarInverso) && (monedasActualizar[i].aplicarInverso == true || monedasActualizar[i].aplicarInverso == 'T')){
+               
+                var tipoCambioBase = 1 / parseFloat(monedasActualizar[i].tipoCambioVenta); 
+  
+                lineasCSV = lineasCSV +  monedasActualizar[i].idMonedaConsultarBNA + ";" + fechaActualImportacion + ";" + tipoCambioBase + ";" + monedasActualizar[i].monedaBase + "\n";
+              }
+            } else {
+              mensajeErrorCorreo += monedasActualizar[i].mensajeError + "\n";
+            }
+          }
         }
-        th {
-            font-weight: bold;
-            vertical-align: middle;
-            background-color: #AAAAAA;
-            color: #FFFFFF;
+        log.debug(proceso, "LINEA CSV : " + lineasCSV);
+  
+        if (!utilidades.isEmpty(lineasCSV)) {
+          const fileCSV = file.create({
+            name: "LOC ARG - Importacion Tipos de Cambio Monedas del BNA.csv",
+            fileType: file.Type.CSV,
+            contents: "Moneda Origen;Fecha;Tipo de Cambio;Moneda Destino\n" + lineasCSV,
+          });
+  
+          fileCSV.folder = -15;
+          const fileId = fileCSV.save();
+          const fileObj = file.load({
+            id: fileId,
+          });
+  
+          // arreglar aca esto, buscar cponfiguracion del cust_imp y de las importaciones
+          const respuesta = createAndSubmitCSVJob(
+            "Actualizacion Tipo de Cambio segun el BNA",
+            fileObj,
+            "custimport_l54_act_tip_cambios"
+          );
+  
+          if (!respuesta.error) {
+            log.debug(proceso, "status: " + respuesta.estado);
+            response.estado = respuesta.estado;
+  
+            if (response.estado == task.TaskStatus.FAILED) {
+              response.error = true;
+              mensajeErrorCorreo +=
+                "La ejecución de la importación guardada falló, no se pudo actualizar el tipo de cambio de algunas monedas solicitadas. Por favor revise la importación guardada. \n";
+              response.mensaje += mensajeErrorCorreo;
+              return response;
+            }
+  
+            response.mensaje +=
+              "Le informamos que ha culminado el proceso encargado de guardar en NetSuite los tipos de cambios del BNA, para las monedas configuradas en el panel principal.\n";
+            if (!utilidades.isEmpty(mensajeErrorCorreo)) {
+              response.mensaje +=
+                " Sin embargo, es importante destacar que, en el proceso se generaron ciertos errores para setear los tipos de cambios de algunas monedas, el detalle de los errores se muestran a continuación: " +
+                mensajeErrorCorreo;
+            }
+          } else {
+            // Ingresa a una excepcion y se debe mostrar en el correo a la misma, esta ocurre al intentar crear la importacion CSV
+            response.error = true;
+            mensajeErrorCorreo += respuesta.mensaje;
+            response.mensaje = mensajeErrorCorreo;
+          }
+        } else if (!utilidades.isEmpty(mensajeErrorCorreo)) {
+          response.error = true;
+          response.mensaje = mensajeErrorCorreo;
         }
-        td {
-            padding: 4px 6px;
+      } catch (e) {
+        response.error = true;
+        response.mensaje =
+          "Ocurrió una excepcion al actualizar las monedas en NetSuite - Detalles: " +
+          e.message;
+      }
+      return response;
+    }
+  
+    function createAndSubmitCSVJob(name, file, importacion) {
+      const proceso = "createAndSubmitCSVJob";
+      log.audit(proceso, "INICIO Invocacion CSV");
+      const response = { error: false, mensaje: "", estado: "" };
+  
+      try {
+        const mrTask = task.create({
+          taskType: task.TaskType.CSV_IMPORT,
+          name: name,
+          importFile: file,
+          mappingId: importacion,
+        });
+        const mrTaskId = mrTask.submit();
+        let taskStatus = task.checkStatus(mrTaskId);
+        let statusGeneral = taskStatus.status;
+        log.audit(proceso, "Estado de carga: " + statusGeneral);
+  
+        while (statusGeneral == task.TaskStatus.PROCESSING ||
+          statusGeneral == task.TaskStatus.PENDING) {
+          taskStatus = task.checkStatus(mrTaskId);
+          statusGeneral = taskStatus.status;
         }
-        b {
-            font-weight: bold;
-            color: #333333;
+  
+        log.debug(proceso, "statusGeneral", statusGeneral);
+        response.estado = statusGeneral;
+      } catch (excepcion) {
+        response.error = true;
+        response.mensaje =
+          "Ocurrió una excepcion intentando realizar la importación CSV - Detalles Excepcion: " +
+          excepcion.message;
+      }
+      log.audit(proceso, "FIN Invocacion CSV");
+  
+      return response;
+    }
+  
+    /**
+     * @param {string}   custom    Specify the required format date (HOY [date object]| AYER[string format] HACEXDIAS[string format])
+     * @param {integer}  days      Specify the number of days to substract from today's date (only for HACEXDIAS)
+     * @return {string}  return    HOY = A Date object | AYER = A string format | HACEXDIAS = A string format
+     */
+    function obtenerFechaServidor(custom, days) {
+      const d = new Date();
+      const utc = d.getTime() + d.getTimezoneOffset() * 60000;
+      const offset = -3; //TimeZone Montevideo - Argentina GMT -3:00
+      const fechaActualArg = new Date(utc + 3600000 * offset);
+      let diasRestar = "";
+      let newDate = "";
+      let formattedstring = "";
+  
+      if (!utilidades.isEmpty(fechaActualArg)) {
+        switch (custom.toUpperCase()) {
+          case "HOY":
+            //Retornamos objecto Date con fecha actual de Argentina
+            return fechaActualArg;
+          case "AYER":
+            diasRestar = 1; //restando 1 dia a la fecha actual
+            newDate = new Date(
+              fechaActualArg.setDate(fechaActualArg.getDate() - diasRestar)
+            );
+            formattedstring = formatearFecha(newDate);
+            return formattedstring;
+          case "HACEXDIAS":
+            diasRestar = days; //restando 1 dia a la fecha actual
+            newDate = new Date(
+              fechaActualArg.setDate(fechaActualArg.getDate() - diasRestar)
+            );
+            formattedstring = formatearFecha(newDate);
+            return formattedstring;
+          default:
+            return null;
         }
-        table.header td {
-            padding: 0;
-            font-size: 10pt;
-        }
-        table.footer td {
-            padding: 0;
-            font-size: 8pt;
-        }
-        table.body td {
-            padding-top: 2px;
-        }
-        table.total {
-            page-break-inside: avoid;
-        }
-        tr.totalrow {
-            background-color: #AAAAAA;
-            line-height: 200%;
-        }
-        td.totalboxtop {
-            font-size: 12pt;
-            background-color: #AAAAAA;
-        }
-        td.addressheader {
-            font-size: 8pt;
-            padding-top: 6px;
-            padding-bottom: 2px;
-        }
-        td.address {
-            padding-top: 0;
-        }
-        td.totalboxmid {
-            font-size: 28pt;
-            padding-top: 20px;
-            background-color: #AAAAAA;
-        }
-        span.title {
-            font-size: 20pt;
-        }
-        span.number {
-            font-size: 16pt;
-        }
-        hr {
-            width: 100%;
-            color: #FFFFFF;
-            background-color: #AAAAAA;
-            height: 2px;
-        }
-    </style><!--end style-->
-</head>
-<body header="nlheader" header-height="0%" footer="nlfooter" footer-height="10pt" padding="0.5in 0.5in 0.5in 0.5in" size="Letter">
-
-    <table class="header" style="width: 100%;">
-        <tr>
-            <td colspan="2" rowspan="12"><img src="${urlLogo}" width="${anchoLogo}" height="${alturaLogo}" /></td>
-            <td align="center" valign="top" rowspan="12" colspan="5"><span class="title">Orden de Pago</span></td>
-        </tr>
-    </table>
-
-    <!--Primary Information vendrpayment-->
-    <table class="header" style="width: 100%; margin-top: 20px;">
-        <tr>
-            <#if recSubsidiary.country?has_content>
-                <td align="left" rowspan="8" colspan="2">${recSubsidiary.mainaddress_text}</td>
-            <#else>
-                <td align="left" rowspan="8" colspan="2">${recSubsidiary.address}</td>
-            </#if>   
-             <td></td>
-            <td align="left" colspan="2"><b><span style="color: #6f6f6f;">Fecha</span></b></td>
-            <td align="left">${infoPago.trandate}</td>
-       <td></td>
-        </tr>
-        <tr>
-          <td></td>
-            <td align="left" colspan="2"><b><span style="color: #6f6f6f;">Número de Transacción</span></b></td>
-            <td align="left" colspan="2">${infoPago.transactionnumber}</td>
-            <td></td>
-        </tr>
-        <tr>
-         <td></td>
-            <td align="left" colspan="2"><b><span style="color: #6f6f6f;">Nro Localizado</span></b></td>
-            <td align="left" colspan="2">${infoPago.custbody_l54_numero_localizado}</td>
-           <td></td>
-        </tr>
-        <tr>
-          <td></td>
-            <td align="left" colspan="2"><b><span style="color: #6f6f6f;">Nota</span></b></td>
-            <td align="left" colspan="2">${infoPago.memo}</td>
-             <td></td>
-        </tr>
-        <tr>
-           <td></td>
-            <td align="left" colspan="2"><b><span style="color: #6f6f6f;">Moneda</span></b></td>
-            <td align="left" colspan="2">${infoPago.currency}</td>
-                <td></td>
-            </tr>
-            <tr>
-                <td></td>
-                 <td align="left" colspan="2"><b><span style="color: #6f6f6f;">Tipo de Cambio</span></b></td>
-                 <td align="left" colspan="2">${infoPago.exchangerate}</td>
-             <td></td>
-        </tr>
-        <tr>
-          <td></td>
-            <td align="left" colspan="2"><b><span style="color: #6f6f6f;">Imp. a retener (Ganancias)</span></b></td>
-            <td align="left">${infoPago.custbody_l54_gan_imp_a_retener}</td>
-             <td></td>
-        </tr>
-        <tr>
-           <td></td>
-            <td align="left" colspan="2"><b><span style="color: #6f6f6f;">Imp. a retener (IIBB)</span></b></td>
-            <td align="left"><span style="color: #262626;">${infoPago.custbody_l54_iibb_imp_a_retener}</span></td>
-            <td></td>
-         </tr>
-        <tr>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td align="left" colspan="2"><b><span style="color: #6f6f6f;">Imp. a retener (Municipal)</span></b></td>
-                <td align="left"><span style="color: #262626;">${infoPago.custbody_l54_municipal_imp_a_retener}</span></td>
-                <td></td>
-            </tr>
-            <tr>
-                <td></td>
-                <td></td>
-          <td></td>
-            <td align="left" colspan="2"><b><span style="color: #6f6f6f;">Imp. a retener (SUSS)</span></b></td>
-            <td align="left">${infoPago.custbody_l54_suss_imp_a_retener}</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td align="left" colspan="2" rowspan="5" style="padding-right:20px">
-                <table class="itemtable" style="width: 100%; border: 1px; border-color: #BDBDBD">
-                    <thead>
-                        <tr>
-                            <th style="padding-left:5px; line-height: 20px;background-color: #E0E6EF; color: #262626;">Pagar a:</th>
-                        </tr>
-                        <tr>
-                            <td style="padding-left:5px; padding: 10px;">${infoPago.address}</td>
-                        </tr>
-                    </thead>
-                </table>
-            </td>
-           <td></td>
-            <td align="left" colspan="2"><b><span style="color: #6f6f6f;">Imp. a retener (IVA)</span></b></td>
-            <td align="left"><span style="color: #262626;">${infoPago.custbody_l54_iva_imp_a_retener}</span></td>
-           <td></td>
-        </tr>
-      <!--  <tr>
-        <td align="left" colspan="2"><b><span style="color: #6f6f6f;">Imp. a retener (SUSS)</span></b></td>
-        <td align="left"><span style="color: #262626;">${infoPago.custbody_l54_suss_imp_a_retener}</span></td>
-        </tr>-->
-        <tr>
-         <td></td>
-        <td align="left" colspan="2"><b><span style="color: #6f6f6f;">Imp. total de Retención</span></b></td>
-        <td align="left"><span style="color: #262626;">${infoPago.custbody_l54_importe_total_retencion}</span></td>
-       <td></td>
-        </tr>
-        <tr>
-        <td></td>
-        <td align="left" colspan="2"><b><span style="color: #6f6f6f;">Importe neto a abonar</span></b></td>
-        <td align="left"><span style="color: #262626;">${infoPago.custbody_l54_importe_neto_a_abonar}</span></td>
-        <td></td>
-        </tr>
-        <tr>
-            <td align="left" colspan="2">&nbsp;</td>
-        </tr>       
-        <tr>
-          <td></td>
-           <td align="left"><b><span style="color: #6f6f6f;" colspan="2">Cuenta</span></b></td>
-            <td></td>
-            <td align="left" colspan="2"><span style="color: #262626;">${infoPago.account}</span></td>
-            <td></td>
-        </tr>
-        <tr>
-            <td colspan="2"></td>
-            <td></td>
-            <td align="left"><b><span style="color: #6f6f6f;" colspan="2">Forma de Pago</span></b></td>
-            <td align="left"><span style="color: #262626;">${infoPago.custbody_l54_tipo_pago}</span></td>
-            <td></td>
-        </tr>
-    </table><!--end primary information-->
-
-    <!--Vendorpayment apply to-->
-    <table class="itemtable" style="width: 100%; margin-top: 30px; border: 1px; border-color: #BDBDBD">
-        <thead>
-            <tr>
-                <th align="center" colspan="3" style="line-height: 20px; background-color: #E0E6EF; color: #262626;">Fecha</th>
-                <th colspan="5" style="background-color: #E0E6EF; color: #262626;">Descripción</th>
-                <th align="right" colspan="5" style="background-color: #E0E6EF; color: #262626;">Monto Orig.</th>
-                <th align="right" colspan="3" style="background-color: #E0E6EF; color: #262626;">Monto Adeudado</th>
-                <th align="right" colspan="4" style="padding-right: 5px;background-color: #E0E6EF; color: #262626;">Monto Aplicado</th>
-            </tr>
-        </thead>
-        <#assign resultFacturasStr = "">
-        <#assign trandateAnt = "">
-        <#assign typeAnt = "">
-        <#assign tranidAnt = "">
-        <#assign formulanumericAnt = 0>
-        <#assign valorFact = 0>
-        <#assign inicio = 1>
-
-        <#list resultsFacturas as facturasPagas>
-            <#if inicio != 1>
-                <#if facturasPagas.tranid != tranidAnt>
-                    <#assign resultFacturasStr = tranidAnt + "|" + resultFacturasStr>
-                    <tr>
-                        <td align="center" colspan="3" line-height="150%">${trandateAnt}</td>
-                        <td colspan="5">${typeAnt}#${tranidAnt}</td>
-                        <td align="right" colspan="5">${valorFact?string("#,##0.00")}</td>
-                        <td align="right" colspan="3">${valorFact?string("#,##0.00")}</td>
-                        <td align="right" colspan="4">${valorFact?string("#,##0.00")}</td>
-                    </tr>
-                    <#assign trandateAnt = facturasPagas.trandate>
-                    <#assign typeAnt = facturasPagas.type>
-                    <#assign tranidAnt = facturasPagas.tranid>
-                    <#assign valorFact = facturasPagas.formulanumeric>
-                    <#assign formulanumericAnt = facturasPagas.formulanumeric>
-                <#else>
-                    <#assign valorFact = valorFact + facturasPagas.formulanumeric>
-                </#if>
-            <#else>
-                <#assign inicio = 0>
-                <#assign trandateAnt = facturasPagas.trandate>
-                <#assign typeAnt = facturasPagas.type>
-                <#assign tranidAnt = facturasPagas.tranid>
-                <#assign formulanumericAnt = facturasPagas.formulanumeric>
-                <#assign valorFact = valorFact + facturasPagas.formulanumeric>
-            </#if>
-        </#list>
-        <#assign resultFacturasStr = tranidAnt + "|" + resultFacturasStr>
-        <tr>
-            <td align="center" colspan="3" line-height="150%">${trandateAnt}</td>
-            <td colspan="5">${typeAnt}#${tranidAnt}</td>
-            <td align="right" colspan="5">${valorFact?string("#,##0.00")}</td>
-            <td align="right" colspan="3">${valorFact?string("#,##0.00")}</td>
-            <td align="right" colspan="4">${valorFact?string("#,##0.00")}</td>
-        </tr>
-        <tr>
-            <td align="center">&nbsp;</td>
-        </tr>
-        <tr>
-            <td align="right">&nbsp;&nbsp;&nbsp;&nbsp;</td>
-        </tr>
-    </table><!--end vendorpayment apply to-->
-
-    <!--Total amount applied-->
-    <table style="width: 100%; margin-top: 10px;">
-        <tr><td align="right">Monto&nbsp;&nbsp;&nbsp;&nbsp;${infoPago.total}</td></tr>
-    </table><!--end total amount applied-->
-
-    <!--Withholding tax pages-->
-
-    <#if resultsRetenciones?has_content>
-        <#list resultsRetenciones as retenciones>
-            <pbr/>
-            <table border="0" style="width: 100%;">
-                <#if urlLogo != ''>
-                    <tr><td><img src="${urlLogo}" width="${anchoLogo}" height="${alturaLogo}" /></td></tr>
-                </#if>
-                <tr><td>&nbsp;</td></tr>
-                <tr style="background-color: #E0E6EF; color: #607799;"><td colspan="4"><b><span style="font-size:16px;">${retenciones.formulatext}</span></b></td></tr>
-                <tr><td>&nbsp;</td></tr>
-                <tr>
-                    <td colspan="2"><b><span style="color: #6f6f6f;">Certificado nro: </span><span style="color: #262626;">${retenciones.custrecord_l54_ret_numerador}</span></b></td>
-                    <td colspan="1"><b><span style="color: #6f6f6f;">O/P: </span><span style="color: #262626;">${retenciones.custrecord_l54_ret_cod_pago_prov}</span></b></td>
-                    <td colspan="1"><b><span style="color: #6f6f6f;">Fecha: </span><span style="color: #262626;">${infoPago.trandate}</span></b></td>
-                </tr>
-                <tr><td>&nbsp;</td></tr>
-                <tr style="background-color: #E0E6EF; color: #607799;"><td colspan="4"><b>A. - Datos del Agente de retención</b></td></tr>
-                <tr>
-                    <td colspan="2"><span style="color: #6f6f6f;">Apellido y Nombre o Denominación</span></td>
-                    <td><span style="color: #6f6f6f;">C.U.I.T. Nro</span></td>
-                    <td><span style="color: #6f6f6f;">Domicilio</span></td>
-                </tr>
-                <#if recSubsidiary.country?has_content>
-                    <tr>
-                        <td colspan="2"><span style="color: #262626;">${recSubsidiary.legalname}</span></td>
-                        <td><span style="color: #262626;">${recSubsidiary.federalidnumber}</span></td>
-                        <td><span style="color: #262626;">${recSubsidiary.mainaddress_text}</span></td>
-                    </tr>
-                <#else>
-                    <tr>
-                        <td colspan="2"><span style="color: #262626;">${recSubsidiary.custbody_l54_razon_social_prov}</span></td>
-                        <td><span style="color: #262626;">${recSubsidiary.custbody_54_cuit_entity}</span></td>
-                        <td><span style="color: #262626;">${recSubsidiary.address}</span></td>
-                    </tr>
-                </#if> 
-                <tr><td>&nbsp;</td></tr>        
-                
-                <tr style="background-color: #E0E6EF; color: #607799;"><td colspan="4"><b>B. - Datos del Sujeto retenido</b></td></tr>
-                <tr>
-                    <td colspan="2"><span style="color: #6f6f6f;">Apellido y Nombre o Denominación</span></td>
-                    <td><span style="color: #6f6f6f;">C.U.I.T. Nro</span></td>
-                    <td><span style="color: #6f6f6f;">Domicilio</span></td>
-                </tr>
-                <tr>
-                    <td colspan="2"><span style="color: #262626;">${infoPago.entity}</span></td>
-                    <td><span style="color: #262626;">${infoPago.entity.custentity_l54_cuit_entity}</span></td>
-                    <td><span style="color: #262626;">${infoPago.address?replace(infoPago.custbody_l54_razon_social_prov, "")}</span></td>
-                </tr>
-                
-                <!--<tr><td>Apellido y Nombre o Denominación: ${infoPago.entity}</td></tr>
-                <tr><td>C.U.I.T. Nro: ${infoPago.entity.custentity_l54_cuit_entity}</td></tr>
-                <tr><td>Domicilio: ${infoPago.address?replace(infoPago.custbody_l54_razon_social_prov, "")}</td></tr>
-                <tr><td>&nbsp;</td></tr>    -->
-
-                <#assign impuestos = "">
-                <#if retenciones.custrecord_l54_ret_res_iibb?has_content>
-                    <#assign impuestos = retenciones.custrecord_l54_ret_res_iibb>
-                <#else>
-                    <#if retenciones.formulatext == "GANANCIAS – Retenciones Régimen General de Ganancias">
-                        <#assign impuestos = resGan>
-                    </#if>
-                    <#if retenciones.formulatext == "SUSS – Retenciones Régimen General de Seguridad Social y Obra Social">
-                        <#assign impuestos = resSUSS>
-                    </#if>
-                    <#if retenciones.formulatext == "IVA – Retenciones Régimen IVA">
-                        <#assign impuestos = resIVA>
-                    </#if>
-                    <#if retenciones.formulatext=="IIBB - Retenciones Régimen IIBB">
-                        <#assign impuestos=resIIBB>
-                    </#if>
-                    <#if retenciones.formulatext=="Retención Municipal">
-                        <#assign impuestos=resIIBB>
-                    </#if>
-                </#if>
-
-                <#assign total = infoPago.total * infoPago.exchangerate>
-                <#assign base = retenciones.custrecord_l54_ret_base_calculo * infoPago.exchangerate>
-                <#assign importe = retenciones.custrecord_l54_ret_importe * infoPago.exchangerate>
-                <#assign alicuota = retenciones.custrecord_l54_ret_alicuota>
-                <tr style="background-color: #E0E6EF; color: #607799;"><td colspan="4"><b>C. - Datos de la Retenciones practicadas</b></td></tr>
-                
-                <tr>
-                    <td colspan="2"><span style="color: #6f6f6f;">Concepto del pago</span></td>
-                    <td><span style="color: #6f6f6f;">Código de régimen</span></td>
-                    <td><span style="color: #6f6f6f;">Impuesto</span></td>
-                </tr>
-                <tr>
-                    <td colspan="2"><span style="color: #262626;">${retenciones.custrecord_l54_ret_descrip_ret}</span></td>
-                    <td><span style="color: #262626;">${retenciones.custrecord_l54_ret_codigo_regimen}</span></td>
-                    <td><span style="color: #262626;">${impuestos}</span></td>
-                </tr>
-
-                <tr>
-                    <td colspan="2"><span style="color: #6f6f6f;">Comprobante que origina la retención</span></td>
-                    <td colspan="2"><span style="color: #6f6f6f;">Monto del comprobante que origina la retención:</span></td>
-                </tr>
-                <tr>
-                    <td colspan="2"><span style="color: #262626;">${resultFacturasStr}</span></td>
-                    <td><span style="color: #262626;">${total?string("$#,##0.00")}</span></td>
-                </tr>
-                <tr><td>&nbsp;</td></tr>
-                <tr>
-                    <td colspan="2"><span style="color: #6f6f6f;">Base de Cálculo</span></td>
-                    <td><span style="color: #6f6f6f;">Alicuota</span></td>
-                    <td><span style="color: #6f6f6f;">Monto de la retención</span></td>
-                </tr>
-                <tr>
-                    <td colspan="2"><span style="color: #262626;">${base?string("$#,##0.00")}</span></td>
-                    <td><span style="color: #262626;">${alicuota}%</span></td>
-                    <td><span style="color: #262626;">${importe?string("$#,##0.00")}</span></td>
-                </tr>
-                <!--<tr><td>Concepto del pago: ${retenciones.custrecord_l54_ret_descrip_ret}</td></tr>
-                <tr><td>Código de régimen: ${retenciones.custrecord_l54_ret_codigo_regimen}</td></tr>
-                <tr><td>Impuesto: ${impuestos}</td></tr>-->
-                <!--<tr><td>Comprobante que origina la retención: ${resultFacturasStr}</td></tr>
-                <tr><td>Monto del comprobante que origina la retención: ${total?string("$#,##0.00")}</td></tr>-->
-                <!--<tr><td>Base de Cálculo: ${base?string("$#,##0.00")}</td></tr>
-                <tr><td>Alicuota: ${alicuota}</td></tr>
-                <tr><td>Monto de la retención: ${importe?string("$#,##0.00")}</td></tr>-->
-                <tr><td>&nbsp;</td></tr>    
-                <tr><td>&nbsp;</td></tr>
-                <#if urlFirma != ''>
-                    <tr><td><img src="${urlFirma}" width="${anchoFirma}" height="${alturaFirma}"/></td></tr>
-                </#if>
-            <!--    <tr><td>&nbsp;</td></tr> -->
-                <tr><td>..............................................</td></tr>
-                <tr><td font-size="7"> Por</td></tr>
-            </table>
-        </#list>
-    </#if><!--end withholding tax pages-->
-
-</body>
-</pdf>
+      } else {
+        return null;
+      }
+    }
+  
+    function formatearFecha(fechaString) {
+      if (!utilidades.isEmpty(fechaString)) {
+        const f = new Date(fechaString);
+        const formattedstring = f.getFullYear() +
+          "-" +
+          utilidades.padding_left(parseInt(f.getMonth(), 10) + 1, "0", 2) +
+          "-" +
+          utilidades.padding_left(f.getDate(), "0", 2);
+        return formattedstring;
+      } else {
+        return null;
+      }
+    }
+  
+    Number.prototype.toFixedOK = function (decimals) {
+      var sign = this >= 0 ? 1 : -1;
+      return (
+        Math.round(this * Math.pow(10, decimals) + sign * 0.001) /
+        Math.pow(10, decimals)
+      ).toFixed(decimals);
+    };
+  
+    return {
+      execute: execute,
+    };
+  });
