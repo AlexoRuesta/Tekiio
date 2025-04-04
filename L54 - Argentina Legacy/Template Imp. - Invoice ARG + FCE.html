@@ -1,0 +1,616 @@
+<?xml version="1.0"?><!DOCTYPE pdf PUBLIC "-//big.faceless.org//report" "report-1.1.dtd">
+<pdf>
+<head>
+<#if .locale == "ru_RU">
+    <link name="verdana" type="font" subtype="opentype" src="${nsfont.verdana}" src-bold="${nsfont.verdana_bold}" bytes="2" />
+</#if>
+<#assign subtotalAmt=0.0 arrImpuestos=[] arrImpresionImp=[] totalPercepcion=0.0 totalIVA=0.0 indice=100 tasaDescuentoGral=0.0>
+  <#if record.item?has_content>
+  <#list record.item as item>
+  <#assign arrImpuestos=arrImpuestos+[{"taxitm":item.taxcode,"tax1amt":item.tax1amt,"esPercepcion":item.custcol_l54_pv_creada,"taxrate1":item.taxrate1, "basePerc":item.custcol_l54_monto_imp_perc, "jurisPerc":item.custcol_l54_jurisd_iibb_lineas, "baseIVA":item.amount ,"esImpInt":item.custcol_l54_impuesto_interno}]>
+  </#list>
+</#if>
+    <macrolist>
+        <macro id="nlheader">
+            <table class="header" style="width:100%;">
+              <tr style="border-bottom: 3px solid #e3e3e3;">
+                <td align="left" style="border-color: rgb(0, 0, 0);">
+                <#if subsidiary.logo?length != 0>
+                    <img src="${subsidiary.logo@url}" style="vertical-align: center; height:125%; width:130%" />
+                <#else>
+                    <#if companyInformation.logoUrl?length != 0>
+                        <img src="${companyInformation.logoUrl}" style="float: center; height:130%; width:150%" />
+                    </#if>
+                </#if>                  
+                </td>
+                <td align="center" style="width: 90px; vertical-align: top; border-left: 3px solid #e3e3e3; border-right: 3px solid #e3e3e3; border-top: 3px solid #e3e3e3;">
+                  <table>
+                    <tr><td align="center"><span style="text-align: center; font-size: 52pt;">${record.custbody_l54_letra}</span></td></tr>
+                    <tr><td align="center"><span style="font-size: 8px; text-align: center;"><strong>Cód. Nº:</strong>${record.custbody_l54_cod_trans_afip?string("00")}</span></td></tr>
+                  </table>
+                </td>
+                <td align="right">
+                  <span class="title" style="position: absolute;">
+                    <#if record.type=='CustInvc' || record.type=='custinvc' || record.type=='invoice'>
+                      <#if record.custbody_l54_nd>
+                        <strong>Nota de Débito de Factura de Crédito Electrónica MiPyMEs(FCE)</strong>
+                      <#elseif (record.custbody_l54_letra=='E')>
+                        <strong>Factura de Exportacion</strong>
+                      <#else>
+                        <strong>Factura de Crédito Electrónica MiPyMEs(FCE)</strong>
+                      </#if>
+                    <#elseif record.type=='CustCred' || record.type=='custcred' || record.type=='creditmemo'>
+                        <strong> Nota de Crédito de Factura de Crédito Electrónica MiPyMEs(FCE)</strong>
+          </#if>
+                  </span><br />
+                  <span class="number"><strong>N&deg;:</strong> ${record.custbody_l54_numero_localizado}</span><br />
+                  <!--Localización de Sede-Descomentar si se necesita<#if (record.location?index_of(":") == -1)>
+          <span style="font-size: 14px;">${record.location} <br /></span>
+          <#else>
+          <span style="font-size: 14px;">${record.location?substring(0,record.location?index_of(":"))} <br /></span>
+          </#if>-->
+                  <span style="font-size: 14px;"><strong>Fecha de Emisión:</strong> ${record.trandate}</span>
+                </td>
+        </tr>
+              <tr>
+                <td style="font-size: 11px;">
+                  <strong>Razon Social:</strong> ${subsidiary.legalname}<br />
+                  <strong>Domicilio Comercial:</strong> ${subsidiary.mainaddress_text}<br />
+                  <strong>Tel:</strong> ${subsidiary.addrphone}
+                </td>
+                <td>&nbsp;</td>
+                <td align="right" style="font-size: 11px;">
+                  <div class="push-right">
+                    <strong>Condición IVA:</strong> Responsable Inscripto <br /><!-- Especifico de cada Cliente -->
+                    <strong>C.U.I.T.</strong> 30-70835736-3 <!-- Especifico de cada Cliente --> <br />
+                    <strong>Ingresos Brutos C.M.:</strong>  <!-- Especifico de cada Cliente --> <br />
+                    <strong>Fecha Inicio de Actividad:</strong> 01/10/2015 <!-- Especifico de cada Cliente -->
+                  </div>
+                </td>
+              </tr>
+          </table>
+        </macro>
+        <!--Formato de Moneda (Simbolo)--> 
+        <#assign currency = record.currency>
+        <#if record.currency.symbol?string == 'ARS'>
+          <#assign currencyAUX = '$ '>
+        <#elseif record.currency.symbol?string == 'USD'>
+          <#assign currencyAUX = 'USD '>
+        <#else>
+          <#assign currencyAUX = '$ '>
+        </#if>
+        <macro id="nlfooter">
+          <!--Proceso- Calculo de detalle de Impuestos-->
+      <#if ((record.discountrate?trim) == "")>
+              <#assign tasaDescuentoGral=0>
+      <#else>
+        <#assign tasaDescuentoGral=record.discountrate>
+      </#if>  
+      <#assign taxItemAnt="" esPercAnt="" baseIVAAnt="" basePercAnt="" jurisPercAnt="" taxrateAnt="" discount="" tasa="" esImpIntAnt="">
+      <#list arrImpuestos?sort_by("taxrate1")?reverse as imp>
+        <#if imp_index==0>
+           <#assign taxItemAnt=imp.taxitm >
+           <#assign esPercAnt=imp.esPercepcion>
+           <#assign esImpIntAnt=imp.esImpInt>
+           <#assign basePercAnt=0>
+           <#assign baseIVAAnt=0>
+           <#assign jurisPercAnt=imp.jurisPerc>
+           <#assign taxrateAnt=imp.taxrate1>
+           <#assign tasa=tasaDescuentoGral>
+           <#assign montoImp=0>
+        </#if>
+                     
+        <#if imp.taxitm==taxItemAnt>
+          <#assign montoImp=montoImp+imp.tax1amt+imp.tax1amt*tasa>
+          <#assign basePercAnt=basePercAnt+imp.basePerc>
+          <#assign baseIVAAnt=baseIVAAnt+imp.baseIVA+imp.baseIVA*tasa>
+        <#else>
+          <#if (((record.custbody_l54_letra!='B') || (record.custbody_l54_letra=='B' && esPercAnt==true)) && montoImp!=0)>
+            <#assign arrImpresionImp=arrImpresionImp+[{"montoImp":montoImp,"taxItem":taxItemAnt,"esPercepcion":esPercAnt, "basePerc":basePercAnt, "jurisPerc":jurisPercAnt, "alicuota":taxrateAnt, "baseIVA":baseIVAAnt}]>
+          </#if>
+          <#assign taxItemAnt=imp.taxitm >
+          <#assign esPercAnt=imp.esPercepcion>
+          <#assign esImpIntAnt=imp.esImpInt>
+          <#assign basePercAnt=imp.basePerc>
+          <#assign baseIVAAnt=imp.baseIVA+imp.baseIVA*tasa>
+          <#assign jurisPercAnt=imp.jurisPerc>
+          <#assign taxrateAnt=imp.taxrate1>
+          <#assign montoImp=imp.tax1amt+imp.tax1amt*tasa>
+        </#if>
+       </#list>
+       
+      <#if (((record.custbody_l54_letra!='B') || (record.custbody_l54_letra=='B' && esPercAnt==true)) && montoImp!=0)>
+        <#assign arrImpresionImp=arrImpresionImp+[{"montoImp":montoImp,"taxItem":taxItemAnt,"esPercepcion":esPercAnt, "basePerc":basePercAnt, "jurisPerc":jurisPercAnt, "alicuota":taxrateAnt, "baseIVA":baseIVAAnt}]>
+      </#if>       
+       <#assign cantElementosImp=(arrImpresionImp?size)+6>
+      <!-- FIN de Proceso- Calculo de detalle de impuestos -->
+               
+        </macro>
+    </macrolist>
+    <style type="text/css">table {
+        <#if .locale == "zh_CN">
+            font-family: stsong, sans-serif;
+        <#elseif .locale == "zh_TW">
+            font-family: msung, sans-serif;
+        <#elseif .locale == "ja_JP">
+            font-family: heiseimin, sans-serif;
+        <#elseif .locale == "ko_KR">
+            font-family: hygothic, sans-serif;
+        <#elseif .locale == "ru_RU">
+            font-family: verdana;
+        <#else>
+            font-family: sans-serif;
+        </#if>
+            font-size: 9pt;
+            table-layout: fixed;
+        }
+      .fila_tr
+      {
+         height: 5px;
+      }
+      .letra_numero
+      {
+        width: 30px;
+        vertical-align: top;
+        font-size: 54pt;
+      }
+      
+        th {
+            font-weight: bold;
+            font-size: 8pt;
+            vertical-align: middle;
+            padding: 5px 6px 3px;
+            background-color: #e3e3e3;
+            color: #333333;
+        }
+        td {
+            padding: 4px 6px;
+        }
+        b {
+            font-weight: bold;
+            color: #333333;
+        }
+        table.header td {
+            padding: 0px;
+            font-size: 10pt;
+        }
+        table.footer td {
+            padding: 0px;
+            font-size: 8pt;
+        }
+        table.itemtable th {
+            padding-bottom: 10px;
+            padding-top: 10px;
+        }
+        table.body td {
+            padding-top: 2px;
+        }
+        table.total {
+            page-break-inside: avoid;
+        }
+        tr.totalrow {
+            background-color: #e3e3e3;
+            line-height: 200%;
+        }
+        td.totalboxtop {
+            font-size: 12pt;
+            background-color: #e3e3e3;
+        }
+        td.addressheader {
+            font-size: 8pt;
+            padding-top: 6px;
+            padding-bottom: 2px;
+        }
+        td.address {
+            padding-top: 0px;
+        }
+        td.totalboxmid {
+            font-size: 28pt;
+            padding-top: 20px;
+            background-color: #e3e3e3;
+        }
+        td.totalboxbot {
+            background-color: #e3e3e3;
+            font-weight: bold;
+        }
+        span.title {
+            font-size: 10pt;
+        }
+        span.number {
+            font-size: 10pt;
+        }
+        span.itemname {
+            font-weight: bold;
+            line-height: 150%;
+        }
+        hr {
+            width: 100%;
+            color: #d3d3d3;
+            background-color: #d3d3d3;
+            height: 1px;
+        }
+        div.push-right{
+          vertical-align: top;
+          margin-top: -11px;
+          width:200px
+        }
+</style>
+
+                    <script>var w=window;if(w.performance||w.mozPerformance||w.msPerformance||w.webkitPerformance){var d=document;AKSB=w.AKSB||{},AKSB.q=AKSB.q||[],AKSB.mark=AKSB.mark||function(e,_){AKSB.q.push(["mark",e,_||(new Date).getTime()])},AKSB.measure=AKSB.measure||function(e,_,t){AKSB.q.push(["measure",e,_,t||(new Date).getTime()])},AKSB.done=AKSB.done||function(e){AKSB.q.push(["done",e])},AKSB.mark("firstbyte",(new Date).getTime()),AKSB.prof={custid:"590700",ustr:"",originlat:"0",clientrtt:"77",ghostip:"201.159.159.76",ipv6:false,pct:"10",clientip:"190.111.255.138",requestid:"17aa1172",region:"23505",protocol:"h2",blver:13,akM:"x",akN:"ae",akTT:"O",akTX:"1",akTI:"17aa1172",ai:"384610",ra:"false",pmgn:"",pmgi:"",pmp:"",qc:""},function(e){var _=d.createElement("script");_.async="async",_.src=e;var t=d.getElementsByTagName("script"),t=t[t.length-1];t.parentNode.insertBefore(_,t)}(("https:"===d.location.protocol?"https:":"http:")+"//ds-aksb-a.akamaihd.net/aksb.min.js")}</script>
+                    
+                    <script>var w=window;if(w.performance||w.mozPerformance||w.msPerformance||w.webkitPerformance){var d=document;AKSB=w.AKSB||{},AKSB.q=AKSB.q||[],AKSB.mark=AKSB.mark||function(e,_){AKSB.q.push(["mark",e,_||(new Date).getTime()])},AKSB.measure=AKSB.measure||function(e,_,t){AKSB.q.push(["measure",e,_,t||(new Date).getTime()])},AKSB.done=AKSB.done||function(e){AKSB.q.push(["done",e])},AKSB.mark("firstbyte",(new Date).getTime()),AKSB.prof={custid:"590700",ustr:"",originlat:"0",clientrtt:"67",ghostip:"96.6.123.246",ipv6:false,pct:"10",clientip:"186.23.28.180",requestid:"a44d948",region:"29214",protocol:"h2",blver:13,akM:"x",akN:"ae",akTT:"O",akTX:"1",akTI:"a44d948",ai:"384610",ra:"false",pmgn:"",pmgi:"",pmp:"",qc:""},function(e){var _=d.createElement("script");_.async="async",_.src=e;var t=d.getElementsByTagName("script"),t=t[t.length-1];t.parentNode.insertBefore(_,t)}(("https:"===d.location.protocol?"https:":"http:")+"//ds-aksb-a.akamaihd.net/aksb.min.js")}</script>
+                    
+                    <script>var w=window;if(w.performance||w.mozPerformance||w.msPerformance||w.webkitPerformance){var d=document;AKSB=w.AKSB||{},AKSB.q=AKSB.q||[],AKSB.mark=AKSB.mark||function(e,_){AKSB.q.push(["mark",e,_||(new Date).getTime()])},AKSB.measure=AKSB.measure||function(e,_,t){AKSB.q.push(["measure",e,_,t||(new Date).getTime()])},AKSB.done=AKSB.done||function(e){AKSB.q.push(["done",e])},AKSB.mark("firstbyte",(new Date).getTime()),AKSB.prof={custid:"590700",ustr:"",originlat:"0",clientrtt:"87",ghostip:"96.6.123.246",ipv6:false,pct:"10",clientip:"186.23.28.180",requestid:"a49a897",region:"29214",protocol:"h2",blver:13,akM:"x",akN:"ae",akTT:"O",akTX:"1",akTI:"a49a897",ai:"384610",ra:"false",pmgn:"",pmgi:"",pmp:"",qc:""},function(e){var _=d.createElement("script");_.async="async",_.src=e;var t=d.getElementsByTagName("script"),t=t[t.length-1];t.parentNode.insertBefore(_,t)}(("https:"===d.location.protocol?"https:":"http:")+"//ds-aksb-a.akamaihd.net/aksb.min.js")}</script>
+                    
+                    <script>var w=window;if(w.performance||w.mozPerformance||w.msPerformance||w.webkitPerformance){var d=document;AKSB=w.AKSB||{},AKSB.q=AKSB.q||[],AKSB.mark=AKSB.mark||function(e,_){AKSB.q.push(["mark",e,_||(new Date).getTime()])},AKSB.measure=AKSB.measure||function(e,_,t){AKSB.q.push(["measure",e,_,t||(new Date).getTime()])},AKSB.done=AKSB.done||function(e){AKSB.q.push(["done",e])},AKSB.mark("firstbyte",(new Date).getTime()),AKSB.prof={custid:"590700",ustr:"",originlat:"0",clientrtt:"62",ghostip:"96.6.123.246",ipv6:false,pct:"10",clientip:"186.23.28.180",requestid:"a5283aa",region:"29214",protocol:"h2",blver:13,akM:"x",akN:"ae",akTT:"O",akTX:"1",akTI:"a5283aa",ai:"384610",ra:"false",pmgn:"",pmgi:"",pmp:"",qc:""},function(e){var _=d.createElement("script");_.async="async",_.src=e;var t=d.getElementsByTagName("script"),t=t[t.length-1];t.parentNode.insertBefore(_,t)}(("https:"===d.location.protocol?"https:":"http:")+"//ds-aksb-a.akamaihd.net/aksb.min.js")}</script>
+                    </head>
+<body header="nlheader" header-height="18%" footer="nlfooter" footer-height="20pt" padding="0.5in 0.5in 0.5in 0.5in" size="Letter">
+<br />
+<table style="width:100%;">
+  <#if record.custbody_l54_opc_tran_list?has_content>
+    <#assign customrecord = record.custbody_l54_opc_tran_list?eval />
+    <#list customrecord as customrecord_line>
+      <#if (customrecord_line.cod=="2101")>
+        <tr style="border-top: 3px solid #e3e3e3;">
+          <td align="center" colspan="3"><strong>CBU del Emisor:</strong> ${customrecord_line.val}</td>
+        </tr>
+      </#if>
+    </#list>
+  </#if>
+  
+  <tr class="fila_tr">
+    <th colspan="3" style="font-size: 12px;">Cliente:</th>
+  </tr>
+
+  <tr class="fila_tr">
+    <td>
+      <b>Se&ntilde;or/es:</b><br />${record.custbody_l54_razon_social_cliente}<br />
+      <!--<strong>Cód. del Cliente:</strong>${record.entity.entityid}<br />
+      <strong>Tel.:</strong>${record.entity.phone}<br /> -->
+    </td>
+    <td>
+      <strong>Direcci&oacute;n:</strong><br />
+      <#if record.billaddress?length !=0> 
+        ${record.billingaddress.addr1} <br />
+        ${record.billingaddress.city} ${record.billingaddress.state} ${record.billingaddress.zip} <br />
+        ${record.billingaddress.country}
+      <#else>
+        ${record.defaultaddress} 
+      </#if>
+    </td>
+    <td align="right">
+      <div class="push-right">
+        <strong>Condición IVA:</strong>${record.custbody_l54_tipo_contribuyente}<br />
+        <#if (record.custbody_l54_letra=='E')> 
+          <strong>ID Fiscal:</strong> ${record.custbody_54_cuit_entity}<br />
+        <#else>
+          <#if record.custbody_l54_letra == 'A' >
+            <strong>C.U.I.T.:</strong> ${record.custbody_54_cuit_entity}<br />
+          <#else>
+            <strong>C.U.I.T./C.U.I.L.:</strong> ${record.custbody_54_cuit_entity}<br />
+          </#if> 
+        </#if>
+        <strong>Condiciones de Venta:</strong> ${record.terms}<br />
+        <!--<strong>Fecha Vto para el Pago:</strong> ${record.duedate} -->
+      </div>
+    </td>
+  </tr>
+  
+  <tr style="border-top: 3px solid #e3e3e3;">
+     <td><strong>Moneda:</strong> ${record.currency}</td>
+     <#if record.custbody_l54_nd>
+        <td><strong>Transacción Referencia:</strong> 
+          <#if (record.custbody_l54_transaccion_referencia?length != 0) >
+            <!--Si existe en Transaccion Referencia de la NC-->
+            ${record.custbody_l54_transaccion_referencia}
+          <#else>
+            <!--Sino, concatena la info de los campos de referencia en la NC-->
+            ${record.custbody_l54_tipo_doc_ref} ${record.custbody_l54_letra_doc_ref}-${record.custbody_l54_pv_doc_ref}-${record.custbody_l54_nro_doc_ref?left_pad(8, "0")}
+          </#if>
+        </td>
+     <#else>   
+        <td><strong>N° de Pedido:</strong> ${record.otherrefnum}</td>  
+      </#if>
+      <td align="right">
+        <div class="push-right">
+          <strong>${record.duedate@label}</strong>: ${record.duedate}
+        </div>
+      </td>
+  </tr>
+  <#assign data = ''>
+  <#if record.custbody_l54_ar_embarque_json?has_content>
+      <#assign arrayIds_permiso = record.custbody_l54_ar_embarque_json?eval>
+      <#list arrayIds_permiso as x>
+          <#assign data = data + ", " + x.idPermisoEmbarque + " - " + x.nombrePais>
+      </#list>
+      <#assign data =  data?keep_after(', ') >
+  </#if>
+
+  <#if (record.custbody_l54_letra=='E')>
+    <tr>
+      <td><strong>Cuit Pais:</strong> ${record.custbody_l54_cuit_fex}</td>
+    </tr>
+    <tr>
+      <td><strong>Pais Destino:</strong> ${record.custbody_l54_pais_destino_fex}</td>
+    </tr>
+    <tr>
+      <td><strong>Incoterms:</strong> ${record.custbody_l54_incoterm}</td>
+    </tr>
+    <tr>
+      <td colspan="3"><strong>P. Embarque - Pais Destino de las Mercaderias:</strong> ${data}</td>
+    </tr>
+  </#if>
+
+  <tr style="border-top: 3px solid #e3e3e3;">
+    <td>
+      <strong>Período facturado desde:</strong> ${record.custbody_l54_periodo_facturado_desde}
+    </td>
+    <td>
+      <strong>Período facturado hasta:</strong> ${record.custbody_l54_periodo_facturado_hasta}
+    </td>
+    <td align="right">
+      <div class="push-right">
+        <strong>Fecha Vto para el Pago:</strong> ${record.duedate}
+      </div>
+    </td>
+  </tr>
+</table>
+
+<#if record.item?has_content>
+
+<table class="itemtable" style="width: 100%; margin-top: 10px;">
+  <!-- start items -->
+<#list record.item as item><#if item_index==0>
+<thead>
+  <tr>
+ |              <th align="center" colspan="3"><span style="text-align: center;">Cod.</span></th> 
+                  <th align="center" colspan="3"><span style="text-align: center;">Cant.</span></th>
+                    <th colspan="11" align="center"><span style="text-align: center;">Descripci&oacute;n</span></th>
+                  <#if (record.custbody_l54_letra=='A')>
+                                        <th colspan="2" align="center"><span style="text-align: center;">Imp.</span></th>
+                              <#else>
+                                         <th colspan="2" align="center"><span style="text-align: center;"> </span></th>
+                             </#if>
+               <!--<th colspan="3" align="center"><span style="text-align: center;">Despacho</span></th>-->
+                <th align="center" colspan="4"><span style="text-align: center;">P. Unit.</span></th>
+               <!--<th align="center" colspan="2"><span style="text-align: center;">Bonif.</span></th>-->
+                <th align="center" colspan="4"><span style="text-align: center;">P. Total</span></th>
+  </tr>
+</thead>
+</#if>
+  <#if item.custcol_l54_proceso_pv_aux == '0' && item.custcol_l54_impuesto_interno!=true>
+    <tr>
+  <#if item.itemtype== "Discount" >
+      <td align="left" colspan="3" style="font-size: 9px;"><span style="position: absolute;">${item.item}</span></td>
+     <#else>
+       <td align="right" colspan="3" style="font-size: 9px;"><span style="text-align: right;">${item.item}</span></td>    
+      </#if>
+      <td align="center" colspan="3"><span style="text-align: right;">${item.quantity}</span></td>
+      <td colspan="11"><span style="text-align: left;">${item.description}</span></td>
+      <#if (record.custbody_l54_letra=='A')>
+          <td colspan="2"><span style="text-align: center;">${item.taxrate1}</span></td>
+        <#else>
+        <td colspan="2"><span style="text-align: center;"> </span></td></#if>     
+      <!--Despacho-Descomentar si se necesita<td colspan="3"><span style="text-align: center;">${item.serialnumbers}</span></td>-->
+      <td align="center" colspan="4">
+        <span style="text-align: center;">
+        <#if item.itemtype != "Description" >
+          <#if item.itemtype!= "Discount" >
+            <#if (record.custbody_l54_letra=='A')>
+              ${(item.rate)?string("#,##0.00")}
+            <#else>
+              ${(item.rate + item.rate*item.taxrate1 + item.rate*item.custcol_3k_porc_imp_interno)?string("#,##0.00")}
+            </#if>
+          <#else>
+            <#if item.rate?index_of('%') != -1>
+                ${item.rate}
+            <#else>
+                <#if (record.custbody_l54_letra == 'A')>
+                  ${item.rate?string("#,##0.00")}
+                <#else>
+                  ${(item.rate + item.rate*item.taxrate1 + item.rate*item.custcol_3k_porc_imp_interno)?string("#,##0.00")}
+                </#if>
+            </#if>
+          </#if>   
+        </#if>
+        </span>
+      </td>
+      <!--Bonificacion-Descomentar si se necesita<td align="center" colspan="2"><span style="text-align: center;">${((item.custcol_3k_bonificacion)?string("$#,##0.00"))?replace("$", "")} % </span></td>-->
+     <td align="right" colspan="4">
+        <span style="text-align: right;">
+        <#if item.itemtype!= "Description" > 
+        <#if (record.custbody_l54_letra=='B')>
+          ${(item.amount + item.amount*item.taxrate1)?string("#,##0.00")}
+          <#else>
+          ${(item.amount)?string("#,##0.00")}
+        </#if>
+         </#if>
+         </span>
+       </td>
+      <!--${(item.rate * item.quantity)}-->
+    </tr>
+  </#if>
+</#list><!-- end items -->
+</table>
+
+<hr /></#if>
+
+<#list arrImpresionImp as imp>
+    <#if imp.esPercepcion>
+        <#assign totalPercepcion=totalPercepcion+imp.montoImp>
+    </#if>
+</#list>
+
+  <!--************************************INICIO MANEJO DE MONOTRIBUTISTA ****************************************************-->
+<!--Si Fecha Transaccion > 01/07/2021 se imprime texto-->
+<#assign difference = ('2021-07-01T00:30:00'?datetime.iso?long / 86400000)?round - (record.trandate?long / 86400000)?round />
+<#if (record.custbody_l54_tipo_contribuyente.custrecord_l54_tipo_cont_impr_fiscal == 'MONOTRIBUTO' &&  difference <= 0)>
+    <p style="font-size: 10px" class="mono">El crédito fiscal discriminado en el presente comprobante, sólo podrá ser computado a efectos del Régimen de Sostenimiento e Inclusión Fiscal para Pequeños Contribuyentes de la Ley Nº 27.618.</p>
+</#if>
+ 
+<!--TABLE ADJUSTED-->
+<table style="width: 100%; margin-top: 10px;">
+    <tr>
+        <td style="width: 30%; background-color: #e3e3e3;"><strong>Observaciones Comerciales</strong></td>
+        <td style="width: 40%; background-color: #e3e3e3;">
+            <#if (record.custbody_l54_letra=='A')||(record.custbody_l54_letra=='B')>
+                <strong>Detalle de Impuesto</strong>
+            </#if>
+        </td>
+        <td style="width: 12%;" align="right"><b>${record.subtotal@label}</b></td>
+        <td style="width: 18%;" align="right">
+            <#if (record.custbody_l54_letra == 'B')>
+                ${currencyAUX} ${(record.total- totalPercepcion)?string("#,##0.00")}
+            <#else>
+                ${currencyAUX} ${(record.subtotal)?string("#,##0.00")}
+            </#if>
+        </td>
+    </tr>
+    <tr style="padding-bottom: 3px;">
+        <td>
+            <span style="font-size: 8px;">
+                 ${record.custbody_3k_comentarios_internos}<br />
+              <!--  ${record.custbody_3k_empresa_transporte}<br />
+                <#if (record.custbody_3k_empresa_transporte.custrecord_3k_transp_direccion != "")>
+                  Dir : ${record.custbody_3k_empresa_transporte.custrecord_3k_transp_direccion}<br />
+                </#if>
+               ${record.shipaddr1}  ${record.shipaddr2} - ${record.shipcity} - ${record.custbody_3k_provincia}<br />
+                <#if record.createdfrom.salesrep.id?has_content>
+                  Vendedor: ${record.createdfrom.salesrep.id}   /  ${record.createdfrom.terms}<br />
+                </#if>  -->
+            </span>
+        </td>
+        <td>
+            <#if (record.custbody_l54_letra=='A')||(record.custbody_l54_letra=='B')>  
+        
+                <!--Tabla de Detalle de Impuesto-->
+                <table width="100%" border="0" style="background-color: #f2f2f2">
+                    <tr>
+                        <th align="center" style="font-size: 8px;"><span style="text-align: center;">Código</span></th>
+                        <th align="center" style="font-size: 8px;"><span style="text-align: center;">Base</span></th>
+                        <th align="center" style="font-size: 8px;"><span style="text-align: center;">Alicuota</span></th>
+                        <th align="center" style="font-size: 8px;"><span style="text-align: center;">Impuesto</span></th>
+                    </tr>
+                    <#assign montoTotalImpuestos=0>
+                    <#assign codigo_imp=''>
+                    
+                    <#list arrImpresionImp as imp>
+                        <tr>
+                            <td align="left" style="font-size: 8px;">
+                                <#assign codigo_imp = imp.taxItem>
+                                <#assign codigo_imp = codigo_imp?replace("VAT_AR:", "") >
+                                <#assign codigo_imp = codigo_imp?replace("PERC_VTA:", "") >
+                                <#assign codigo_imp = codigo_imp?replace("PERC_VTA_TUCUMAN:", "") >
+                                <#assign codigo_imp = codigo_imp?replace("PERC_VTA_STA_FE:", "") >
+                                <#assign codigo_imp = codigo_imp?replace("PERC_VTA_SALTA:", "") >
+                                <#assign codigo_imp = codigo_imp?replace("PERC_VTA_MENDOZA:", "") >
+                                <#assign codigo_imp = codigo_imp?replace("PERC_VTA_LA_PAMPA:", "") >
+                                <#assign codigo_imp = codigo_imp?replace("PERC_VTA_CFE:", "") >
+                                <#assign codigo_imp = codigo_imp?replace("PERC_VTA_BUE:", "") >
+                                <#assign codigo_imp = codigo_imp?replace("IMP INT:", "") >
+
+                                ${codigo_imp}
+                            </td> 
+                            
+                            <#if imp.esPercepcion>
+                                <td style="font-size: 8px;" align="center">${imp.basePerc?string("$#,##0.00")}</td>
+                            <#else> 
+                                <#assign totalIVA=totalIVA+imp.montoImp>
+                                <td style="font-size: 8px;" align="center">${(imp.baseIVA)?string("$#,##0.00")}</td>
+                            </#if>
+                            <#assign montoTotalImpuestos=montoTotalImpuestos+imp.montoImp>
+                            <td style="font-size: 8px;" align="center">${imp.alicuota?string("##0.00%")}</td>
+                            <td style="font-size: 8px;" align="center">${imp.montoImp?string("$#,##0.00")}</td>
+                        </tr>
+                    </#list>
+                </table>
+            </#if>
+        </td>
+        <td align="right"><strong>Impuestos<#if record.taxrate?length gt 0> ${currencyAUX} (${record.taxrate}%)</#if></strong></td>
+        <td align="right">
+            <#if (record.custbody_l54_letra=='B')>
+                ${currencyAUX} ${(totalPercepcion)?string("#,##0.00")}
+            <#else>
+                <#if record.taxtotal?length != 0 && record.custbody_l54_letra!='E'>
+                    ${currencyAUX} ${(record.taxtotal)?string("#,##0.00")}
+                <#else>
+                    ${currencyAUX} 00,00
+                </#if>
+            </#if>
+        </td>
+    </tr>
+    <tr style="background-color: #e3e3e3; padding: 5px;">
+        <td></td>
+        <td></td>
+        <td align="right"><b>${record.total@label}</b></td>
+        <td align="right">${currencyAUX} ${(record.total)?string("#,##0.00")}</td>
+    </tr>
+</table>
+<!--END TABLE ADJUSTED-->
+
+<#if record.exchangerate != 1>
+  <table style="width:100%; border: 1px solid black;">
+      <tr>
+        <td align="right" style="width:80%;">El total de este comprobante expresado en moneda de curso legal - Pesos Argentinos - considerandose un tipo de cambio consignado de ${record.exchangerate} asciende a:</td>
+        <td align="right"><strong>$ ${(record.total * record.exchangerate)?string("#,##0.00")}</strong></td>
+      </tr>
+  </table>
+</#if>
+
+
+<table style="width:100%;">
+  <tr>
+  <td> <strong>Tipo de cambio:</strong> ${record.exchangerate}</td>
+  </tr>
+</table>
+<table style="width:100%;">
+  <tr>
+  <!-- <td style="background-color: #f2f2f2;" width="70%">Comentarios Internos:</td> -->
+    <td style="background-color: #f2f2f2;" width="60%">Monto en letras:</td>
+  <td style="background-color: #f2f2f2;" width="40%"><b>CAE:</b> ${record.custbody_l54_cae}</td>
+  </tr>
+  <tr>
+    <td width="60%">
+      <!-- <#if record.custbody_3k_comentarios_internos != "">
+    ${record.custbody_3k_comentarios_internos}<br />
+      </#if> -->
+      <strong>  ${record.custbody_l54_monto_escrito} ${record.currency}</strong><br />
+    </td>
+    <td width="40%">
+      <b>Fecha Vto CAE:</b> ${record.trandate}<br />
+     <!-- <b>Fecha Vto CAE:</b> ${record.custbody_l54_cae_vto}<br /> -->
+    </td>
+  </tr>
+  <tr>
+      <!--************************************INICIO MANEJO DE QR Y CODIGO DE BARRA****************************************************-->
+      <!--Si Fecha Transaccion > 24/12/2020 se imprime QR, sino codigo de barras-->
+      <#assign difference = ('2020-12-24T00:30:00'?datetime.iso?long / 86400000)?round - (record.trandate?long / 86400000)?round />
+
+      <#if difference <= 0 >
+          <!--Se imprime QR-->
+          <#if record.custbody_l54_cae!=''>
+
+              <!--Ajustar segun Cliente (solo numeros)-->
+              <#assign cuit_empresa = 30708357363>
+              <!--JSON Data-->
+              <#assign datos = '{"ver":1,"fecha":"${record.trandate?string["yyyy-MM-dd"]}","cuit":${cuit_empresa},"ptoVta":${record.custbody_l54_boca?number},"tipoCmp":${record.custbody_l54_cod_trans_afip},"nroCmp":${record.custbody_l54_numero?number},"importe":${record.total?string.computer},"moneda":"${record.custbody_l54_cod_moneda_afip}","ctz":${record.exchangerate?string.computer},"tipoDocRec":${record.custbody_l54_tipo_doc_cliente.custrecord_l54_tipo_doc_afip},"nroDocRec":${record.custbody_54_cuit_entity},"tipoCodAut":"E","codAut":${record.custbody_l54_cae}}'?trim?url('UTF-8')>
+
+              <!-- URL Servicio AFIP-->
+              <#assign urlafip = "https://www.afip.gob.ar/fe/qr/?p="?url('UTF-8')>
+              <td colspan="2">
+                  <img style="width: 31%; height: 31%" src="http://45.76.9.35/node/api-afip-qr/api-qrcode/msj?data=${datos}&amp;url=${urlafip}" />
+              </td>
+          </#if>
+      <#else>
+          <!--Se imprime Codigo de Barra-->
+          <#if (record.custbody_l54_codigo_barras_afip != "")>
+              <td colspan="2" align="right">
+                  <barcode codetype="code128" height="20pt" width="200pt" showtext="true" value="${record.custbody_l54_codigo_barras_afip}" />
+              </td>
+          </#if>
+      </#if> 
+      <!--************************************FIN MANEJO DE QR Y CODIGO DE BARRA****************************************************-->
+  </tr>
+</table>
+</body>
+</pdf>
