@@ -39,6 +39,8 @@
                                         <#if datosImpositivos?has_content>
                                             <#list datosImpositivos as datos>
                                                 <#assign resIva=datos.custrecord_l54_resol_ret_iva>
+                                                <#assign datosNum=datos.custrecord_l54_op_num>
+                                                <#assign datosTipo=datos.custrecord_l54_op_inym>
                                                     <#assign resGan=datos.custrecord_l54_resol_ret_ganancias>
                                                         <#assign resIIBB=datos.custrecord_l54_resol_ret_iibb>
                                                             <#assign resSUSS=datos.custrecord_l54_resol_ret_suss>
@@ -1108,6 +1110,17 @@
                                 <td><span style="color: #262626;">${recSubsidiary.address}</span></td>
                             </tr>
                     </#if>
+
+                    <#if retenciones.formulatext=="Retención INYM">
+                        <tr>
+                            <td colspan="2"><span style="color: #6f6f6f;">Número Operador</span></td>
+                            <td><span style="color: #6f6f6f;">Tipo Operador</span></td>
+                        </tr>
+                        <tr>
+                            <td colspan="2"><span style="color: #262626;">${datosNum}</span></td>
+                            <td><span style="color: #262626;">${datosTipo}</span></td>
+                        </tr>
+                    </#if>
                     <tr>
                         <td>&nbsp;</td>
                     </tr>
@@ -1127,6 +1140,17 @@
                                 style="color: #262626;">${infoPago.address?replace(infoPago.custbody_l54_razon_social_prov,
                                 "")}</span></td>
                     </tr>
+
+                    <#if retenciones.formulatext=="Retención INYM">
+                        <tr>
+                            <td colspan="2"><span style="color: #6f6f6f;">Número Operador</span></td>
+                            <td><span style="color: #6f6f6f;">Tipo Operador</span></td>
+                        </tr>
+                        <tr>
+                            <td colspan="2"><span style="color: #262626;">${infoPago.entity.custentity_l54_op_num}</span></td>
+                            <td><span style="color: #262626;">${retenciones.custrecord_l54_ret_tipo_contrib_iibb}</span></td>
+                        </tr>
+                    </#if>
 
                     <!--<tr><td>Apellido y Nombre o Denominación: ${infoPago.entity}</td></tr>
                     <tr><td>C.U.I.T. Nro: ${infoPago.entity.custentity_l54_cuit_entity}</td></tr>
@@ -1151,12 +1175,27 @@
                                     <#if retenciones.formulatext=="IIBB - Retenciones Régimen IIBB">
                                         <#assign impuestos=resIIBB>
                                     </#if>
+                                    <#if retenciones.formulatext=="Retención Municipal">
+                                        <#assign impuestos=resIIBB>
+                                    </#if>
+                                    <#if retenciones.formulatext=="Retención INYM">
+                                        <#assign impuestos=resIIBB>
+                                    </#if>
                         </#if>
 
                         <#assign total=infoPago.total * infoPago.exchangerate>
-                            <#assign base=retenciones.custrecord_l54_ret_base_calculo_imp * infoPago.exchangerate>
-                                <#assign importe=retenciones.custrecord_l54_ret_importe * infoPago.exchangerate>
-                                    <#assign alicuota=retenciones.custrecord_l54_ret_alicuota>
+                        <#assign base=retenciones.custrecord_l54_ret_base_calculo_imp * infoPago.exchangerate>
+                        <#assign importe=retenciones.custrecord_l54_ret_importe * infoPago.exchangerate>
+                        <#if retenciones.formulatext=="Retención INYM">
+                            <#assign alicuota=retenciones.custrecord_l54_ret_tarifa>
+                            <#assign labelAlcuota= "Tarifa Hoja Verde">
+                            <#if infoPago.custbody_l54_inym_aplica_label?boolean>
+                                <#assign labelAlcuota= "Tarifa Hoja Verde Y Yerba Mate Canchada">
+                            </#if>
+                        <#else>
+                            <#assign alicuota=retenciones.custrecord_l54_ret_alicuota>
+                            <#assign labelAlcuota= "Alicuota">
+                        </#if>
                                         <tr style="background-color: #E0E6EF; color: #607799;">
                                             <td colspan="4"><b>C. - Datos de la Retenciones practicadas</b></td>
                                         </tr>
@@ -1192,7 +1231,7 @@
                                         </tr>
                                         <tr>
                                             <td colspan="2"><span style="color: #6f6f6f;">Base de Cálculo</span></td>
-                                            <td><span style="color: #6f6f6f;">Alicuota</span></td>
+                                            <td><span style="color: #6f6f6f;">${labelAlcuota}</span></td>
                                             <td><span style="color: #6f6f6f;">Monto de la retención</span></td>
                                         </tr>
                                         <tr>

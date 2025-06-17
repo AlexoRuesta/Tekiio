@@ -61,6 +61,18 @@ define(['N/record', 'N/search', 'N/runtime', 'N/email', 'N/error', 'N/file', 'N/
                 }).updateDisplayType({
                     displayType: serverWidget.FieldDisplayType.HIDDEN
                 });
+
+                var galicia = form.addField({
+                    id: 'custpage_galicia',
+                    label: 'Cuenta Galicia:',
+                    type: serverWidget.FieldType.TEXT,
+                    container: 'filtros'
+                }).updateDisplayType({
+                    displayType: serverWidget.FieldDisplayType.HIDDEN
+                });
+
+                var pGalicia = runtime.getCurrentScript().getParameter({ name: 'custscript_l54_txt_banco_arch_galicia' });
+                galicia.defaultValue = pGalicia;
                 // FIN CAMPOS
 
                 // INICIO FILTROS
@@ -388,9 +400,9 @@ define(['N/record', 'N/search', 'N/runtime', 'N/email', 'N/error', 'N/file', 'N/
                             var cuentaBancaria = context.request.parameters.custpage_datobanco;
                             var idMoneda = context.request.parameters.custpage_moneda;
                             var idBanco = context.request.parameters.custpage_bancocliente;
-                            var pagos = busquedaPagos(mostrarIncluidos, idSubsidiaria, fechaDesdeConsulta, fechaHastaConsulta, cuentaBancaria, idMoneda);
                             var infoPanel = consultarPanel(idSubsidiaria,idBanco);
                             log.debug(proceso, 'infoPanel: ' + JSON.stringify(infoPanel));
+                            var pagos = busquedaPagos(mostrarIncluidos, idSubsidiaria, fechaDesdeConsulta, fechaHastaConsulta, cuentaBancaria, idMoneda, infoPanel);
 
                             var instCalculoRet = infoPanel[0].panelInstCalcRet;
                             var nroSecuenciaActual  = infoPanel[0].panelNroSecuencia;
@@ -427,7 +439,7 @@ define(['N/record', 'N/search', 'N/runtime', 'N/email', 'N/error', 'N/file', 'N/
             }
         }
 
-        function busquedaPagos(mostrarIncluidos, idSubsidiaria, fechaDesdeConsulta, fechaHastaConsulta, cuentaBancaria, idMoneda) {
+        function busquedaPagos(mostrarIncluidos, idSubsidiaria, fechaDesdeConsulta, fechaHastaConsulta, cuentaBancaria, idMoneda, infoPanel) {
             log.audit('busquedaPagos', 'INICIO Consulta Pagos');
             var respuesta = new Object();
             respuesta.error = false;
@@ -496,12 +508,21 @@ define(['N/record', 'N/search', 'N/runtime', 'N/email', 'N/error', 'N/file', 'N/
                     filtroCuentaBancaria.values = cuentaBancaria;
                     filtrosPagos.push(filtroCuentaBancaria);
 
-                    log.debug('Flag','Pase validacion 6');
-                    var filtroMultiple = new Object();
-                    filtroMultiple.name = 'custbody_3k_forma_pago_local';
-                    filtroMultiple.operator = 'NONEOF'
-                    filtroMultiple.values = '1';
-                    filtrosPagos.push(filtroMultiple);
+                    if (!utilities.isEmpty(infoPanel) && infoPanel.length != 0 && !infoPanel[0].incluirPagosM) {
+                        var customFilter1 = new Object();
+                        customFilter1.name = 'custbody_3k_forma_pago_local';
+                        customFilter1.operator = 'NONEOF'
+                        customFilter1.values = '1';
+                        filtrosPagos.push(customFilter1);
+                    }
+                    
+                    if (!utilities.isEmpty(infoPanel) && infoPanel.length != 0 && !infoPanel[0].incluirAnulados) {
+                        var customFilter2 = new Object();
+                        customFilter2.name = 'voided';
+                        customFilter2.operator = 'IS'
+                        customFilter2.values = 'F';
+                        filtrosPagos.push(customFilter2);
+                    }
 
                     log.debug('Flag','Pase validacion 7');
 
@@ -813,7 +834,8 @@ define(['N/record', 'N/search', 'N/runtime', 'N/email', 'N/error', 'N/file', 'N/
             var objParametros = {};
             var currScript = runtime.getCurrentScript();
             var paramGalicia = currScript.getParameter('custscript_l54_txt_banco_arch_galicia');
-
+            var paramIndistrial = currScript.getParameter('custscript_l54_txt_banco_arch_industrial');
+            
             if(paramGalicia == bancoCliente){
                 log.debug("seleccionarIdMapRed","Banco Galicia Selecionado");
                 objScriptMP.idScriptMapRed = 'customscript_l54_txt_galicia_mr';
@@ -824,6 +846,21 @@ define(['N/record', 'N/search', 'N/runtime', 'N/email', 'N/error', 'N/file', 'N/
                 objParametros.custscript_l54_txt_galicia_mr_dbco = datoBancario;
                 objParametros.custscript_l54_txt_galicia_mr_mone = moneda;
                 objParametros.custscript_l54_txt_galicia_mr_bank = bancoCliente;
+                objScriptMP.objParametros = objParametros;
+            }else if(paramIndistrial == bancoCliente){
+                var objFieldLookUp = search.lookupFields({
+                    type: 'currency',
+                    id: moneda,
+                    columns: ['symbol']
+                });
+                objScriptMP.idScriptMapRed = 'customscript_l54_txt_industrial_mr';
+                objParametros.custscript_l54_txt_industrial_mr_pagos = pagosPorProcesar;
+                objParametros.custscript_l54_txt_industrial_mr_userd = idUsuario;
+                objParametros.custscript_l54_txt_industrial_mr_subs = idSubsidiaria;
+                objParametros.custscript_l54_txt_industrial_mr_fecha = fechaCabecera;
+                objParametros.custscript_l54_txt_industrial_mr_dbco = datoBancario;
+                objParametros.custscript_l54_txt_industrial_mr_curr = objFieldLookUp.symbol;
+                objParametros.custscript_l54_txt_industrial_mr_bank = bancoCliente;
                 objScriptMP.objParametros = objParametros;
             } else{
                 log.debug("Error","El banco seleccionado no tiene un proceso de generacion TXT para pagos de proveedores")
@@ -889,6 +926,8 @@ define(['N/record', 'N/search', 'N/runtime', 'N/email', 'N/error', 'N/file', 'N/
                         var objPanel = {};
                         objPanel.panelNroSecuencia = panelConfigResultSet[k].getValue({ name: panelConfigResultSearch.columns[9] });
                         objPanel.panelInstCalcRet = panelConfigResultSet[k].getValue({ name: panelConfigResultSearch.columns[10] });
+                        objPanel.incluirAnulados = panelConfigResultSet[k].getValue({ name: panelConfigResultSearch.columns[13] });
+                        objPanel.incluirPagosM = panelConfigResultSet[k].getValue({ name: panelConfigResultSearch.columns[14] });
                         arrayPanel.push(objPanel);
                     }
                 }

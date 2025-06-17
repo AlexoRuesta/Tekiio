@@ -6653,6 +6653,8 @@ function l54btnAnularRetenciones(type, form) {
 		var tipoRetIibb = nlapiGetContext().getSetting('SCRIPT', 'custscript_l54_anul_ret_iibb');
 		var tipoRetSuss = nlapiGetContext().getSetting('SCRIPT', 'custscript_l54_anul_ret_suss');
 		var tipoRetMuni = nlapiGetContext().getSetting('SCRIPT', 'custscript_l54_anul_ret_municipal');
+		var tipoRetInym = nlapiGetContext().getSetting('SCRIPT', 'custscript_l54_anul_ret_inym');
+		var tipoTransacInymAnul = nlapiGetContext().getSetting('SCRIPT', 'custscript_l54_anul_ret_inym_anul');
 		var tipoTransacMuniAnul = nlapiGetContext().getSetting('SCRIPT', 'custscript_l54_anul_ret_municipal_anul');
 		var tipoTransacGanAnul = nlapiGetContext().getSetting('SCRIPT', 'custscript_l54_anul_ret_gan_anul');
 		var tipoTransacIvaAnul = nlapiGetContext().getSetting('SCRIPT', 'custscript_l54_anul_ret_iva_anul');
@@ -6660,7 +6662,7 @@ function l54btnAnularRetenciones(type, form) {
 		var tipoTransacSussAnul = nlapiGetContext().getSetting('SCRIPT', 'custscript_l54_anul_ret_suss_anul');
 		nlapiLogExecution('DEBUG', 'l54btnAnularRetenciones', 'Parametros:    tipoRetGan: '+ tipoRetGan + ', tipoRetIva:'+ tipoRetIva + ", tipoRetIibb: "+ tipoRetIibb + ", tipoRetSuss: " + tipoRetSuss + ", tipoTransacGanAnul: "+ tipoTransacGanAnul + ", tipoTransacIvaAnul: " + tipoTransacIvaAnul + ", tipoTransacIibbAnul: " + tipoTransacIibbAnul + ", tipoTransacSussAnul: "+ tipoTransacSussAnul + ", tipoTransacMuniAnul: " + tipoTransacMuniAnul + ", tipoRetMuni: "+ tipoRetMuni);
 		form.setScript('customscript_l54_enlace_l54_ret_v2012');
-		form.addButton('custpage_calcular_retenciones', 'Anular OP y Retenciones', "anularRetenciones("+tipoRetGan+","+tipoRetIva+","+tipoRetIibb+","+tipoRetSuss+","+tipoTransacGanAnul+","+tipoTransacIvaAnul+","+tipoTransacIibbAnul+","+tipoTransacSussAnul+","+tipoRetMuni+","+tipoTransacMuniAnul+")");
+		form.addButton('custpage_calcular_retenciones', 'Anular OP y Retenciones', "anularRetenciones("+tipoRetGan+","+tipoRetIva+","+tipoRetIibb+","+tipoRetSuss+","+tipoTransacGanAnul+","+tipoTransacIvaAnul+","+tipoTransacIibbAnul+","+tipoTransacSussAnul+","+tipoRetMuni+","+tipoTransacMuniAnul+","+tipoRetInym+","+tipoTransacInymAnul+")");
 	}
 	nlapiLogExecution('DEBUG', 'l54btnAnularRetenciones', 'CLOSE');
 }

@@ -1,5 +1,5 @@
 /**
- * @NApiVersion 2.0
+ * @NApiVersion 2.1
  * @NModuleScope Public
  * @NAmdConfig /SuiteScripts/configuration.json
  */
@@ -163,6 +163,7 @@ define(["N/currentRecord", "N/format", "L54/utilidades", "N/runtime", "N/https",
                                     var importeTotalIVA = 0.00;
                                     var importeTotalIIBB = 0.00;
                                     var importeTotalMuni = 0.00;
+                                    var importeTotalYnym = 0.00;
 
                                     log.audit("Governance Monitoring", "LINE 151 - Remaining Usage = " + script.getRemainingUsage() + " --- time: " + new Date());
 
@@ -215,6 +216,10 @@ define(["N/currentRecord", "N/format", "L54/utilidades", "N/runtime", "N/https",
                                     });
                                     recVendorPayment.setValue({
                                         fieldId: "custbody_l54_municipal_imp_a_retener",
+                                        value: 0.00
+                                    });
+                                    recVendorPayment.setValue({
+                                        fieldId: "custbody_l54_inym_imp_a_retener",
                                         value: 0.00
                                     });
                                     recVendorPayment.setValue({
@@ -642,6 +647,7 @@ define(["N/currentRecord", "N/format", "L54/utilidades", "N/runtime", "N/https",
                                         if (informacionRetenciones.estaInscriptoRegimenIIBB) {
                                             importeTotalIIBB = 0.00; 
                                             importeTotalMuni = 0.00;
+                                            importeTotalYnym = 0.00;
 
                                             for (var i = 0; informacionRetenciones.retencion_iibb != null && i < informacionRetenciones.retencion_iibb.length; i++) {
                                                 var importeRetener = informacionRetenciones.retencion_iibb[i].imp_retencion;
@@ -649,6 +655,9 @@ define(["N/currentRecord", "N/format", "L54/utilidades", "N/runtime", "N/https",
                                                 log.debug("informacionRetenciones.retencion_iibb[i].retencion", informacionRetenciones.retencion_iibb[i])
                                                 if(informacionRetenciones.retencion_iibb[i].retencion == 5){
                                                     importeTotalMuni = parseFloat(importeTotalMuni, 10) + parseFloat(importeRetener, 10);
+                                                }else if(informacionRetenciones.retencion_iibb[i].retencion == 6){
+                                                    importeTotalYnym = parseFloat(importeTotalYnym, 10) + parseFloat(importeRetener, 10);
+                                                    informacionRetenciones.retencion_iibb[i].alicuota = 100;
                                                 }else{
                                                     importeTotalIIBB = parseFloat(importeTotalIIBB, 10) + parseFloat(importeRetener, 10);
                                                 }
@@ -816,6 +825,12 @@ define(["N/currentRecord", "N/format", "L54/utilidades", "N/runtime", "N/https",
                                             });
 
                                             recVendorPayment.setValue({
+                                                fieldId: "custbody_l54_inym_imp_a_retener",
+                                                value: importeTotalYnym,
+                                                ignoreFieldChange: false
+                                            });
+
+                                            recVendorPayment.setValue({
                                                 fieldId: "custbody_l54_iibb_imp_a_retener",
                                                 value: importeTotalIIBB,
                                                 ignoreFieldChange: false
@@ -825,7 +840,7 @@ define(["N/currentRecord", "N/format", "L54/utilidades", "N/runtime", "N/https",
 
                                     log.audit("Governance Monitoring", "LINE 716 - Remaining Usage = " + script.getRemainingUsage() + " --- time: " + new Date());
 
-                                    var importeTotalRetencion = parseFloat(importeTotalGanancias, 10) + parseFloat(importeTotalIVA, 10) + parseFloat(importeTotalIIBB, 10) + parseFloat(importeTotalMuni, 10) + parseFloat(importeTotalSUSS, 10);
+                                    var importeTotalRetencion = parseFloat(importeTotalGanancias, 10) + parseFloat(importeTotalIVA, 10) + parseFloat(importeTotalIIBB, 10) + parseFloat(importeTotalMuni, 10) + parseFloat(importeTotalYnym, 10) + parseFloat(importeTotalSUSS, 10);
                                     var total = recVendorPayment.getValue({ fieldId: "total" });
                                     var importeNetoAbonar = parseFloat(total, 10) - parseFloat(importeTotalRetencion, 10);
 
@@ -976,6 +991,7 @@ define(["N/currentRecord", "N/format", "L54/utilidades", "N/runtime", "N/https",
             recVendorPayment.setValue({ fieldId: "custbody_l54_iva_imp_a_retener", value: 0.00 });
             recVendorPayment.setValue({ fieldId: "custbody_l54_iibb_imp_a_retener", value: 0.00 });
             recVendorPayment.setValue({ fieldId: "custbody_l54_municipal_imp_a_retener", value: 0.00 });
+            recVendorPayment.setValue({ fieldId: "custbody_l54_inym_imp_a_retener", value: 0.00 });
             recVendorPayment.setValue({ fieldId: "custbody_l54_importe_total_retencion", value: 0.00 });
             recVendorPayment.setValue({ fieldId: "custbody_l54_base_calculo_ret_gan", value: 0.00 });
             recVendorPayment.setValue({ fieldId: "custbody_l54_base_calculo_ret_suss", value: 0.00 });

@@ -70,7 +70,8 @@ define(['N/record', 'N/error', 'N/search', 'L54/utilidades', 'N/runtime', 'N/for
                 var fechaAnulacion = new Date();    
                 var fechaAnulacionString = format.parse({
                     value: fechaAnulacion,
-                    type: format.Type.DATE
+                    type: format.Type.DATE,
+                    timezone: format.Timezone.AMERICA_BUENOS_AIRES
                 });
                 objRecord.setValue({
                     fieldId: 'custrecord_l54_anul_ret_fecha',

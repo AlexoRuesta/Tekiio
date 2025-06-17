@@ -668,11 +668,11 @@ define(['N/record', 'N/search', 'N/runtime', 'N/email', 'N/error', 'N/file', 'N/
                 end: 1
             });
             log.debug("Resultado Busqueda",JSON.stringify(results));
-            log.debug("Columnas: ", results[0].getValue({name: mySearch.columns[0]}));
+            log.debug("Columnas: ", results[0].getValue({name: mySearch.columns[1]}));
             if(!utilities.isEmpty(results)){
-                if(results[0].getValue({name: mySearch.columns[0]}) == 'ARS'){
+                if(results[0].getValue({name: mySearch.columns[1]}) == 'ARS'){
                     codigo = '1';
-                }else if(results[0].getValue({name: mySearch.columns[0]}) == 'USD'){
+                }else if(results[0].getValue({name: mySearch.columns[1]}) == 'USD'){
                     codigo = '2';
                 }else{
                     codigo = '0'

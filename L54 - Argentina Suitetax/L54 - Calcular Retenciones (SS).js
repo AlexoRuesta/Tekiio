@@ -802,7 +802,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                         if (!utilidades.isEmpty(tarifa) && idTipoRetencion == 6) objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_tarifa", line: lineNum, value: tarifa });
 
                                         if (!utilidades.isEmpty(unidad) && idTipoRetencion == 6) objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_unidad", line: lineNum, value: unidad });
-
+                                        
                                         objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_alicuota", line: lineNum, value: alicuota });
                                         objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_tipo_exencion", line: lineNum, value: idTipoExencion });
                                         objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_cert_exencion", line: lineNum, value: certificadoExencion });
@@ -1229,7 +1229,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                                                         }else if(informacionRetenciones.retencion_iibb[i].retencion == 6){
                                                                             importeTotalInym = parseFloat(importeTotalInym, 10) + parseFloat(importeRetener, 10);
                                                                         }else{
-                                                                            importeTotalIIBB = parseFloat(importeTotalIIBB, 10) + parseFloat(importeRetener, 10);
+                                                                        importeTotalIIBB = parseFloat(importeTotalIIBB, 10) + parseFloat(importeRetener, 10);
                                                                         }
                                                                         
                                                                         arrayRetencionesCSV.push(retGuardada);
@@ -1305,7 +1305,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                                                     if (!utilidades.isEmpty(tarifa) && idTipoRetencion == 6) objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_tarifa", line: lineNum, value: tarifa });
 
                                                                     if (!utilidades.isEmpty(unidad) && idTipoRetencion == 6) objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_unidad", line: lineNum, value: unidad });
-
+                                                                    
                                                                     objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_tipo_exencion", line: lineNum, value: idTipoExencion });
                                                                     objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_cert_exencion", line: lineNum, value: certificadoExencion });
                                                                     if (!utilidades.isEmpty(fechaExencion)) {
@@ -1354,6 +1354,43 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
 
                                                         }
                                                     }//FIN - RETENCION IIBB
+
+                                                    //INICIO - REGISTRO DE ACUMULADOS RETENCION IIBB
+                                                    if (!isEmpty(informacionRetenciones.detalleAcumulados) && informacionRetenciones.detalleAcumulados.length > 0) {
+
+                                                        for (let r = 0; r < objRecord.getLineCount({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc" }); r++) {
+                                                            objRecord.removeLine({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", line: r });
+                                                            r--;
+                                                        }
+
+                                                        for (var i = 0; i < informacionRetenciones.detalleAcumulados.length; i++) {
+                                                            if (runtime.executionContext == "CSVIMPORT" || runtime.executionContext == "WEBSERVICES") {
+
+                                                                const regAcumulado = guardarAcumulados(informacionRetenciones.detalleAcumulados[i], fecha);
+
+                                                                if (!isEmpty(regAcumulado)) {
+                                                                    arrayAcumuladosCSV.push(regAcumulado);
+                                                                }
+                                                            } else {
+                                                                var lineNum = 0;
+                                                                cantidadRegAcum = objRecord.getLineCount({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc" });
+                                                                if (cantidadRegAcum == 0) {
+                                                                    lineNum = 0;
+                                                                } else {
+                                                                    lineNum = parseInt(cantidadRegAcum);
+                                                                }
+                                                                objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", fieldId: "custrecord_l54_acum_ret_proveedor", line: lineNum, value: informacionRetenciones.detalleAcumulados[i].proveedor });
+                                                                objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", fieldId: "custrecord_l54_acum_ret_periodo", line: lineNum, value: informacionRetenciones.detalleAcumulados[i].periodo });
+                                                                objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", fieldId: "custrecord_l54_acum_ret_subsidiaria", line: lineNum, value: informacionRetenciones.detalleAcumulados[i].subsidiaria });
+                                                                objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", fieldId: "custrecord_l54_acum_ret_base_calculo", line: lineNum, value: informacionRetenciones.detalleAcumulados[i].baseCalculo });
+                                                                objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", fieldId: "custrecord_l54_acum_ret_jurisdiccion", line: lineNum, value: informacionRetenciones.detalleAcumulados[i].jurisdiccion });
+                                                                objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", fieldId: "custrecord_l54_acum_ret_cod_ret", line: lineNum, value: informacionRetenciones.detalleAcumulados[i].codigo });
+                                                                objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", fieldId: "custrecord_l54_acum_ret_fecha", line: lineNum, value: fecha });
+                                                                objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", fieldId: "custrecord_l54_acum_ret_tipo_cambio", line: lineNum, value: informacionRetenciones.detalleAcumulados[i].tipoCambio });
+                                                            }
+                                                        }
+                                                    }
+                                                    //FIN - REGISTRO DE ACUMULADOS RETENCION IIBB
 
                                                     var importeTotalRetencion = parseFloat(importeTotalGanancias, 10) + parseFloat(importeTotalIVA, 10) + parseFloat(importeTotalIIBB, 10) + parseFloat(importeTotalMuni, 10) + parseFloat(importeTotalInym, 10) + parseFloat(importeTotalSUSS, 10);
                                                     var total = objRecord.getValue({ fieldId: "total" });
@@ -1467,6 +1504,139 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                 objRecord.setValue('custbody_l54_cuenta_banco', accountOri);
                                 
                                 log.debug("Governance Monitoring", "Memoria = " + script.getRemainingUsage());
+                            }
+
+                            /** Modificación Acumulados Retenciones */
+                            var cantLinAcumulados = objRecord.getLineCount({ sublistId: 'recmachcustrecord_l54_acum_ret_pago_asoc' });
+                            if(cantLinAcumulados == 0){
+                                //ARRAY INFORMACIÓN PAGO
+                                fecha = (!utilidades.isEmpty(fecha)) ? fecha : "";
+                                var infPago = new Object();
+                                infPago.entity = entity;
+                                infPago.periodo = id_posting_period;
+                                infPago.tipoCambio = tasa_cambio_pago;
+                                infPago.importeTotal = total;
+                                infPago.trandate = [];
+                                infPago.trandate.push(fecha);
+                                infPago.fecha = [];
+                                infPago.fecha.push(fechaAux);
+                                infPago.moneda = moneda;
+                                infPago.subsidiaria = subsidiaria;
+                                infPago.tipoContribuyente = tipoContribuyente;
+                                infPago.esOneWorld = utilidades.l54esOneworld();
+                                infPago.facturas = new Array();
+                                const arrayTranID = [];
+
+                                const cantItems = objRecord.getLineCount({
+                                    sublistId: "apply"
+                                });
+                                if ((!utilidades.isEmpty(total)) && (total > 0.00)) {
+                                    for (var i = 0; !utilidades.isEmpty(cantItems) && i < cantItems; i++) {
+                                        const fldApply = objRecord.getSublistValue({ sublistId: "apply", fieldId: "apply", line: i });
+
+                                        if (fldApply) {
+                                            const id_vendorbill = objRecord.getSublistValue({ sublistId: "apply", fieldId: "doc", line: i });
+                                            const amount = objRecord.getSublistValue({ sublistId: "apply", fieldId: "amount", line: i });
+                                            const tranID = objRecord.getSublistValue({ sublistId: "apply", fieldId: "refnum", line: i });
+
+                                            const objFactura = new Object();
+                                            objFactura.idVendorBill = id_vendorbill;
+                                            objFactura.linea = i;
+                                            objFactura.amount = amount;
+                                            infPago.facturas.push(objFactura);
+                                            arrayTranID.push(tranID);
+                                        }
+                                    }
+                                }
+                                log.debug('Proceso automatico de calculo de Acumulados', JSON.stringify(infPago))
+
+                                if (!utilidades.isEmpty(infPago)) {
+                                    try{
+                                        infPago.facturas = JSON.stringify(infPago.facturas);
+                                        infPago.trandate = JSON.stringify(infPago.trandate);
+                                        infPago.fecha = JSON.stringify(infPago.fecha);
+
+                                        const new_url = url.resolveScript({
+                                            scriptId: "customscript_l54_calcular_ret_suitelet",
+                                            deploymentId: "customdeploy_l54_calcular_ret_suitelet",
+                                            returnExternalUrl: true
+                                        });
+
+                                        log.audit("L54 - Calcular Retenciones (SS)", "infPago: " + JSON.stringify(infPago));
+
+                                        const respuestaAux = https.post({
+                                            url: new_url,
+                                            body: infPago
+                                        });
+
+                                        if (!utilidades.isEmpty(respuestaAux)) {
+
+                                            const respuesta = JSON.parse(respuestaAux.body);
+                                            if (!utilidades.isEmpty(respuesta) && respuesta.length > 0) {
+
+                                                var informacionRetenciones = respuesta[0];
+                                                if (!isEmpty(informacionRetenciones.detalleAcumulados) && informacionRetenciones.detalleAcumulados.length > 0) {
+
+                                                    for (let r = 0; r < objRecord.getLineCount({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc" }); r++) {
+                                                        objRecord.removeLine({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", line: r });
+                                                        r--;
+                                                    }
+
+                                                    log.debug("informacionRetenciones.detalleAcumulados", JSON.stringify(informacionRetenciones.detalleAcumulados))
+                                                    for (var i = 0; i < informacionRetenciones.detalleAcumulados.length; i++) {
+                                                        if (runtime.executionContext == "CSVIMPORT" || runtime.executionContext == "WEBSERVICES") {
+
+                                                            const regAcumulado = guardarAcumulados(informacionRetenciones.detalleAcumulados[i], fecha);
+
+                                                            if (!isEmpty(regAcumulado)) {
+                                                                arrayAcumuladosCSV.push(regAcumulado);
+                                                            }
+                                                        } else {
+                                                            var lineNum = 0;
+                                                            cantidadRegAcum = objRecord.getLineCount({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc" });
+                                                            if (cantidadRegAcum == 0) {
+                                                                lineNum = 0;
+                                                            } else {
+                                                                lineNum = parseInt(cantidadRegAcum);
+                                                            }
+                                                            objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", fieldId: "custrecord_l54_acum_ret_proveedor", line: lineNum, value: informacionRetenciones.detalleAcumulados[i].proveedor });
+                                                            objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", fieldId: "custrecord_l54_acum_ret_periodo", line: lineNum, value: informacionRetenciones.detalleAcumulados[i].periodo });
+                                                            objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", fieldId: "custrecord_l54_acum_ret_subsidiaria", line: lineNum, value: informacionRetenciones.detalleAcumulados[i].subsidiaria });
+                                                            objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", fieldId: "custrecord_l54_acum_ret_base_calculo", line: lineNum, value: informacionRetenciones.detalleAcumulados[i].baseCalculo });
+                                                            objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", fieldId: "custrecord_l54_acum_ret_jurisdiccion", line: lineNum, value: informacionRetenciones.detalleAcumulados[i].jurisdiccion });
+                                                            objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", fieldId: "custrecord_l54_acum_ret_cod_ret", line: lineNum, value: informacionRetenciones.detalleAcumulados[i].codigo });
+                                                            objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", fieldId: "custrecord_l54_acum_ret_fecha", line: lineNum, value: fecha });
+                                                            objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", fieldId: "custrecord_l54_acum_ret_tipo_cambio", line: lineNum, value: informacionRetenciones.detalleAcumulados[i].tipoCambio });
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }        
+
+                                    }catch (e) {
+                                        
+
+                                        /* INICIO - SE ELIMINAN LOS ACUMULADOS  */
+
+                                        if (!utilidades.isEmpty(arrayAcumuladosCSV) && arrayAcumuladosCSV.length > 0) {
+                                            eliminarAcumuladosCSV(arrayAcumuladosCSV);
+                                        }
+
+                                        arrayAcumuladosCSV = null;
+
+                                        /* FIN - SE ELIMINAN LOS ACUMULADOS  */
+
+
+                                        if (e.type.toString() == "error.SuiteScriptError" && e.name.toString() == "SSS_REQUEST_TIME_EXCEEDED") {
+                                            log.error("L54 - Calcular Retenciones (SS)", "Ingreso a capture de error con SSS_REQUEST_TIME_EXCEEDED");
+                                            mensajeErrorRetencionAutomatica = "Error: El cálculo de retenciones para las facturas: " + arrayTranID.toString() + "; ha excedido el límite de tiempo para devolver una respuesta. Intente repetir el proceso nuevamente.";
+                                            log.error("L54 - Calcular Retenciones (SS)", "mensajeErrorRetencionAutomatica: " + mensajeErrorRetencionAutomatica);
+                                            throw mensajeErrorRetencionAutomatica;
+                                        }
+                                    }
+                                    
+                                
+                                }
                             }
                         
                     }
@@ -2441,7 +2611,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                 recordT.setValue({ fieldId: "custbody_l54_id_ret_inym", value: arrayIdYnym.toString() });
 
                         }
-                        
+
                         //FIN - SE ACTUALIZAN LOS CAMPOS SUBSIDIARIA, PUNTO DE VENTA, LETRA, IMPORTE NETO A ABONAR YA QUE NO SALTA LA FUNCIONALIDAD DE ORIGEN Y FILTRACION
 
                         try {
@@ -4332,6 +4502,49 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
         //Identifica si una Fecha String es una fecha valida para ser convertida
         function isDate(fecha) {
             return fecha instanceof Date && !isNaN(fecha.valueOf());
+        }
+
+        function guardarAcumulados(datosAcumulados, fecha) {
+
+            const proceso = "guardarAcumulados";
+            log.debug(proceso, "INICIO - guardarAcumulados");
+
+            try {
+                const objAcumulado = {};
+                objAcumulado.custrecord_l54_acum_ret_proveedor = datosAcumulados.proveedor;
+                objAcumulado.custrecord_l54_acum_ret_fecha = fecha;
+                objAcumulado.custrecord_l54_acum_ret_periodo = datosAcumulados.periodo;
+                objAcumulado.custrecord_l54_acum_ret_subsidiaria = datosAcumulados.subsidiaria;
+                objAcumulado.custrecord_l54_acum_ret_base_calculo = datosAcumulados.baseCalculo;
+                if(!utilidades.isEmpty(datosAcumulados.jurisdiccion)){
+                    objAcumulado.custrecord_l54_acum_ret_jurisdiccion = datosAcumulados.jurisdiccion;
+                }
+                objAcumulado.custrecord_l54_acum_ret_cod_ret = datosAcumulados.codigo;
+                objAcumulado.custrecord_l54_acum_ret_anulado = false;
+                objAcumulado.isinactive = false;
+
+                const recordAcum = record.create({
+                    type: "customrecord_l54_acumulados_retenciones",
+                });
+
+                for (const key in objAcumulado) {
+                    recordAcum.setValue(key, objAcumulado[key]);
+                }
+
+                const idAcum = recordAcum.save({
+                    enableSourcing: true,
+                    ignoreMandatoryFields: true
+                });
+
+                log.debug(proceso, `Se creo el registro de acumulado de manera correcta - Detalle idAcum: ${idAcum}`);
+
+                return idAcum;
+            } catch (error) {
+                log.error(proceso, `Error NetSuite Excepcion - guardarAcumulados - Detalles: ${error.message}`);
+            }
+
+            log.debug(proceso, "FIN - guardarAcumulados");
+            return null;
         }
 
         function guardarRetenciones(datosRetencion, paramRetenciones, entity, id_posting_period, tasa_cambio_pago, moneda, fecha, esRetIIBB) {

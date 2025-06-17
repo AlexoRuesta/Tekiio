@@ -141,6 +141,16 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                         displayType: serverWidget.FieldDisplayType.NORMAL
                     });
 
+                    //SUBLISTA - CAMPO TARIFA
+                    sublistRetenciones.addField({
+                        id: "custrecord_l54_ret_tarifa",
+                        label: "TARIFA (BASE CALCULO)",
+                        type: serverWidget.FieldType.FLOAT
+                    }).updateDisplayType({
+                        displayType: serverWidget.FieldDisplayType.NORMAL
+                        //displayType: serverWidget.FieldDisplayType.NORMAL
+                    });
+
                     //SUBLISTA - CAMPO ALICUOTA
                     sublistRetenciones.addField({
                         id: "custrecord_l54_ret_porcentaje",
@@ -169,6 +179,16 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                         type: serverWidget.FieldType.TEXT
                     }).updateDisplayType({
                         //displayType: serverWidget.FieldDisplayType.DISABLED
+                        displayType: serverWidget.FieldDisplayType.NORMAL
+                    });
+
+                    //SUBLISTA - CAMPO UNIDAD MEDIDA(BASE CALCULO).
+                    sublistRetenciones.addField({
+                        id: "custrecord_l54_ret_unidad_medida",
+                        label: "UNIDAD MEDIDA (BASE CALCULO)",
+                        type: serverWidget.FieldType.SELECT,
+                        source: "customrecord_l54_um_fex"
+                    }).updateDisplayType({
                         displayType: serverWidget.FieldDisplayType.NORMAL
                     });
 
@@ -384,6 +404,16 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                         //displayType: serverWidget.FieldDisplayType.NORMAL
                     });
 
+                    //SUBLISTA - CAMPO TARIFA
+                    sublistRetenciones.addField({
+                        id: "custrecord_l54_ret_tarifa",
+                        label: "TARIFA (BASE CALCULO)",
+                        type: serverWidget.FieldType.FLOAT
+                    }).updateDisplayType({
+                        displayType: serverWidget.FieldDisplayType.NORMAL
+                        //displayType: serverWidget.FieldDisplayType.NORMAL
+                    });
+
                     //SUBLISTA - CAMPO ALICUOTA
                     sublistRetenciones.addField({
                         id: "custrecord_l54_ret_porcentaje",
@@ -413,6 +443,16 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                     }).updateDisplayType({
                         displayType: serverWidget.FieldDisplayType.DISABLED
                         //displayType: serverWidget.FieldDisplayType.NORMAL
+                    });
+
+                    //SUBLISTA - CAMPO UNIDAD MEDIDA(BASE CALCULO).
+                    sublistRetenciones.addField({
+                        id: "custrecord_l54_ret_unidad_medida",
+                        label: "UNIDAD MEDIDA(BASE CALCULO)",
+                        type: serverWidget.FieldType.SELECT,
+                        source: "customrecord_l54_um_fex"
+                    }).updateDisplayType({
+                        displayType: serverWidget.FieldDisplayType.NORMAL
                     });
 
                     //SUBLISTA - CAMPO NETO BILL. APLIC.
@@ -513,6 +553,12 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                         sublistRetenciones.setSublistValue({ id: "custrecord_l54_ret_retencion", line: lineNum, value: arrayRetenciones[i].ret_tipo });
                         sublistRetenciones.setSublistValue({ id: "custrecord_l54_ret_porcentaje", line: lineNum, value: arrayRetenciones[i].ret_alicuota });
                         sublistRetenciones.setSublistValue({ id: "custrecord_l54_ret_tipo_ret", line: lineNum, value: arrayRetenciones[i].ret_retencion });
+                        if (!utilidades.isEmpty(arrayRetenciones[i].ret_tarifa)) {
+                            sublistRetenciones.setSublistValue({ id: "custrecord_l54_ret_tarifa", line: lineNum, value: arrayRetenciones[i].ret_tarifa });
+                        }
+                        if (!utilidades.isEmpty(arrayRetenciones[i].ret_unidad_medida)) {
+                            sublistRetenciones.setSublistValue({ id: "custrecord_l54_ret_unidad_medida", line: lineNum, value: arrayRetenciones[i].ret_unidad_medida });
+                        }
                         if (!utilidades.isEmpty(arrayRetenciones[i].ret_condicion)) {
                             sublistRetenciones.setSublistValue({ id: "custrecord_l54_ret_condicion", line: lineNum, value: arrayRetenciones[i].ret_condicion });
                         }
@@ -531,7 +577,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                         if (!utilidades.isEmpty(arrayRetenciones[i].ret_jurisdiccion)) {
                             sublistRetenciones.setSublistValue({ id: "custrecord_l54_ret_jurisdiccion", line: lineNum, value: arrayRetenciones[i].ret_jurisdiccion });
                         }
-                        if ((arrayRetenciones[i].ret_tipo == 3 || arrayRetenciones[i].ret_tipo == 5) && !utilidades.isEmpty(arrayRetenciones[i].ret_tipo_contrib_iibb)) {
+                        if ((arrayRetenciones[i].ret_tipo == 3 || arrayRetenciones[i].ret_tipo == 5 || arrayRetenciones[i].ret_tipo == 6) && !utilidades.isEmpty(arrayRetenciones[i].ret_tipo_contrib_iibb)) {
                             sublistRetenciones.setSublistValue({ id: "custrecord_l54_ret_id_tipo_contr", line: lineNum, value: arrayRetenciones[i].ret_tipo_contrib_iibb });
                         }
                         if (scriptContext.type == "edit") {
@@ -674,7 +720,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                             log.debug("L54 - Calcular Retenciones (SS)", "BEFORESUBMIT CREATE - CANTIDAD DE ELEMENTOS EN SUBLISTA \"CALCULAR RETENCIONES 2.0\": " + cantidadRetenciones);
 
                             if (!utilidades.isEmpty(total) && total > 0.00 && cantidadRetenciones > 0) {
-
+                                let importeTotalInym = 0.00;
                                 for (var i = 0; i < cantidadRetenciones; i++) {
                                     var idTipoRetencion = objRecord.getSublistValue({ sublistId: "custpage_sublistretenciones", fieldId: "custrecord_l54_ret_retencion", line: i });
                                     var idRetencion = objRecord.getSublistValue({ sublistId: "custpage_sublistretenciones", fieldId: "custrecord_l54_ret_tipo_ret", line: i });
@@ -695,11 +741,23 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                         var fechaExencion = objRecord.getSublistValue({ sublistId: "custpage_sublistretenciones", fieldId: "custrecord_l54_ret_fecha_exen", line: i });
                                         //NUEVO - DATOS DE IMPORTES EARCIBA
                                         var diferenciaRedondeo = objRecord.getSublistValue({ sublistId: "custpage_sublistretenciones", fieldId: "custrecord_l54_ret_diferencia_redondeo", line: i });
-                                        const importeRetencionOriginal = objRecord.getSublistValue({ sublistId: "custpage_sublistretenciones", fieldId: "custrecord_l54_ret_importe_ret_original", line: i });
-                                        const baseCalculoRetOriginal = objRecord.getSublistValue({ sublistId: "custpage_sublistretenciones", fieldId: "custrecord_l54_ret_base_calculo_original", line: i });
+                                        var importeRetencionOriginal = objRecord.getSublistValue({ sublistId: "custpage_sublistretenciones", fieldId: "custrecord_l54_ret_importe_ret_original", line: i });
+                                        var baseCalculoRetOriginal = objRecord.getSublistValue({ sublistId: "custpage_sublistretenciones", fieldId: "custrecord_l54_ret_base_calculo_original", line: i });
                                         var montoSujRetMonedaLocal = objRecord.getSublistValue({ sublistId: "custpage_sublistretenciones", fieldId: "custrecord_l54_ret_monto_suj_ret_mon_loc", line: i });
                                         //NUEVA LINEA
                                         var lineNum = i;
+
+                                        if (idTipoRetencion == 6) {
+                                            var tarifa = objRecord.getSublistValue({ sublistId: "custpage_sublistretenciones", fieldId: "custrecord_l54_ret_tarifa", line: i });
+                                            var unidad = objRecord.getSublistValue({ sublistId: "custpage_sublistretenciones", fieldId: "custrecord_l54_ret_unidad_medida", line: i });
+                                            importeTotalInym = parseFloat(importeTotalInym, 10) + parseFloat(importeRetener, 10);
+                                            baseCalculo = baseCalculoImp;
+                                            baseCalculoRetOriginal = baseCalculoImp;
+                                            montoSujRetMonedaLocal = baseCalculoImp * tasa_cambio_pago;
+                                            importeRetencionOriginal = importeRetener;
+                                            
+                                        }
+
                                         //SE SETEAN LOS CAMPOS
                                         objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_cod_retencion", line: lineNum, value: idRetencion });
                                         objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_jurisdiccion", line: lineNum, value: jurisdiccion });
@@ -740,9 +798,14 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                         objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_base_calculo_original", line: lineNum, value: baseCalculoRetOriginal });
                                         objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_monto_suj_ret_mon_loc", line: lineNum, value: montoSujRetMonedaLocal });
 
-                                        if ((idTipoRetencion == 3 ||idTipoRetencion == 5) && !utilidades.isEmpty(idTipoContribuyente)) {
+                                        if ((idTipoRetencion == 3 ||idTipoRetencion == 5 ||idTipoRetencion == 6) && !utilidades.isEmpty(idTipoContribuyente)) {
                                             objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_tipo_contrib_iibb", line: lineNum, value: idTipoContribuyente });
                                         }
+
+                                        if (!utilidades.isEmpty(tarifa) && idTipoRetencion == 6) objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_tarifa", line: lineNum, value: tarifa });
+
+                                        if (!utilidades.isEmpty(unidad) && idTipoRetencion == 6) objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_unidad", line: lineNum, value: unidad });
+
                                         objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_alicuota", line: lineNum, value: alicuota });
                                         objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_tipo_exencion", line: lineNum, value: idTipoExencion });
                                         objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_cert_exencion", line: lineNum, value: certificadoExencion });
@@ -764,6 +827,26 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                         }
                                     }
                                 }
+
+                                if(parseFloat(importeTotalInym, 10) > 0){
+                                    log.debug("Fuene Inym", importeTotalInym)
+                                    var importeRetYnym = objRecord.getValue({ fieldId: "custbody_l54_inym_imp_a_retener" });
+                                    if(parseFloat(importeTotalInym, 10) != parseFloat(importeRetYnym, 10)){
+                                        var totalRetenciones = objRecord.getValue({ fieldId: "custbody_l54_importe_total_retencion" });
+                                        var importeNeto = objRecord.getValue({ fieldId: "custbody_l54_importe_neto_a_abonar" });
+
+                                        totalRetenciones = parseFloat(totalRetenciones, 10) - parseFloat(importeRetYnym, 10);
+                                        totalRetenciones = parseFloat(totalRetenciones, 10) + parseFloat(importeTotalInym, 10);
+                                        importeNeto = parseFloat(importeNeto, 10) + parseFloat(importeRetYnym, 10);
+                                        importeNeto = parseFloat(importeNeto, 10) - parseFloat(importeTotalInym, 10);
+                                        log.debug("Montos Inym", importeTotalInym + ' ->> ' + totalRetenciones + ' ->> ' + importeNeto)
+
+                                        objRecord.setValue('custbody_l54_inym_imp_a_retener', importeTotalInym);
+                                        objRecord.setValue('custbody_l54_importe_total_retencion', totalRetenciones);
+                                        objRecord.setValue('custbody_l54_importe_neto_a_abonar', importeNeto);
+                                    }
+                                }
+
                             }
                         }
 
@@ -837,6 +920,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                     var importeTotalIVA = 0.00;
                                     var importeTotalIIBB = 0.00;
                                     var importeTotalMuni = 0.00;
+                                    var importeTotalInym = 0.00;
                                     var cantidadRetenciones = 0;
 
                                     if (!utilidades.isEmpty(respuestaAux)) {
@@ -1126,6 +1210,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                                         if (informacionRetenciones.estaInscriptoRegimenIIBB) {
                                                             importeTotalIIBB = 0.00;
                                                             importeTotalMuni = 0.00;
+                                                            importeTotalInym = 0.00;
 
                                                             for (var i = 0; !utilidades.isEmpty(informacionRetenciones.retencion_iibb) && i < informacionRetenciones.retencion_iibb.length; i++) {
                                                                 if (runtime.executionContext == "CSVIMPORT" || runtime.executionContext == "WEBSERVICES") {
@@ -1137,6 +1222,8 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
 
                                                                         if(informacionRetenciones.retencion_iibb[i].retencion == 5){
                                                                             importeTotalMuni = parseFloat(importeTotalMuni, 10) + parseFloat(importeRetener, 10);
+                                                                        }else if(informacionRetenciones.retencion_iibb[i].retencion == 6){
+                                                                            importeTotalInym = parseFloat(importeTotalInym, 10) + parseFloat(importeRetener, 10);
                                                                         }else{
                                                                             importeTotalIIBB = parseFloat(importeTotalIIBB, 10) + parseFloat(importeRetener, 10);
                                                                         }
@@ -1208,7 +1295,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                                                     objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_condicion", line: lineNum, value: condicion });
                                                                     objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_fecha", line: lineNum, value: fecha });
                                                                     objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_alicuota", line: lineNum, value: alicuota });
-                                                                    if ((idTipoRetencion == 3 || idTipoRetencion == 5) && !utilidades.isEmpty(idTipoContribuyente)) {
+                                                                    if ((idTipoRetencion == 3 || idTipoRetencion == 5 || idTipoRetencion == 6) && !utilidades.isEmpty(idTipoContribuyente)) {
                                                                         objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_tipo_contrib_iibb", line: lineNum, value: idTipoContribuyente });
                                                                     }
                                                                     objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_tipo_exencion", line: lineNum, value: idTipoExencion });
@@ -1231,6 +1318,8 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                                                     }
                                                                     if(informacionRetenciones.retencion_iibb[i].retencion == 5){
                                                                         importeTotalMuni = parseFloat(importeTotalMuni, 10) + parseFloat(importeRetener, 10);
+                                                                    }else if(informacionRetenciones.retencion_iibb[i].retencion == 6){
+                                                                        importeTotalInym = parseFloat(importeTotalInym, 10) + parseFloat(importeRetener, 10);
                                                                     }else{
                                                                         importeTotalIIBB = parseFloat(importeTotalIIBB, 10) + parseFloat(importeRetener, 10);
                                                                     }
@@ -1251,6 +1340,13 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                                                 value: importeTotalMuni,
                                                                 ignoreFieldChange: false
                                                             });
+
+                                                            objRecord.setValue({
+                                                                fieldId: "custbody_l54_inym_imp_a_retener",
+                                                                value: importeTotalInym,
+                                                                ignoreFieldChange: false
+                                                            });
+
 
                                                         }
                                                     }//FIN - RETENCION IIBB
@@ -1296,7 +1392,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                                     }
                                                     //FIN - REGISTRO DE ACUMULADOS RETENCION IIBB
 
-                                                    var importeTotalRetencion = parseFloat(importeTotalGanancias, 10) + parseFloat(importeTotalIVA, 10) + parseFloat(importeTotalIIBB, 10) + parseFloat(importeTotalSUSS, 10) + parseFloat(importeTotalMuni, 10) ;
+                                                    var importeTotalRetencion = parseFloat(importeTotalGanancias, 10) + parseFloat(importeTotalIVA, 10) + parseFloat(importeTotalIIBB, 10) + parseFloat(importeTotalSUSS, 10) + parseFloat(importeTotalMuni, 10)  + parseFloat(importeTotalInym, 10) ;
                                                     var total = objRecord.getValue({ fieldId: "total" });
                                                     var importeNetoAbonar = parseFloat(total, 10) - parseFloat(importeTotalRetencion, 10);
 
@@ -1401,10 +1497,12 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                         /** Modificación 16-01 Clearing Account */
                         var accountOri = objRecord.getValue({ fieldId: "account" });
                         var cantLinRet = objRecord.getLineCount({ sublistId: 'recmachcustrecord_l54_ret_ref_pago_prov' });
-                    
+                        var paramFormaPago = runtime.getCurrentScript().getParameter({ name: "custscript_l54_calc_ret_ss_lineas_formpm" });
+                        var formaPago= objRecord.getValue({ fieldId: "custbody_3k_forma_pago_local" });
+
                         var cuentaClearing = '';
                         
-                        if (objDatosImpositivos[0].applyAccountClearing && cantLinRet > 0) { // si se aplica clearing
+                        if (objDatosImpositivos[0].applyAccountClearing && paramFormaPago != formaPago && cantLinRet > 0) { // si se aplica clearing
                             cuentaClearing = obtenerConfRetCtaClearing(
                                 objRecord.getValue({
                                     fieldId: "subsidiary"
@@ -1682,6 +1780,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                     var importeTotalIVA = 0.00;
                     var importeTotalIIBB = 0.00;
                     var importeTotalMuni = 0.00;
+                    var importeTotalInym = 0.00;
                     var importeTotalSUSS = 0.00;
 
                     for (var i = 0; i < cantidadRetenciones; i++) {
@@ -1720,6 +1819,14 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                         {
                             importeTotalMuni = parseFloat(importeTotalMuni, 10) + parseFloat(importeRetener, 10);
                         }
+                        if(idTipoRetencion == 6)//INYM
+                        {
+                            var tarifa = objRecord.getSublistValue({ sublistId: "custpage_sublistretenciones", fieldId: "custrecord_l54_ret_tarifa", line: i });
+                            var unidad = objRecord.getSublistValue({ sublistId: "custpage_sublistretenciones", fieldId: "custrecord_l54_ret_unidad_medida", line: i });
+                            importeTotalInym = parseFloat(importeTotalInym, 10) + parseFloat(importeRetener, 10);
+                            
+                            baseCalculo = baseCalculoImp;
+                        }
 
                         if (!utilidades.isEmpty(idTipoRetencion) && !utilidades.isEmpty(idRetencion) && !utilidades.isEmpty(idPagoProveedor)) {
                             const resultRecMach = arrayRetenciones.filter(function (obj) {
@@ -1743,7 +1850,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                     recordRetencion.setValue({ fieldId: "custrecord_l54_ret_jurisdiccion", value: jurisdiccion });
 
                                     //NUEVO - SI EL TIPO DE CONTRIBUYENTE ES IIBB, GRABO EL TIPO DE CONTRIBUYENTE
-                                    if ((idTipoRetencion == 3 || idTipoRetencion == 5) && !utilidades.isEmpty(idTipoContribuyente)) {
+                                    if ((idTipoRetencion == 3 || idTipoRetencion == 5 || idTipoRetencion == 6) && !utilidades.isEmpty(idTipoContribuyente)) {
                                         recordRetencion.setValue({ fieldId: "custrecord_l54_ret_tipo_contrib_iibb", value: idTipoContribuyente });
                                     }
 
@@ -1756,6 +1863,11 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                         //log.error('L54 - Calcular Retenciones (SS)', 'BEFORESUBMIT EDIT - fechaExencion: '+ fechaExencion + ' - fechaExencionString: ' + fechaExencionString);
                                         recordRetencion.setValue({ fieldId: "custrecord_l54_ret_fecha_exencion", value: fechaExencionString });
                                     }
+
+                                    if (!utilidades.isEmpty(tarifa) && idTipoRetencion == 6) recordRetencion.setValue({ fieldId: "custrecord_l54_ret_tarifa", value: tarifa });
+
+                                    if (!utilidades.isEmpty(unidad) && idTipoRetencion == 6) recordRetencion.setValue({ fieldId: "custrecord_l54_ret_unidad", value: unidad });
+
 
                                     try {
                                         var idRR = recordRetencion.save();
@@ -1793,12 +1905,18 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                     });
 
                     objRecord.setValue({
+                        fieldId: "custbody_l54_inym_imp_a_retener",
+                        value: importeTotalInym,
+                        ignoreFieldChange: false
+                    });
+
+                    objRecord.setValue({
                         fieldId: "custbody_l54_suss_imp_a_retener",
                         value: importeTotalSUSS,
                         ignoreFieldChange: false
                     });
 
-                    var importeTotalRetencion = parseFloat(importeTotalGanancias, 10) + parseFloat(importeTotalIVA, 10) + parseFloat(importeTotalIIBB, 10) + parseFloat(importeTotalMuni, 10) + parseFloat(importeTotalSUSS, 10);
+                    var importeTotalRetencion = parseFloat(importeTotalGanancias, 10) + parseFloat(importeTotalIVA, 10) + parseFloat(importeTotalIIBB, 10) + parseFloat(importeTotalMuni, 10) + parseFloat(importeTotalInym, 10) + parseFloat(importeTotalSUSS, 10);
                     var total = objRecord.getValue({ fieldId: "total" });
                     var importeNetoAbonar = parseFloat(total, 10) - parseFloat(importeTotalRetencion, 10);
 
@@ -1848,6 +1966,16 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                         throw erroresCalculoRetencionesFacturaM;
                     }
                 }
+            }
+            //IVA TOTAL
+            let amountNeto = objRecord.getValue({
+                fieldId: "custbody_l54_importe_neto_a_abonar"
+            });
+
+            log.debug("amountNeto", amountNeto)
+            if(amountNeto < 0){
+                let messageAmount = "El monto de las retenciones es mayor al total a pagar."
+                throw messageAmount;
             }
         }
 
@@ -1999,11 +2127,13 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                             /** Modificación 16-01 Clearing Account */
                             var ctaBancoAuxiliar = recordT.getValue('custbody_l54_cuenta_banco');
                             var currency = recordT.getValue({ fieldId: "currency" });
+                            var paramFormaPago = runtime.getCurrentScript().getParameter({ name: "custscript_l54_calc_ret_ss_lineas_formpm" });
+                            var formaPago= recordT.getValue({ fieldId: "custbody_3k_forma_pago_local" });
                             var cantLinRet = recordT.getLineCount({ sublistId: 'recmachcustrecord_l54_ret_ref_pago_prov' });
                             var montoTotal = parseFloat(recordT.getValue('total'), 10).toFixedOK(2);
                             var cuentaClearing = '';
                             var flagClearing = false;
-                            if (objDatosImpositivos[0].applyAccountClearing && cantLinRet > 0) { // si se aplica clearing
+                            if (objDatosImpositivos[0].applyAccountClearing && paramFormaPago != formaPago && cantLinRet > 0) { // si se aplica clearing
                                 cuentaClearing = recordT.getValue('account');
                                 //recordT.setValue('account', cuentaClearing);
                                 idCuentaCont = cuentaClearing;
@@ -2065,12 +2195,18 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                         if (utilidades.isEmpty(monto_ret_muni) || isNaN(monto_ret_muni))
                             monto_ret_muni = "0.00";
 
+                        var monto_ret_inym = recordT.getValue({ fieldId: "custbody_l54_inym_imp_a_retener" });
+
+                        if (utilidades.isEmpty(monto_ret_inym) || isNaN(monto_ret_inym))
+                            monto_ret_inym = "0.00";
+
                         monto_ret_ganancias = parseFloat(monto_ret_ganancias, 10).toFixed(2);
                         monto_ret_suss = parseFloat(monto_ret_suss, 10).toFixed(2);
                         monto_ret_iva = parseFloat(monto_ret_iva, 10).toFixed(2);
                         monto_ret_iibb = parseFloat(monto_ret_iibb, 10).toFixed(2);
                         monto_ret_muni = parseFloat(monto_ret_muni, 10).toFixed(2);
-                        var monto_ret_total = (parseFloat(monto_ret_ganancias, 10) + parseFloat(monto_ret_suss, 10) + parseFloat(monto_ret_iva, 10) + parseFloat(monto_ret_iibb, 10) + parseFloat(monto_ret_muni, 10));
+                        monto_ret_inym = parseFloat(monto_ret_inym, 10).toFixed(2);
+                        var monto_ret_total = (parseFloat(monto_ret_ganancias, 10) + parseFloat(monto_ret_suss, 10) + parseFloat(monto_ret_iva, 10) + parseFloat(monto_ret_iibb, 10) + parseFloat(monto_ret_muni, 10)  + parseFloat(monto_ret_inym, 10));
                         monto_ret_total = monto_ret_total.toFixed(2);
                         var importeNetoAbonar = parseFloat(parseFloat(montoTotal, 10) - parseFloat(monto_ret_total, 10), 10).toFixedOK(2);
 
@@ -2078,7 +2214,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                         log.debug("L54 - Calcular Retenciones (SS)", "AFTERSUBMIT - PROCESAVENDORPAYMENT - MONTOS USADOS EN LAS RETENCIONES GENERADAS - RETENCION TOTAL: " + monto_ret_total + " - RETENCION GANANCIAS: " + monto_ret_ganancias + " - RETENCION SUSS: " + monto_ret_suss + " - RETENCION IVA: " + monto_ret_iva + " - RETENCION IIBB: " + monto_ret_iibb);
 
                         //SI EL PAGO SUFRE ALGUN TIPO DE RETENCION
-                        if (parseFloat(monto_ret_ganancias, 10) != 0 || parseFloat(monto_ret_suss, 10) != 0 || parseFloat(monto_ret_iva, 10) != 0 || parseFloat(monto_ret_iibb, 10) != 0 || parseFloat(monto_ret_muni, 10) != 0) {
+                        if (parseFloat(monto_ret_ganancias, 10) != 0 || parseFloat(monto_ret_suss, 10) != 0 || parseFloat(monto_ret_iva, 10) != 0 || parseFloat(monto_ret_iibb, 10) != 0 || parseFloat(monto_ret_muni, 10) != 0  || parseFloat(monto_ret_inym, 10) != 0) {
                             //SE CREA JOURNAL ENTRY
                             var record_journalentry = record.create({
                                 type: record.Type.JOURNAL_ENTRY,
@@ -2207,7 +2343,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                             }
 
                             //SI TIENE RETENCIONES DE IIBB
-                            if ((parseFloat(monto_ret_iibb, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_iibb, 10))) || (parseFloat(monto_ret_muni, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_muni, 10)))) {
+                            if ((parseFloat(monto_ret_iibb, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_iibb, 10))) || (parseFloat(monto_ret_muni, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_muni, 10)))  || (parseFloat(monto_ret_inym, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_inym, 10)))) {
                                 var importeIIBB;
                                 var jurisdiccionIIBB;
                                 var numLinesRetenciones = recordT.getLineCount({
@@ -2219,7 +2355,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                 log.debug("L54 - Calcular Retenciones (SS)", "AFTERSUBMIT - PROCESAVENDORPAYMENT - NUMLINESRETENCIONES: " + numLinesRetenciones);
                                 for (var j = 0; !utilidades.isEmpty(numLinesRetenciones) && j < numLinesRetenciones; j++) {
                                     var tipoRetencion = recordT.getSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_tipo", line: j });
-                                    if (tipoRetencion == 3 || tipoRetencion == 5)//IIBB
+                                    if (tipoRetencion == 3 || tipoRetencion == 5  || tipoRetencion == 6)//IIBB
                                     {
                                         jurisdiccionIIBB = recordT.getSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_jurisdiccion", line: j });
                                         importeIIBB = recordT.getSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_importe", line: j });
@@ -2271,6 +2407,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                     "tipoTransIdIIBB": null,
                                     "tipoTransIdSUSS": null,
                                     "tipoTransIdMuni": null,
+                                    "tipoTransIdYnym": null,
                                 }
                                 for (var j = 0; !utilidades.isEmpty(numLinesRetenciones) && j < numLinesRetenciones; j++) {
 
@@ -2330,7 +2467,17 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                             
                                             numeradorArray = devolverNuevoNumero(tipoTransIdMuni, bocaId, letraId, subsidiaria, jurisdiccion);
                                         }
-
+                                        if (tipoRetencion == 6)//YNYM
+                                        {
+                                            if(!utilidades.isEmpty(objTipoTransID.tipoTransIdYnym)){
+                                                var tipoTransIdYnym = objTipoTransID.tipoTransIdYnym;
+                                            }else{
+                                                var tipoTransIdYnym = getTipoTransId("num_ret_inym");
+                                                objTipoTransID.tipoTransIdYnym = tipoTransIdYnym;
+                                            }
+                                            
+                                            numeradorArray = devolverNuevoNumero(tipoTransIdYnym, bocaId, letraId, subsidiaria, jurisdiccion);
+                                        }
                                         var numeradoPrefijo = numeradorArray["numeradorPrefijo"] ? numeradorArray["numeradorPrefijo"] : '';
                                         recordT.selectLine({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", line: j });
                                         recordT.setCurrentSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_cod_pago_prov", value: codigo_op, ignoreFieldChange: false });
@@ -2417,6 +2564,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                         const arrayIdSUSS = new Array();
                         const arrayIdIIBB = new Array();
                         const arrayIdMuni = new Array();
+                        const arrayIdYnym = new Array();
                         const arrayIdIVA = new Array();
 
                         //INICIO - SE ACTUALIZAN LOS CAMPOS SUBSIDIARIA, PUNTO DE VENTA, LETRA, IMPORTE NETO A ABONAR YA QUE NO SALTA LA FUNCIONALIDAD DE ORIGEN Y FILTRACION
@@ -2468,11 +2616,17 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                             arrayIdMuni.push(idRetencion);
                                         }
                                         else {
+                                            if (tipoRetencion == 6)//YNYM
+                                            {
+                                                arrayIdYnym.push(idRetencion);
+                                            }
+                                            else {
                                             //SUSS
                                             arrayIdSUSS.push(idRetencion);
                                         }
                                     }
                                 }
+                            }
                             }
                             log.debug("L54 - Calcular Retenciones (SS)", "AFTERSUBMIT - PROCESAVENDORPAYMENT - ARRAYIDGAN: " + JSON.stringify(arrayIdGAN) + " - ARRAYIDIVA: " + JSON.stringify(arrayIdIVA) + " - ARRAYIDIIBB: " + JSON.stringify(arrayIdIIBB) + " - ARRAYIDMUNI: " + JSON.stringify(arrayIdMuni) + " - ARRAYIDSUSS: " + JSON.stringify(arrayIdSUSS));
 
@@ -2490,6 +2644,9 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
 
                             if (arrayIdMuni.length > 0)
                                 recordT.setValue({ fieldId: "custbody_l54_id_ret_muni", value: arrayIdMuni.toString() });
+                            
+                            if (arrayIdYnym.length > 0)
+                                recordT.setValue({ fieldId: "custbody_l54_id_ret_inym", value: arrayIdYnym.toString() });
                         }
                         //FIN - SE ACTUALIZAN LOS CAMPOS SUBSIDIARIA, PUNTO DE VENTA, LETRA, IMPORTE NETO A ABONAR YA QUE NO SALTA LA FUNCIONALIDAD DE ORIGEN Y FILTRACION
 
@@ -2549,19 +2706,25 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                         if (utilidades.isEmpty(monto_ret_muni) || isNaN(monto_ret_muni))
                             monto_ret_muni = "0.00";
 
+                        var monto_ret_inym = recordT.getValue({ fieldId: "custbody_l54_inym_imp_a_retener" });
+
+                        if (utilidades.isEmpty(monto_ret_inym) || isNaN(monto_ret_inym))
+                            monto_ret_inym = "0.00";
+
                         monto_ret_ganancias = parseFloat(monto_ret_ganancias, 10).toFixed(2);
                         monto_ret_suss = parseFloat(monto_ret_suss, 10).toFixed(2);
                         monto_ret_iva = parseFloat(monto_ret_iva, 10).toFixed(2);
                         monto_ret_iibb = parseFloat(monto_ret_iibb, 10).toFixed(2);
                         monto_ret_muni = parseFloat(monto_ret_muni, 10).toFixed(2);
+                        monto_ret_inym = parseFloat(monto_ret_inym, 10).toFixed(2);
 
-                        var monto_ret_total = (parseFloat(monto_ret_ganancias, 10) + parseFloat(monto_ret_suss, 10) + parseFloat(monto_ret_iva, 10) + parseFloat(monto_ret_iibb, 10) + parseFloat(monto_ret_muni, 10));
+                        var monto_ret_total = (parseFloat(monto_ret_ganancias, 10) + parseFloat(monto_ret_suss, 10) + parseFloat(monto_ret_iva, 10) + parseFloat(monto_ret_iibb, 10) + parseFloat(monto_ret_muni, 10)  + parseFloat(monto_ret_inym, 10));
                         monto_ret_total = monto_ret_total.toFixed(2);
                         var importeNetoAbonar = parseFloat(parseFloat(montoTotal, 10) - parseFloat(monto_ret_total, 10), 10).toFixedOK(2);
 
                         log.debug("L54 - Calcular Retenciones (SS)", "AFTERSUBMIT - PROCESAVENDORPAYMENT - MONTOS USADOS EN LAS RETENCIONES GENERADAS - RETENCION TOTAL: " + monto_ret_total + " - RETENCION GANANCIAS: " + monto_ret_ganancias + " - RETENCION SUSS: " + monto_ret_suss + " - RETENCION IVA: " + monto_ret_iva + " - RETENCION IIBB: " + monto_ret_iibb);
 
-                        if (parseFloat(monto_ret_ganancias, 10) != 0 || parseFloat(monto_ret_suss, 10) != 0 || parseFloat(monto_ret_iva, 10) != 0 || parseFloat(monto_ret_iibb, 10) != 0 || parseFloat(monto_ret_muni, 10) != 0) {
+                        if (parseFloat(monto_ret_ganancias, 10) != 0 || parseFloat(monto_ret_suss, 10) != 0 || parseFloat(monto_ret_iva, 10) != 0 || parseFloat(monto_ret_iibb, 10) != 0 || parseFloat(monto_ret_muni, 10) != 0 || parseFloat(monto_ret_inym, 10) != 0) {
 
                             var record_journalentry = null;
 
@@ -2617,13 +2780,13 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                 record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "class", value: clase });
                             record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "memo", value: codigo_op });
                             record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "account", value: idCuentaCont });
-                            if(objDatosImpositivos[0].applyAccountClearing){
+                            if(objDatosImpositivos[0].applyAccountClearing && paramFormaPago != formaPago){
                                 record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "debit", value: parseFloat(montoTotal, 10) });
                             }else{
                                 record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "debit", value: parseFloat(monto_ret_total, 10) });
                             }
                             record_journalentry.commitLine("line");
-                            if(objDatosImpositivos[0].applyAccountClearing){
+                            if(objDatosImpositivos[0].applyAccountClearing && paramFormaPago != formaPago){
                                 record_journalentry.selectNewLine("line");
                                 record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "entity", value: entity });
                     
@@ -2707,7 +2870,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                             }
 
                             //SI TIENE RETENCIONES DE IIBB
-                            if ((parseFloat(monto_ret_iibb, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_iibb, 10)))  || (parseFloat(monto_ret_muni, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_muni, 10)))){
+                            if ((parseFloat(monto_ret_iibb, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_iibb, 10)))  || (parseFloat(monto_ret_muni, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_muni, 10))) || (parseFloat(monto_ret_inym, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_inym, 10)))){
                                 var importeIIBB;
                                 var jurisdiccionIIBB;
                                 var numLinesRetenciones = recordT.getLineCount({
@@ -2716,7 +2879,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
 
                                 for (var j = 0; !utilidades.isEmpty(numLinesRetenciones) && j < numLinesRetenciones; j++) {
                                     var tipoRetencion = recordT.getSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_tipo", line: j });
-                                    if (tipoRetencion == 3 || tipoRetencion == 5)//IIBB
+                                    if (tipoRetencion == 3 || tipoRetencion == 5  || tipoRetencion == 6)//IIBB || Municipal || INYM
                                     {
                                         jurisdiccionIIBB = recordT.getSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_jurisdiccion", line: j });
                                         importeIIBB = recordT.getSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_importe", line: j });
@@ -2828,7 +2991,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                 log.audit("L54 - Calcular Retenciones (SS)", "LINE 2475 - Unidades de ejecuion restantes: " + script.getRemainingUsage());
             }
             catch (err) {
-                log.error("L54 - Calcular Retenciones (SS)", "AFTERSUBMIT - PROCESAVENDORPAYMENT - Error EN PROCESAVENDORPAYMENT - EXCEPTION DETALLES: " + err.message);
+                log.error("L54 - Calcular Retenciones (SS)", "AFTERSUBMIT - PROCESAVENDORPAYMENT - Error EN PROCESAVENDORPAYMENT - EXCEPTION DETALLES: " + err);
                 objRta.error = true;
                 objRta.mensajeError = "AFTERSUBMIT - PROCESAVENDORPAYMENT - Error EN PROCESAVENDORPAYMENT - EXCEPTION DETALLES: " + err.message;
             }
@@ -3110,6 +3273,8 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                     objRetenciones.ret_tipo_exencion = completeResultSet[i].getValue({ name: resultSearch.columns[11] });
                     objRetenciones.ret_cert_exencion = completeResultSet[i].getValue({ name: resultSearch.columns[12] });
                     objRetenciones.ret_fecha_exencion = completeResultSet[i].getValue({ name: resultSearch.columns[13] });
+                    objRetenciones.ret_tarifa = completeResultSet[i].getValue({ name: resultSearch.columns[14] });
+                    objRetenciones.ret_unidad_medida = completeResultSet[i].getValue({ name: resultSearch.columns[15] });
                     arrayRetenciones.push(objRetenciones);
                 }
                 log.debug("L54 - Calculo Retenciones", "RETURN - arrayRetenciones: " + JSON.stringify(arrayRetenciones));
@@ -4454,7 +4619,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                     objRetencion.custrecord_l54_ret_tipo_exencion = datosRetencion.tipoExencion;
                     objRetencion.custrecord_l54_ret_cert_exencion = datosRetencion.certExencion;
 
-                    if ((datosRetencion.retencion == 3 || datosRetencion.retencion == 5) && !utilidades.isEmpty(datosRetencion.condicionID)) {
+                    if ((datosRetencion.retencion == 3 || datosRetencion.retencion == 5  || datosRetencion.retencion == 6) && !utilidades.isEmpty(datosRetencion.condicionID)) {
                         objRetencion.custrecord_l54_ret_tipo_contrib_iibb = datosRetencion.condicionID;
                     }
 

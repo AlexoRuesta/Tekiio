@@ -6,21 +6,64 @@
 define(["N/ui/serverWidget", "N/search", "N/format", "N/record"], function (serverWidget, search, format, record) {
 
     class InitSearch {
-        constructor(name){
-            this.name = name;
+        constructor(){
         }
 
-        getFilter(name, operator, values, formula = null) {
+        getFilter(name, join = null, operator, values, formula = null) { // Genera un Obj
             return search.createFilter({
                 name,
+                join,
                 operator,
                 values,
                 formula
             });
         }
 
-        getResultSearchCount(isSearch, filters){
+        getSearchLookField(type, id = null, columns = null){ // Tipo de búsqueda, internalID, array de columnas (sin join por ahora)
+            const customSearch = search.lookupFields({
+                type,
+                id,
+                columns
+            }); 
+
+            log.debug("getSearchLookField", JSON.stringify(customSearch))
+            return customSearch;
+        }
+
+
+        getSearchCreated(type, filters = null, columns = null){ // Tipo de búsqueda, array de filtros, array de columnas (sin join por ahora)
             let arrResult = new Array();
+            const customSearch = search.create({
+                type,
+                filters,
+                columns
+            })
+            
+            customSearch.run().each(function (result) {
+                const results = Object.fromEntries(columns.map(c => [c.name, result.getValue({ name: c })]));
+                arrResult.push(results);
+                return true;
+            });
+
+            return arrResult;
+        }
+
+        getSavedSearch(isSearch, filters = null){ // Recibe el ID de la búsqueda y un array de filtros
+            const savedsearch = search.load({
+                id: isSearch
+            });
+
+            if(filters){
+                savedsearch.filters.push(...filters);
+            }
+
+            log.debug("savedsearch.filters",savedsearch.filters)
+
+            return savedsearch;
+        }
+
+
+        getResultSearchCount(isSearch, filters){
             const savedsearch = search.load({
                 id: isSearch
             });
@@ -113,7 +156,6 @@ define(["N/ui/serverWidget", "N/search", "N/format", "N/record"], function (serv
                     columns.forEach(function(col, i) {
                         arr["col_" + i] = result.getValue(col);  
                     });
-                    log.debug("arr[ key]",arr["col_" + key])
                     arrResult[arr["col_" + key]] ||= [];
                     arrResult[arr["col_" + key]].push(arr)
                 });

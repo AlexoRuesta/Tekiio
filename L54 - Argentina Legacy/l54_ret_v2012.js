@@ -933,9 +933,20 @@ function getInformacionRetencion(codigo_retencion) {
 	return retencion;
 }
 
-function anularRetenciones(tipoRetGan, tipoRetIva, tipoRetIibb, tipoRetSuss, tipoTransacGanAnul, tipoTransacIvaAnul, tipoTransacIibbAnul, tipoTransacSussAnul, tipoRetMuni, tipoTransacMuniAnul){
+function anularRetenciones(tipoRetGan, tipoRetIva, tipoRetIibb, tipoRetSuss, tipoTransacGanAnul, tipoTransacIvaAnul, tipoTransacIibbAnul, tipoTransacSussAnul, tipoRetMuni, tipoTransacMuniAnul, tipoRetInym, tipoTransacInymAnul){
 
 	nlapiLogExecution('DEBUG', 'anularRetenciones()', 'OPEN');
+	var recId 		    = nlapiGetRecordId();
+	var recType 		= nlapiGetRecordType();
+	var record_transac  = nlapiLoadRecord(recType,recId);
+	var anuladoNS = record_transac.getFieldValue('voided') == 'T';
+	var anuladoRet = record_transac.getFieldValue('custbody_l54_ret_anuladas') == 'T';	
+	
+	if(anuladoNS && !anuladoRet){
+		//El pago está anulado y tilde no marcado
+		alert('El pago está anulado a nivel de Netsuite. Por favor tildar el check RETENCIONES ANULADAS manualmente');
+		return false
+	}
 
 	if (confirm('El proceso de anulación de retenciones puede demorar unos segundos, desea continuar ?')) {
 
@@ -1010,6 +1021,7 @@ function anularRetenciones(tipoRetGan, tipoRetIva, tipoRetIibb, tipoRetSuss, tip
 								var idsRetIVA = recordPagoProveedor.getFieldValue("custbody_l54_id_ret_iva");
 								var idsRetIIBB = recordPagoProveedor.getFieldValue("custbody_l54_id_ret_iibb");
 								var idsRetMuni = recordPagoProveedor.getFieldValue("custbody_l54_id_ret_muni");
+								var idsRetInym = recordPagoProveedor.getFieldValue("custbody_l54_id_ret_inym");
 								var idsRetSUSS = recordPagoProveedor.getFieldValue("custbody_l54_id_ret_suss");
 
 								var monto_ret_ganancias = recordPagoProveedor.getFieldValue('custbody_l54_gan_imp_a_retener');
@@ -1027,13 +1039,17 @@ function anularRetenciones(tipoRetGan, tipoRetIva, tipoRetIibb, tipoRetSuss, tip
 								var monto_ret_muni = recordPagoProveedor.getFieldValue('custbody_l54_municipal_imp_a_retener');
 								if (isEmpty(monto_ret_muni) || isNaN(monto_ret_muni))
 									monto_ret_muni = "0.00";
+								var monto_ret_inym = recordPagoProveedor.getFieldValue('custbody_l54_inym_imp_a_retener');
+								if (isEmpty(monto_ret_inym) || isNaN(monto_ret_inym))
+									monto_ret_inym = "0.00";
 
 								monto_ret_ganancias = parseFloat(monto_ret_ganancias, 10).toFixed(2);
 								monto_ret_suss = parseFloat(monto_ret_suss, 10).toFixed(2);
 								monto_ret_iva = parseFloat(monto_ret_iva, 10).toFixed(2);
 								monto_ret_iibb = parseFloat(monto_ret_iibb, 10).toFixed(2);
 								monto_ret_muni = parseFloat(monto_ret_muni, 10).toFixed(2);
-								var monto_ret_total = (parseFloat(monto_ret_ganancias, 10) + parseFloat(monto_ret_suss, 10) + parseFloat(monto_ret_iva, 10) + parseFloat(monto_ret_iibb, 10) + parseFloat(monto_ret_muni, 10));
+								monto_ret_inym = parseFloat(monto_ret_inym, 10).toFixed(2);
+								var monto_ret_total = (parseFloat(monto_ret_ganancias, 10) + parseFloat(monto_ret_suss, 10) + parseFloat(monto_ret_iva, 10) + parseFloat(monto_ret_iibb, 10) + parseFloat(monto_ret_muni, 10) + parseFloat(monto_ret_inym, 10));
 								monto_ret_total = monto_ret_total.toFixed(2);
 								
 								if(cuentaClearing){
@@ -1041,7 +1057,7 @@ function anularRetenciones(tipoRetGan, tipoRetIva, tipoRetIibb, tipoRetSuss, tip
 									if (isEmpty(monto_retencicon) || isNaN(monto_retencicon))
 										monto_retencicon = "0.00";
 									monto_retencicon = parseFloat(monto_retencicon, 10).toFixed(2);
-									monto_ret_total = (parseFloat(monto_ret_ganancias, 10) + parseFloat(monto_ret_suss, 10) + parseFloat(monto_ret_iva, 10) + parseFloat(monto_ret_iibb, 10) + parseFloat(monto_ret_muni, 10)) + parseFloat(monto_retencicon, 10);
+									monto_ret_total = (parseFloat(monto_ret_ganancias, 10) + parseFloat(monto_ret_suss, 10) + parseFloat(monto_ret_iva, 10) + parseFloat(monto_ret_iibb, 10) + parseFloat(monto_ret_muni, 10) + parseFloat(monto_ret_inym, 10)) + parseFloat(monto_retencicon, 10);
 									monto_ret_total = monto_ret_total.toFixed(2);
 								}
 
@@ -1053,11 +1069,11 @@ function anularRetenciones(tipoRetGan, tipoRetIva, tipoRetIibb, tipoRetSuss, tip
 							}
 
 
-							if(isEmpty(tipoRetGan) || isEmpty(tipoRetIva) || isEmpty(tipoRetIibb) || isEmpty(tipoRetSuss) || isEmpty(tipoTransacGanAnul) || isEmpty(tipoTransacIvaAnul) || isEmpty(tipoTransacIibbAnul) || isEmpty(tipoTransacSussAnul)|| isEmpty(tipoRetMuni) || isEmpty(tipoTransacMuniAnul)){
+							if(isEmpty(tipoRetGan) || isEmpty(tipoRetIva) || isEmpty(tipoRetIibb) || isEmpty(tipoRetSuss) || isEmpty(tipoTransacGanAnul) || isEmpty(tipoTransacIvaAnul) || isEmpty(tipoTransacIibbAnul) || isEmpty(tipoTransacSussAnul) || isEmpty(tipoRetMuni) || isEmpty(tipoTransacMuniAnul) || isEmpty(tipoRetInym) || isEmpty(tipoTransacInymAnul)){
 								alert('Revisar los Parametros de descpliegue del script L54 - Anular Retenciones');
 							} else{
 
-								var arrayTipoTransac = [tipoTransacGanAnul, tipoTransacIvaAnul, tipoTransacIibbAnul, tipoTransacSussAnul, tipoTransacMuniAnul];
+								var arrayTipoTransac = [tipoTransacGanAnul, tipoTransacIvaAnul, tipoTransacIibbAnul, tipoTransacSussAnul, tipoTransacMuniAnul, tipoTransacInymAnul];
 
 								var numeradoresObtenidos = obtenerNumeradores(arrayTipoTransac, subsidiary, bocaId, letraId);
 
@@ -1130,6 +1146,16 @@ function anularRetenciones(tipoRetGan, tipoRetIva, tipoRetIibb, tipoRetSuss, tip
 												var existenErroresNumAnulacion = true;
 											}
 										}
+										if (tipoRetencion == tipoRetInym) {
+											var resultInfNumerador =  numeradoresObtenidos.filter(function(obj) {
+												return (obj.tipoTransId == tipoTransacInymAnul);
+											});
+											nlapiLogExecution('DEBUG', 'Anulacion Retenciones','Entre a la validacion de INYM resultInfNumerador: '+JSON.stringify(resultInfNumerador));
+											//log.debug('Anulacion Retenciones', 'Entre a la validacion de SUSS resultInfNumerador: '+JSON.stringify(resultInfNumerador));
+											if(resultInfNumerador.length == 0){
+												var existenErroresNumAnulacion = true;
+											}
+										}
 
 									}
 
@@ -1160,7 +1186,7 @@ function anularRetenciones(tipoRetGan, tipoRetIva, tipoRetIibb, tipoRetSuss, tip
 									// FIX 04/06/2014
 									if (registroCargado == true) {
 
-										if (parseFloat(monto_ret_ganancias) != 0 || parseFloat(monto_ret_suss) != 0 || parseFloat(monto_ret_iva) != 0 || parseFloat(monto_ret_iibb) != 0 || parseFloat(monto_ret_muni) != 0) {
+										if (parseFloat(monto_ret_ganancias) != 0 || parseFloat(monto_ret_suss) != 0 || parseFloat(monto_ret_iva) != 0 || parseFloat(monto_ret_iibb) != 0 || parseFloat(monto_ret_muni) != 0 || parseFloat(monto_ret_inym) != 0) {
 
 											// creo un journal entry con el reverse del journal entry que cree en el alta de la transacciÃ³n
 											var record_journalentry = nlapiCreateRecord('journalentry');
@@ -1343,6 +1369,39 @@ function anularRetenciones(tipoRetGan, tipoRetIva, tipoRetIibb, tipoRetSuss, tip
 												}
 											}
 
+											// si tiene retenciones INYM
+											if (parseFloat(monto_ret_inym) != 0 && parseFloat(monto_ret_inym) != '') {
+
+												// 2015 - IIBB por Jurisdicciones
+												arrayIDIIBB = idsRetInym.split(',');
+
+												for (var j = 0; arrayIDIIBB != null && j < arrayIDIIBB.length; j++) {
+													var recordRetencion = nlapiLoadRecord("customrecord_l54_retencion", arrayIDIIBB[j]);
+													var jurisdiccionIIBB = recordRetencion.getFieldValue("custrecord_l54_ret_jurisdiccion");
+													var cuentaIIBB = obtenerCuentaIIBB(subsidiary, jurisdiccionIIBB);
+													//var cuentaIIBB = recordRetencion.getFieldValue("custrecord_l54_ret_cuenta");
+													var importeIIBB = recordRetencion.getFieldValue("custrecord_l54_ret_importe");
+
+													record_journalentry.selectNewLineItem('line');
+													record_journalentry.setCurrentLineItemValue('line', 'entity', entity); // comentado el 29/08/2011
+
+													if (!isEmpty(department))
+														record_journalentry.setCurrentLineItemValue('line', 'department', department);
+
+													if (!isEmpty(location))
+														record_journalentry.setCurrentLineItemValue('line', 'location', location);
+
+													if (!isEmpty(clase))
+														record_journalentry.setCurrentLineItemValue('line', 'class', clase);
+
+													// retenciones IIBB
+													record_journalentry.setCurrentLineItemValue('line', 'memo', codigo_op);
+													record_journalentry.setCurrentLineItemValue('line', 'account', cuentaIIBB);
+													record_journalentry.setCurrentLineItemValue('line', 'debit', parseFloat(importeIIBB));
+													record_journalentry.commitLineItem('line');
+												}
+											}
+
 											try {
 												var idTmp = nlapiSubmitRecord(record_journalentry, false, true);
 											} catch (e) {
@@ -1381,6 +1440,7 @@ function anularRetenciones(tipoRetGan, tipoRetIva, tipoRetIibb, tipoRetSuss, tip
 									}
 
 									try{
+										
 										nlapiSubmitField(recType, recId,'custbody_l54_ret_anuladas', 'T');
 										if(idTmp != null && idTmp != ''){
 											nlapiSubmitField(recType, recId,'custbody_l54_id_void_journal', idTmp);
