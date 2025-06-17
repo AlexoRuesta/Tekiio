@@ -520,6 +520,7 @@
                             var importeRetencionIVA = parseFloat(recPayment.getValue({ fieldId: 'custbody_l54_iva_imp_a_retener' }), 10);
                             var importeRetencionIIBB = parseFloat(recPayment.getValue({ fieldId: 'custbody_l54_iibb_imp_a_retener' }), 10);
                             var importeRetencionMuni = parseFloat(recPayment.getValue({ fieldId: 'custbody_l54_municipal_imp_a_retener' }), 10);
+                            var importeRetencionInym = parseFloat(recPayment.getValue({ fieldId: 'custbody_l54_inym_imp_a_retener' }), 10);
                             var importeRetencionGAN = parseFloat(recPayment.getValue({ fieldId: 'custbody_l54_gan_imp_a_retener' }), 10);
                             var tipoCambio = parseFloat(recPayment.getValue({ fieldId: 'exchangerate' }), 10);
                             var importeTotalAbonadoCurrencyLocal = 0.0;
@@ -555,6 +556,14 @@
                                 objImportesRetenciones.tipo = 'Municipal';
                                 objImportesRetenciones.amount = formatearNumero(importeRetencionMuni);
                                 objImportesRetenciones.originAmount = formatearNumero(parseFloat(importeRetencionMuni * tipoCambio, 10));
+                                arrayImportesRetenciones.push(objImportesRetenciones);
+                            }
+
+                            if (!utilidades.isEmpty(importeRetencionInym) && importeRetencionInym > 0) {
+                                objImportesRetenciones = {};
+                                objImportesRetenciones.tipo = 'Inym';
+                                objImportesRetenciones.amount = formatearNumero(importeRetencionInym);
+                                objImportesRetenciones.originAmount = formatearNumero(parseFloat(importeRetencionInym * tipoCambio, 10));
                                 arrayImportesRetenciones.push(objImportesRetenciones);
                             }
 

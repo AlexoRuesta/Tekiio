@@ -27,14 +27,5 @@
       <feature required="false">MAILMERGE</feature>
       <feature required="true">CUSTOMRECORDS</feature>
     </features>
-    <objects>
-      <object>customscript_l54_obt_inf_cae_fe</object>
-      <object>customscript_l54_obt_info_cae_fe_lotes</object>
-      <object>customscript_l54_act_inf_cae_fe</object>
-      <object>customscript_l54_act_inf_cae_fe_lotes</object>
-      <object>customscript_l54_log_cae_fe_lotes</object>
-      <object>customrecord_l54_conf_middleware</object>
-      <object>customscript_l54_enviar_email_fe_lotes</object>
-    </objects>
   </dependencies>
 </manifest>

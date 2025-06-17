@@ -198,6 +198,21 @@ define(["N/currentRecord", "N/format", "L54/utilidades", "N/runtime", "N/https",
                                         log.audit("calcularRetenciones", "LINE 186 - Log de control - Cantidad Retenciones: " + cantidadRetenciones);
                                     }
 
+                                    /* INICIO - SE ELIMINAN LOS IMPORTES ACUMULADOS DEL PAGO ACTUAL */
+
+                                    let cantidadAcumulados = recVendorPayment.getLineCount({ sublistId: 'recmachcustrecord_l54_acum_ret_pago_asoc' });
+                                    log.debug('calcularRetenciones', `LINE 194 - CANTIDAD ACUMULADOS: ${cantidadAcumulados}`);
+            
+                                    for (let j = cantidadAcumulados; j > 0; j--) {
+                                        recVendorPayment.removeLine({
+                                            sublistId: 'recmachcustrecord_l54_acum_ret_pago_asoc',
+                                            line: 0,
+                                            ignoreRecalc: false
+                                        });
+                                    }
+
+                                    /* FIN - SE ELIMINAN LOS IMPORTES ACUMULADOS DEL PAGO ACTUAL */
+
                                     recVendorPayment.setValue({
                                         fieldId: "custbody_l54_gan_imp_a_retener",
                                         value: 0.00
@@ -645,7 +660,7 @@ define(["N/currentRecord", "N/format", "L54/utilidades", "N/runtime", "N/https",
 
                                     if (informacionRetenciones.esAgenteRetencionIIBB) {
                                         if (informacionRetenciones.estaInscriptoRegimenIIBB) {
-                                            importeTotalIIBB = 0.00; 
+                                            importeTotalIIBB = 0.00;
                                             importeTotalMuni = 0.00;
                                             importeTotalYnym = 0.00;
 
@@ -838,6 +853,27 @@ define(["N/currentRecord", "N/format", "L54/utilidades", "N/runtime", "N/https",
                                         }
                                     }//FIN IF (INFORMACIONRETENCIONES.ESAGENTERETENCIONIIBB)
 
+                                    log.debug("informacionRetenciones.detalleAcumulados", JSON.stringify(informacionRetenciones.detalleAcumulados))
+                                    //INICIO - REGISTRO DE ACUMULADOS RETENCION IIBB
+                                    if (!utilidades.isEmpty(informacionRetenciones.detalleAcumulados) && informacionRetenciones.detalleAcumulados.length > 0) {
+                                        for (var i = 0; i < informacionRetenciones.detalleAcumulados.length; i++) {
+                                            log.debug('calcularRetenciones', `linea i: ${i} / detalleAcumulados : ${JSON.stringify(informacionRetenciones.detalleAcumulados[i])}`);
+                                            var lineNum = recVendorPayment.selectNewLine({ sublistId: 'recmachcustrecord_l54_acum_ret_pago_asoc' });
+                                            recVendorPayment.setCurrentSublistValue({sublistId: 'recmachcustrecord_l54_acum_ret_pago_asoc', fieldId: 'custrecord_l54_acum_ret_proveedor', value: informacionRetenciones.detalleAcumulados[i].proveedor, ignoreFieldChange: false  });
+                                            recVendorPayment.setCurrentSublistValue({sublistId: 'recmachcustrecord_l54_acum_ret_pago_asoc', fieldId: 'custrecord_l54_acum_ret_periodo', value: informacionRetenciones.detalleAcumulados[i].periodo, ignoreFieldChange: false  });
+                                            recVendorPayment.setCurrentSublistValue({sublistId: 'recmachcustrecord_l54_acum_ret_pago_asoc', fieldId: 'custrecord_l54_acum_ret_subsidiaria', value: informacionRetenciones.detalleAcumulados[i].subsidiaria, ignoreFieldChange: false  });
+                                            recVendorPayment.setCurrentSublistValue({sublistId: 'recmachcustrecord_l54_acum_ret_pago_asoc', fieldId: 'custrecord_l54_acum_ret_base_calculo', value: informacionRetenciones.detalleAcumulados[i].baseCalculo, ignoreFieldChange: false  });
+                                           if(!utilidades.isEmpty(informacionRetenciones.detalleAcumulados[i].jurisdiccion)){
+                                                recVendorPayment.setCurrentSublistValue({sublistId: 'recmachcustrecord_l54_acum_ret_pago_asoc', fieldId: 'custrecord_l54_acum_ret_jurisdiccion', value: informacionRetenciones.detalleAcumulados[i].jurisdiccion, ignoreFieldChange: false  });
+                                            }
+                                            recVendorPayment.setCurrentSublistValue({sublistId: 'recmachcustrecord_l54_acum_ret_pago_asoc', fieldId: 'custrecord_l54_acum_ret_cod_ret', value: informacionRetenciones.detalleAcumulados[i].codigo, ignoreFieldChange: false  });
+                                            recVendorPayment.setCurrentSublistValue({sublistId: 'recmachcustrecord_l54_acum_ret_pago_asoc', fieldId: 'custrecord_l54_acum_ret_tipo_cambio', value: informacionRetenciones.detalleAcumulados[i].tipoCambio, ignoreFieldChange: false  });
+                                            recVendorPayment.setCurrentSublistValue({sublistId: 'recmachcustrecord_l54_acum_ret_pago_asoc', fieldId: 'custrecord_l54_acum_ret_fecha', value: fecha, ignoreFieldChange: false  });
+                                            recVendorPayment.commitLine({ sublistId: 'recmachcustrecord_l54_acum_ret_pago_asoc' });
+                                        }
+                                    }
+                                    //FIN - REGISTRO DE ACUMULADOS RETENCION IIBB
+
                                     log.audit("Governance Monitoring", "LINE 716 - Remaining Usage = " + script.getRemainingUsage() + " --- time: " + new Date());
 
                                     var importeTotalRetencion = parseFloat(importeTotalGanancias, 10) + parseFloat(importeTotalIVA, 10) + parseFloat(importeTotalIIBB, 10) + parseFloat(importeTotalMuni, 10) + parseFloat(importeTotalYnym, 10) + parseFloat(importeTotalSUSS, 10);
@@ -985,6 +1021,21 @@ define(["N/currentRecord", "N/format", "L54/utilidades", "N/runtime", "N/https",
                     ignoreRecalc: false
                 });
             }
+
+            /* INICIO - SE ELIMINAN LOS IMPORTES ACUMULADOS DEL PAGO ACTUAL */
+
+            let cantidadAcumulados = recVendorPayment.getLineCount({ sublistId: 'recmachcustrecord_l54_acum_ret_pago_asoc' });
+            log.debug('calcularRetenciones', `LINE 194 - CANTIDAD ACUMULADOS: ${cantidadAcumulados}`);
+
+            for (let j = cantidadAcumulados; j > 0; j--) {
+                recVendorPayment.removeLine({
+                    sublistId: 'recmachcustrecord_l54_acum_ret_pago_asoc',
+                    line: 0,
+                    ignoreRecalc: false
+                });
+            }
+
+            /* FIN - SE ELIMINAN LOS IMPORTES ACUMULADOS DEL PAGO ACTUAL */
 
             recVendorPayment.setValue({ fieldId: "custbody_l54_gan_imp_a_retener", value: 0.00 });
             recVendorPayment.setValue({ fieldId: "custbody_l54_suss_imp_a_retener", value: 0.00 });

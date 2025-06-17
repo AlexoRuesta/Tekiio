@@ -6,21 +6,20 @@
  */
 define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/serverWidget", "N/file", "N/url", "N/https", "N/runtime", "N/config"],
     /* global define log */
-    /* eslint-disable no-var */
     function (record, error, search, format, utilidades, serverWidget, file, url, https, runtime, config) {
         // debe estar primero, para que se ejecute, y genere la funcion que retorna y es utilizada
-        var normalize = (function () {
-            var from = "ÃÀÁÄÂÈÉËÊÌÍÏÎÒÓÖÔÙÚÜÛãàáäâèéëêìíïîòóöôùúüûÑñÇç°º",
+        const normalize = (function () {
+            const from = "ÃÀÁÄÂÈÉËÊÌÍÏÎÒÓÖÔÙÚÜÛãàáäâèéëêìíïîòóöôùúüûÑñÇç°º",
                 to = "AAAAAEEEEIIIIOOOOUUUUaaaaaeeeeiiiioooouuuunncc  ",
                 mapping = {};
 
-            for (var i = 0, j = from.length; i < j; i++)
+            for (let i = 0, j = from.length; i < j; i++)
                 mapping[from.charAt(i)] = to.charAt(i);
 
             return function (str) {
-                var ret = [];
-                for (var i = 0, j = str.length; i < j; i++) {
-                    var c = str.charAt(i);
+                const ret = [];
+                for (let i = 0, j = str.length; i < j; i++) {
+                    const c = str.charAt(i);
                     if (mapping.hasOwnProperty(str.charAt(i)))
                         ret.push(mapping[c]);
                     else
@@ -47,21 +46,23 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                 if (scriptContext.type == "create") {
                     log.audit("L54 - Calcular Retenciones (SS)", "INICIO - BEFORELOAD " + scriptContext.type);
                     var formVendorPayment = scriptContext.form;
-                    var recordObj = scriptContext.newRecord;
-                    var letraStr = "X";
-
-                    var calRetAutomaticamente = false;
+                    const recordObj = scriptContext.newRecord;
+                    const letraStr = "X";
+                    // ! ojo subsidiaria se referencia antes de que tenga valor
+                    const objDatosImpositivos = consultaDatosImpositivos(subsidiaria);
+                    let calRetAutomaticamente = false;
                     var subsidiaria = null;
-                    var esOneWorld = utilidades.l54esOneworld();
-
+                    const esOneWorld = utilidades.l54esOneworld();
+                    // ! su valor sera siempre nulo si no se reparo el error de subsidiaria undefined, por ahora esto no es un error ya que la variable no se utiliza para nada
+                    calRetAutomaticamente = objDatosImpositivos[0].calRetAutomaticamente;
 
                     log.audit("L54 - Calcular Retenciones (SS)", "BEFORELOAD " + scriptContext.type + " - CALCULAR RETENCIONES AUTOMATICAMENTE: " + calRetAutomaticamente);
 
                     //TIPO DE TRANSACCION STRING
-                    var tipoTransStr = recordObj.type;
+                    const tipoTransStr = recordObj.type;
 
                     //ES NOTA DE DEBITO?
-                    var esND = recordObj.getValue({
+                    let esND = recordObj.getValue({
                         fieldId: "custbody_l54_nd"
                     });
 
@@ -74,41 +75,39 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                             fieldId: "subsidiary"
                         });
                     }
-                    var objDatosImpositivos = consultaDatosImpositivos(subsidiaria);
-                    calRetAutomaticamente = objDatosImpositivos[0].calRetAutomaticamente;
 
                     //UBICACION
-                    var location = recordObj.getValue({
+                    const location = recordObj.getValue({
                         fieldId: "location"
                     });
 
                     /*if (!calRetAutomaticamente)
                     {*/
                     //SE ASOCIA SCRIPT AL BOTON CON ESTRUCTURA SIMILAR A LA DE UN SCRIPT DE CLIENTE
-                    formVendorPayment.clientScriptModulePath = "./L54 - Calcular Retenciones (Cliente).js";
+                    formVendorPayment.clientScriptModulePath = "./L54 - Calcular Retenciones (CL) (Ret. Lineas).js";
 
                     formVendorPayment.addButton({
                         id: "custpage_calular_ret",
-                        label: "Calcular Retenciones 2.0",
+                        label: "Calcular Retenciones (Líneas)",
                         functionName: "calcularRetenciones"
                     });
 
                     formVendorPayment.addButton({
                         id: "custpage_cancelar_ret",
-                        label: "Cancelar Retenciones 2.0",
+                        label: "Cancelar Retenciones (Líneas)",
                         functionName: "cancelarRetenciones"
                     });
 
                     //SE AGREGA TAB
                     formVendorPayment.addTab({
                         id: "custpage_tabretenciones",
-                        label: "Calculo Retenciones 2.0"
+                        label: "Calculo Retenciones (Líneas)"
                     });
 
                     //SE AGREGA SUBTAB
                     formVendorPayment.addSubtab({
                         id: "custpage_subtabretenciones",
-                        label: "Calculo Retenciones 2.0",
+                        label: "Calculo Retenciones (Líneas)",
                         tab: "custpage_tabretenciones"
                     });
 
@@ -321,10 +320,10 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                     //}
 
                     //SE OBTIENE LA BOCA/PUNTO DE VENTA
-                    var boca = obtenerPuntoVenta(esND, subsidiaria, tipoTransStr, location);
+                    const boca = obtenerPuntoVenta(esND, subsidiaria, tipoTransStr, location);
 
                     //SE OBTIENE LA LETRA
-                    var letraId = getLetraId(letraStr);
+                    const letraId = getLetraId(letraStr);
 
                     log.debug("L54 - Calcular Retenciones (SS)", "ES ND?: " + esND + " - SUBSIDIARIA: " + subsidiaria + " - TIPOTRANSSTR: " + tipoTransStr + " - LOCATION: " + location + " - BOCA: " + boca + " - LETRAID: " + letraId);
 
@@ -344,10 +343,10 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                 if (scriptContext.type == "view" || scriptContext.type == "edit") {
                     log.audit("L54 - Calcular Retenciones (SS)", "INICIO - BEFORELOAD " + scriptContext.type);
                     var formVendorPayment = scriptContext.form;
-                    var objRecord = scriptContext.newRecord;
-                    var recId = objRecord.id;
-                    var recType = objRecord.type;
-                    var arrayRetenciones = new Array();
+                    const objRecord = scriptContext.newRecord;
+                    const recId = objRecord.id;
+                    const recType = objRecord.type;
+                    let arrayRetenciones = new Array();
                     arrayRetenciones = loadRetenciones(recId);
 
                     log.debug("L54 - Calcular Retenciones (SS)", "INFORMANCION RETENCIONES VINCULADAS AL PAGO: " + JSON.stringify(arrayRetenciones));
@@ -355,13 +354,13 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                     //SE AGREGA TAB
                     formVendorPayment.addTab({
                         id: "custpage_tabretenciones",
-                        label: "Calculo Retenciones 2.0"
+                        label: "Calculo Retenciones (Líneas)"
                     });
 
                     //SE AGREGA SUBTAB
                     formVendorPayment.addSubtab({
                         id: "custpage_subtabretenciones",
-                        label: "Calculo Retenciones 2.0",
+                        label: "Calculo Retenciones (Líneas)",
                         tab: "custpage_tabretenciones"
                     });
 
@@ -548,8 +547,8 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                         });
                     }
 
-                    for (var i = 0; !utilidades.isEmpty(arrayRetenciones) && i < arrayRetenciones.length; i++) {
-                        var lineNum = i;
+                    for (let i = 0; !utilidades.isEmpty(arrayRetenciones) && i < arrayRetenciones.length; i++) {
+                        const lineNum = i;
                         sublistRetenciones.setSublistValue({ id: "custrecord_l54_id_retencion", line: lineNum, value: arrayRetenciones[i].ret_id_retencion });
                         sublistRetenciones.setSublistValue({ id: "custrecord_l54_ret_retencion", line: lineNum, value: arrayRetenciones[i].ret_tipo });
                         sublistRetenciones.setSublistValue({ id: "custrecord_l54_ret_porcentaje", line: lineNum, value: arrayRetenciones[i].ret_alicuota });
@@ -591,7 +590,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                             if (!utilidades.isEmpty(arrayRetenciones[i].ret_cert_exencion))
                                 sublistRetenciones.setSublistValue({ id: "custrecord_l54_ret_cert_exen", line: lineNum, value: arrayRetenciones[i].ret_cert_exencion });
 
-                            var fechaExencion = arrayRetenciones[i].ret_fecha_exencion;
+                            const fechaExencion = arrayRetenciones[i].ret_fecha_exencion;
 
                             if (!utilidades.isEmpty(fechaExencion)) {
                                 sublistRetenciones.setSublistValue({ id: "custrecord_l54_ret_fecha_exen", line: lineNum, value: fechaExencion });
@@ -619,24 +618,27 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
          * @Since 2015.2
          */
         function beforeSubmit(scriptContext) {
+
+            let arrayRetencionesCSV = [];
+            let arrayAcumuladosCSV = [];
+
             try {
-                var script = runtime.getCurrentScript();
+                const script = runtime.getCurrentScript();
                 var mensajeErrorRetencionAutomatica = "";
-                var erroresCalculoRetenciones = "";
+                let erroresCalculoRetenciones = "";
                 var erroresCalculoRetencionesFacturaM = "";
-                var arrayRetencionesCSV = [];
 
                 log.audit("Governance Monitoring", "LINE 587 - Remaining Usage = " + script.getRemainingUsage() + " --- time: " + new Date());
                 log.audit("L54 - Calcular Retenciones (SS)", "INICIO - BEFORESUBMIT " + scriptContext.type);
 
                 if (scriptContext.type == "create") {
                     var objRecord = scriptContext.newRecord;
-                    var recId = objRecord.id;
-                    var calRetAutomaticamente = false;
+                    const recId = objRecord.id;
+                    let calRetAutomaticamente = false;
                     //TIPO DE TRANSACCION STRING
-                    var tipoTransStr = objRecord.type;
-                    var subsidiaria = null;
-                    var esOneWorld = utilidades.l54esOneworld();
+                    const tipoTransStr = objRecord.type;
+                    let subsidiaria = null;
+                    const esOneWorld = utilidades.l54esOneworld();
 
                     if (esOneWorld) {
                         //SUBSIDIARIA
@@ -646,33 +648,33 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                     }
 
                     //ENTITY
-                    var entity = objRecord.getValue({
+                    const entity = objRecord.getValue({
                         fieldId: "entity"
                     });
 
                     //PERIODO CONTABLE
-                    var id_posting_period = objRecord.getValue({
+                    const id_posting_period = objRecord.getValue({
                         fieldId: "postingperiod"
                     });
 
                     //TIPO DE CAMBIO
-                    var tasa_cambio_pago = objRecord.getValue({
+                    const tasa_cambio_pago = objRecord.getValue({
                         fieldId: "exchangerate"
                     });
 
                     //MONEDA
-                    var moneda = objRecord.getValue({
+                    const moneda = objRecord.getValue({
                         fieldId: "currency"
                     });
 
                     //TRANDATE
-                    var fecha = objRecord.getValue({
+                    let fecha = objRecord.getValue({
                         fieldId: "trandate"
                     });
 
-                    //log.error('beforesubmit', 'Fecha: ' + fecha);
-                    var fechaAux = formatDate(fecha);
-                    //log.error('beforesubmit', 'Fecha con función formatDate: ' + fechaAux);
+                    log.audit("beforesubmit", "Fecha: " + fecha);
+                    const fechaAux = formatDate(fecha);
+                    log.audit("beforesubmit", "Fecha con función formatDate: " + fechaAux);
 
                     //TOTAL
                     var total = objRecord.getValue({
@@ -680,12 +682,12 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                     });
 
                     //Tipo Contribuyente
-                    var tipoContribuyente = objRecord.getValue({
+                    const tipoContribuyente = objRecord.getValue({
                         fieldId: "custbody_l54_tipo_contribuyente"
                     });
 
                     //DESACTIVAR CALCULO RETENCIONES AUTOMATICO
-                    var desCalRetAuto = objRecord.getValue({
+                    let desCalRetAuto = objRecord.getValue({
                         fieldId: "custbody_l54_desact_cal_ret_auto"
                     });
 
@@ -693,8 +695,8 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                         desCalRetAuto = false;
 
                     //log.debug('LINE 608', 'desCalRetAuto: '+desCalRetAuto);
-                    var objDatosImpositivos = consultaDatosImpositivos(subsidiaria);
-                    var paramRetenciones = parametrizacionRetenciones(subsidiaria);
+                    const objDatosImpositivos = consultaDatosImpositivos(subsidiaria);
+                    const paramRetenciones = parametrizacionRetenciones(subsidiaria);
 
                     if (!utilidades.isEmpty(objDatosImpositivos)) {
                         calRetAutomaticamente = objDatosImpositivos[0].calRetAutomaticamente;
@@ -755,11 +757,12 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                             importeRetencionOriginal = importeRetener;
                                             
                                         }
-                                        
+
                                         //SE SETEAN LOS CAMPOS
                                         objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_cod_retencion", line: lineNum, value: idRetencion });
                                         objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_jurisdiccion", line: lineNum, value: jurisdiccion });
                                         objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_importe", line: lineNum, value: importeRetener });
+
                                         var resultInfRetencion = paramRetenciones.filter(function (obj) {
                                             return (obj.codigo == idRetencion);
                                         });
@@ -808,7 +811,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                         objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_cert_exencion", line: lineNum, value: certificadoExencion });
 
                                         if (!utilidades.isEmpty(fechaExencion)) {
-                                            var fechaExencionDate = format.parse({
+                                            const fechaExencionDate = format.parse({
                                                 value: fechaExencion,
                                                 type: format.Type.DATE
                                             });
@@ -865,22 +868,22 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                             infPago.tipoContribuyente = tipoContribuyente;
                             infPago.esOneWorld = utilidades.l54esOneworld();
                             infPago.facturas = new Array();
-                            var arrayTranID = [];
+                            const arrayTranID = [];
 
-                            var cantItems = objRecord.getLineCount({
+                            const cantItems = objRecord.getLineCount({
                                 sublistId: "apply"
                             });
 
                             if ((!utilidades.isEmpty(total)) && (total > 0.00)) {
                                 for (var i = 0; !utilidades.isEmpty(cantItems) && i < cantItems; i++) {
-                                    var fldApply = objRecord.getSublistValue({ sublistId: "apply", fieldId: "apply", line: i });
+                                    const fldApply = objRecord.getSublistValue({ sublistId: "apply", fieldId: "apply", line: i });
 
                                     if (fldApply) {
-                                        var id_vendorbill = objRecord.getSublistValue({ sublistId: "apply", fieldId: "doc", line: i });
-                                        var amount = objRecord.getSublistValue({ sublistId: "apply", fieldId: "amount", line: i });
-                                        var tranID = objRecord.getSublistValue({ sublistId: "apply", fieldId: "refnum", line: i });
+                                        const id_vendorbill = objRecord.getSublistValue({ sublistId: "apply", fieldId: "doc", line: i });
+                                        const amount = objRecord.getSublistValue({ sublistId: "apply", fieldId: "amount", line: i });
+                                        const tranID = objRecord.getSublistValue({ sublistId: "apply", fieldId: "refnum", line: i });
 
-                                        var objFactura = new Object();
+                                        const objFactura = new Object();
                                         objFactura.idVendorBill = id_vendorbill;
                                         objFactura.linea = i;
                                         objFactura.amount = amount;
@@ -898,15 +901,15 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                     infPago.trandate = JSON.stringify(infPago.trandate);
                                     infPago.fecha = JSON.stringify(infPago.fecha);
 
-                                    var new_url = url.resolveScript({
-                                        scriptId: "customscript_l54_calcular_ret_suitelet",
-                                        deploymentId: "customdeploy_l54_calcular_ret_suitelet",
+                                    const new_url = url.resolveScript({
+                                        scriptId: "customscript_l54_calc_ret_sl_lineas",
+                                        deploymentId: "customdeploy_l54_calc_ret_sl_lineas",
                                         returnExternalUrl: true
                                     });
 
                                     log.audit("L54 - Calcular Retenciones (SS)", "infPago: " + JSON.stringify(infPago));
 
-                                    var respuestaAux = https.post({
+                                    const respuestaAux = https.post({
                                         url: new_url,
                                         body: infPago
                                     });
@@ -922,13 +925,13 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
 
                                     if (!utilidades.isEmpty(respuestaAux)) {
 
-                                        var respuesta = JSON.parse(respuestaAux.body);
+                                        const respuesta = JSON.parse(respuestaAux.body);
 
                                         log.audit("L54 - Calcular Retenciones (SS)", "LINE 844 - RESPUESTA: " + JSON.stringify(respuesta));
 
                                         if (!utilidades.isEmpty(respuesta) && respuesta.length > 0) {
 
-                                            var informacionRetenciones = respuesta[0];
+                                            const informacionRetenciones = respuesta[0];
 
                                             log.audit("L54 - Calcular Retenciones (SS)", "LINE 849 - informacionRetenciones: " + JSON.stringify(informacionRetenciones));
                                             log.audit("L54 - Calcular Retenciones (SS)", "runtime.executionContext: " + runtime.executionContext);
@@ -952,7 +955,6 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                                                         arrayRetencionesCSV.push(retGuardada);
                                                                     }
                                                                 } else {
-
                                                                     var lineNum = 0;
                                                                     cantidadRetenciones = objRecord.getLineCount({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov" });
                                                                     if (cantidadRetenciones == 0) {
@@ -975,18 +977,15 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                                                     var importeRetOriginal = informacionRetenciones.retencion_ganancias[i].imp_retencion_original;
                                                                     var baseCalculoOriginal = informacionRetenciones.retencion_ganancias[i].base_calculo_original;
                                                                     var montoSujRetMonedaLocal = informacionRetenciones.retencion_ganancias[i].monto_suj_ret_moneda_local;
-
                                                                     var resultInfRetencion = paramRetenciones.filter(function (obj) {
                                                                         return (obj.codigo == idRetencion);
                                                                     });
-
                                                                     if (!utilidades.isEmpty(resultInfRetencion) && resultInfRetencion.length > 0) {
                                                                         informacionRetencion = new Object();
                                                                         informacionRetencion.codigo = resultInfRetencion[0].codRetencion;
                                                                         informacionRetencion.tipo = resultInfRetencion[0].tipo_ret;
                                                                         informacionRetencion.descripcion = resultInfRetencion[0].desRetencion;
                                                                     }
-
                                                                     objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_cod_retencion", line: lineNum, value: idRetencion });
                                                                     objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_importe", line: lineNum, value: importeRetener });
                                                                     if (!utilidades.isEmpty(informacionRetencion)) {
@@ -1010,7 +1009,6 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                                                     objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_monto_suj_ret_mon_loc", line: lineNum, value: montoSujRetMonedaLocal });
                                                                     objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_importe_ret_original", line: lineNum, value: importeRetOriginal });
                                                                     objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_diferencia_redondeo", line: lineNum, value: diferenciaRedondeo });
-
                                                                     importeTotalGanancias = parseFloat(importeTotalGanancias, 10) + parseFloat(importeRetener, 10);
                                                                 }
                                                             }
@@ -1033,7 +1031,6 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                                             importeTotalSUSS = 0.00;
 
                                                             for (var i = 0; !utilidades.isEmpty(informacionRetenciones.retencion_suss) && i < informacionRetenciones.retencion_suss.length; i++) {
-
                                                                 if (runtime.executionContext == "CSVIMPORT" || runtime.executionContext == "WEBSERVICES") {
 
                                                                     var retGuardada = guardarRetenciones(informacionRetenciones.retencion_suss[i], paramRetenciones, entity, id_posting_period, tasa_cambio_pago, moneda, fecha, false);
@@ -1044,7 +1041,6 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                                                         arrayRetencionesCSV.push(retGuardada);
                                                                     }
                                                                 } else {
-
                                                                     var lineNum = 0;
                                                                     cantidadRetenciones = objRecord.getLineCount({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov" });
                                                                     if (cantidadRetenciones == 0) {
@@ -1223,7 +1219,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
 
                                                                     if (!utilidades.isEmpty(retGuardada)) {
                                                                         var importeRetener = informacionRetenciones.retencion_iibb[i].imp_retencion;
-                                                                        
+
                                                                         if(informacionRetenciones.retencion_iibb[i].retencion == 5){
                                                                             importeTotalMuni = parseFloat(importeTotalMuni, 10) + parseFloat(importeRetener, 10);
                                                                         }else if(informacionRetenciones.retencion_iibb[i].retencion == 6){
@@ -1263,6 +1259,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                                                     var importeRetOriginal = informacionRetenciones.retencion_iibb[i].imp_retencion_original;
                                                                     var baseCalculoOriginal = informacionRetenciones.retencion_iibb[i].base_calculo_original;
                                                                     var montoSujRetMonedaLocal = informacionRetenciones.retencion_iibb[i].monto_suj_ret_moneda_local;
+
                                                                     var resultInfRetencion = paramRetenciones.filter(function (obj) {
                                                                         return (obj.codigo == idRetencion);
                                                                     });
@@ -1273,6 +1270,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                                                         informacionRetencion.tipo = resultInfRetencion[0].tipo_ret;
                                                                         informacionRetencion.descripcion = resultInfRetencion[0].desRetencion;
                                                                     }
+
                                                                     objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_cod_retencion", line: lineNum, value: idRetencion });
                                                                     objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_jurisdiccion", line: lineNum, value: jurisdiccion });
                                                                     objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_importe", line: lineNum, value: importeRetener });
@@ -1297,30 +1295,27 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                                                     objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_condicion", line: lineNum, value: condicion });
                                                                     objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_fecha", line: lineNum, value: fecha });
                                                                     objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_alicuota", line: lineNum, value: alicuota });
-                                                                    
                                                                     if ((idTipoRetencion == 3 || idTipoRetencion == 5 || idTipoRetencion == 6) && !utilidades.isEmpty(idTipoContribuyente)) {
                                                                         objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_tipo_contrib_iibb", line: lineNum, value: idTipoContribuyente });
                                                                     }
-
-                                                                    if (!utilidades.isEmpty(tarifa) && idTipoRetencion == 6) objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_tarifa", line: lineNum, value: tarifa });
-
-                                                                    if (!utilidades.isEmpty(unidad) && idTipoRetencion == 6) objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_unidad", line: lineNum, value: unidad });
-
                                                                     objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_tipo_exencion", line: lineNum, value: idTipoExencion });
                                                                     objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_cert_exencion", line: lineNum, value: certificadoExencion });
+
                                                                     if (!utilidades.isEmpty(fechaExencion)) {
                                                                         //log.error('beforeSubmit', 'fechaExencion: ' + fechaExencion);
                                                                         fechaExencion = new Date(fechaExencion);
                                                                         //log.error('beforeSubmit', 'fechaExencion con new Date: ' + fechaExencion);
+
                                                                         var fechaExencionString = format.parse({
                                                                             value: fechaExencion,
                                                                             type: format.Type.DATE,
                                                                             timezone: format.Timezone.AMERICA_BUENOS_AIRES
                                                                         });
+
                                                                         //log.error('beforeSubmit', 'fechaExencionString: ' + fechaExencionString);
+
                                                                         objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_fecha_exencion", line: lineNum, value: fechaExencionString });
                                                                     }
-
                                                                     if(informacionRetenciones.retencion_iibb[i].retencion == 5){
                                                                         importeTotalMuni = parseFloat(importeTotalMuni, 10) + parseFloat(importeRetener, 10);
                                                                     }else if(informacionRetenciones.retencion_iibb[i].retencion == 6){
@@ -1352,10 +1347,52 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                                                 ignoreFieldChange: false
                                                             });
 
+
                                                         }
                                                     }//FIN - RETENCION IIBB
 
-                                                    var importeTotalRetencion = parseFloat(importeTotalGanancias, 10) + parseFloat(importeTotalIVA, 10) + parseFloat(importeTotalIIBB, 10) + parseFloat(importeTotalMuni, 10) + parseFloat(importeTotalInym, 10) + parseFloat(importeTotalSUSS, 10);
+
+                                                    let cantidadRegAcum = 0;
+                                                    log.audit("calcularRetencionesSS", `informacionRetenciones.detalleAcumulados: ${JSON.stringify(informacionRetenciones.detalleAcumulados)}`);
+
+                                                    //INICIO - REGISTRO DE ACUMULADOS RETENCION IIBB
+                                                    if (!isEmpty(informacionRetenciones.detalleAcumulados) && informacionRetenciones.detalleAcumulados.length > 0) {
+
+                                                        for (let r = 0; r < objRecord.getLineCount({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc" }); r++) {
+                                                            objRecord.removeLine({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", line: r });
+                                                            r--;
+                                                        }
+
+                                                        for (var i = 0; i < informacionRetenciones.detalleAcumulados.length; i++) {
+                                                            if (runtime.executionContext == "CSVIMPORT" || runtime.executionContext == "WEBSERVICES") {
+
+                                                                const regAcumulado = guardarAcumulados(informacionRetenciones.detalleAcumulados[i], fecha);
+
+                                                                if (!isEmpty(regAcumulado)) {
+                                                                    arrayAcumuladosCSV.push(regAcumulado);
+                                                                }
+                                                            } else {
+                                                                var lineNum = 0;
+                                                                cantidadRegAcum = objRecord.getLineCount({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc" });
+                                                                if (cantidadRegAcum == 0) {
+                                                                    lineNum = 0;
+                                                                } else {
+                                                                    lineNum = parseInt(cantidadRegAcum);
+                                                                }
+                                                                objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", fieldId: "custrecord_l54_acum_ret_proveedor", line: lineNum, value: informacionRetenciones.detalleAcumulados[i].proveedor });
+                                                                objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", fieldId: "custrecord_l54_acum_ret_periodo", line: lineNum, value: informacionRetenciones.detalleAcumulados[i].periodo });
+                                                                objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", fieldId: "custrecord_l54_acum_ret_subsidiaria", line: lineNum, value: informacionRetenciones.detalleAcumulados[i].subsidiaria });
+                                                                objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", fieldId: "custrecord_l54_acum_ret_base_calculo", line: lineNum, value: informacionRetenciones.detalleAcumulados[i].baseCalculo });
+                                                                objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", fieldId: "custrecord_l54_acum_ret_jurisdiccion", line: lineNum, value: informacionRetenciones.detalleAcumulados[i].jurisdiccion });
+                                                                objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", fieldId: "custrecord_l54_acum_ret_cod_ret", line: lineNum, value: informacionRetenciones.detalleAcumulados[i].codigo });
+                                                                objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", fieldId: "custrecord_l54_acum_ret_fecha", line: lineNum, value: fecha });
+                                                                objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", fieldId: "custrecord_l54_acum_ret_tipo_cambio", line: lineNum, value: informacionRetenciones.detalleAcumulados[i].tipoCambio });
+                                                            }
+                                                        }
+                                                    }
+                                                    //FIN - REGISTRO DE ACUMULADOS RETENCION IIBB
+
+                                                    var importeTotalRetencion = parseFloat(importeTotalGanancias, 10) + parseFloat(importeTotalIVA, 10) + parseFloat(importeTotalIIBB, 10) + parseFloat(importeTotalSUSS, 10) + parseFloat(importeTotalMuni, 10)  + parseFloat(importeTotalInym, 10) ;
                                                     var total = objRecord.getValue({ fieldId: "total" });
                                                     var importeNetoAbonar = parseFloat(total, 10) - parseFloat(importeTotalRetencion, 10);
 
@@ -1436,6 +1473,18 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
 
                                     arrayRetencionesCSV = null;
 
+
+                                    /* INICIO - SE ELIMINAN LOS ACUMULADOS  */
+
+                                    if (!utilidades.isEmpty(arrayAcumuladosCSV) && arrayAcumuladosCSV.length > 0) {
+                                        eliminarAcumuladosCSV(arrayAcumuladosCSV);
+                                    }
+
+                                    arrayAcumuladosCSV = null;
+
+                                    /* FIN - SE ELIMINAN LOS ACUMULADOS  */
+
+
                                     if (e.type.toString() == "error.SuiteScriptError" && e.name.toString() == "SSS_REQUEST_TIME_EXCEEDED") {
                                         log.error("L54 - Calcular Retenciones (SS)", "Ingreso a capture de error con SSS_REQUEST_TIME_EXCEEDED");
                                         mensajeErrorRetencionAutomatica = "Error: El cálculo de retenciones para las facturas: " + arrayTranID.toString() + "; ha excedido el límite de tiempo para devolver una respuesta. Intente repetir el proceso nuevamente.";
@@ -1445,58 +1494,205 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                 }
                             }
                         }
+                        /** Modificación 16-01 Clearing Account */
+                        var accountOri = objRecord.getValue({ fieldId: "account" });
+                        var cantLinRet = objRecord.getLineCount({ sublistId: 'recmachcustrecord_l54_ret_ref_pago_prov' });
+                        var paramFormaPago = runtime.getCurrentScript().getParameter({ name: "custscript_l54_calc_ret_ss_lineas_formpm" });
+                        var formaPago= objRecord.getValue({ fieldId: "custbody_3k_forma_pago_local" });
 
-                         /** Modificación 16-01 Clearing Account */
-                            var accountOri = objRecord.getValue({ fieldId: "account" });
-                            var cantLinRet = objRecord.getLineCount({ sublistId: 'recmachcustrecord_l54_ret_ref_pago_prov' });
-                            var paramFormaPago = runtime.getCurrentScript().getParameter({ name: "custscript_l54_calcular_ret_ss_form" });
-                            var formaPago= objRecord.getValue({ fieldId: "custbody_3k_forma_pago_local" });
-                          
-                            var cuentaClearing = '';
-                            if (objDatosImpositivos[0].applyAccountClearing && paramFormaPago != formaPago && cantLinRet > 0) { // si se aplica clearing
-                                cuentaClearing = obtenerConfRetCtaClearing(
-                                    objRecord.getValue({
-                                        fieldId: "subsidiary"
-                                    }), 
-                                    objRecord.getValue({
-                                        fieldId: "currency"
-                                    }),
-                                    accountOri
-                                );
-                                objRecord.setValue('account', cuentaClearing);
-                                objRecord.setValue('custbody_l54_cuenta_banco', accountOri);
-                                
-                                log.debug("Governance Monitoring", "Memoria = " + script.getRemainingUsage());
-                            }
+                        var cuentaClearing = '';
                         
+                        if (objDatosImpositivos[0].applyAccountClearing && paramFormaPago != formaPago && cantLinRet > 0) { // si se aplica clearing
+                            cuentaClearing = obtenerConfRetCtaClearing(
+                                objRecord.getValue({
+                                    fieldId: "subsidiary"
+                                }), 
+                                objRecord.getValue({
+                                    fieldId: "currency"
+                                }),
+                                accountOri
+                            );
+                            log.debug('cuentaClearing', cuentaClearing)
+                            objRecord.setValue('account', cuentaClearing);
+                            objRecord.setValue('custbody_l54_cuenta_banco', accountOri);
+                            
+                            log.error("Governance Monitoring", "Memoria = " + script.getRemainingUsage());
+                        }
+
+                        /** Modificación Acumulados Retenciones */
+                        var cantLinAcumulados = objRecord.getLineCount({ sublistId: 'recmachcustrecord_l54_acum_ret_pago_asoc' });
+                        if(cantLinAcumulados == 0){
+                            //ARRAY INFORMACIÓN PAGO
+                            fecha = (!utilidades.isEmpty(fecha)) ? fecha : "";
+                            var infPago = new Object();
+                            infPago.entity = entity;
+                            infPago.periodo = id_posting_period;
+                            infPago.tipoCambio = tasa_cambio_pago;
+                            infPago.importeTotal = total;
+                            infPago.trandate = [];
+                            infPago.trandate.push(fecha);
+                            infPago.fecha = [];
+                            infPago.fecha.push(fechaAux);
+                            infPago.moneda = moneda;
+                            infPago.subsidiaria = subsidiaria;
+                            infPago.tipoContribuyente = tipoContribuyente;
+                            infPago.esOneWorld = utilidades.l54esOneworld();
+                            infPago.facturas = new Array();
+                            const arrayTranID = [];
+
+                            const cantItems = objRecord.getLineCount({
+                                sublistId: "apply"
+                            });
+                            if ((!utilidades.isEmpty(total)) && (total > 0.00)) {
+                                for (var i = 0; !utilidades.isEmpty(cantItems) && i < cantItems; i++) {
+                                    const fldApply = objRecord.getSublistValue({ sublistId: "apply", fieldId: "apply", line: i });
+
+                                    if (fldApply) {
+                                        const id_vendorbill = objRecord.getSublistValue({ sublistId: "apply", fieldId: "doc", line: i });
+                                        const amount = objRecord.getSublistValue({ sublistId: "apply", fieldId: "amount", line: i });
+                                        const tranID = objRecord.getSublistValue({ sublistId: "apply", fieldId: "refnum", line: i });
+
+                                        const objFactura = new Object();
+                                        objFactura.idVendorBill = id_vendorbill;
+                                        objFactura.linea = i;
+                                        objFactura.amount = amount;
+                                        infPago.facturas.push(objFactura);
+                                        arrayTranID.push(tranID);
+                                    }
+                                }
+                            }
+                            log.debug('Proceso automatico de calculo de Acumulados', JSON.stringify(infPago))
+
+                            if (!utilidades.isEmpty(infPago)) {
+                                try{
+                                    infPago.facturas = JSON.stringify(infPago.facturas);
+                                    infPago.trandate = JSON.stringify(infPago.trandate);
+                                    infPago.fecha = JSON.stringify(infPago.fecha);
+    
+                                    const new_url = url.resolveScript({
+                                        scriptId: "customscript_l54_calc_ret_sl_lineas",
+                                        deploymentId: "customdeploy_l54_calc_ret_sl_lineas",
+                                        returnExternalUrl: true
+                                    });
+    
+                                    log.audit("L54 - Calcular Retenciones (SS)", "infPago: " + JSON.stringify(infPago));
+    
+                                    const respuestaAux = https.post({
+                                        url: new_url,
+                                        body: infPago
+                                    });
+    
+                                    if (!utilidades.isEmpty(respuestaAux)) {
+    
+                                        const respuesta = JSON.parse(respuestaAux.body);
+                                        if (!utilidades.isEmpty(respuesta) && respuesta.length > 0) {
+    
+                                            var informacionRetenciones = respuesta[0];
+                                            if (!isEmpty(informacionRetenciones.detalleAcumulados) && informacionRetenciones.detalleAcumulados.length > 0) {
+    
+                                                for (let r = 0; r < objRecord.getLineCount({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc" }); r++) {
+                                                    objRecord.removeLine({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", line: r });
+                                                    r--;
+                                                }
+    
+                                                for (var i = 0; i < informacionRetenciones.detalleAcumulados.length; i++) {
+                                                    if (runtime.executionContext == "CSVIMPORT" || runtime.executionContext == "WEBSERVICES") {
+    
+                                                        const regAcumulado = guardarAcumulados(informacionRetenciones.detalleAcumulados[i], fecha);
+    
+                                                        if (!isEmpty(regAcumulado)) {
+                                                            arrayAcumuladosCSV.push(regAcumulado);
+                                                        }
+                                                    } else {
+                                                        var lineNum = 0;
+                                                        cantidadRegAcum = objRecord.getLineCount({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc" });
+                                                        if (cantidadRegAcum == 0) {
+                                                            lineNum = 0;
+                                                        } else {
+                                                            lineNum = parseInt(cantidadRegAcum);
+                                                        }
+                                                        objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", fieldId: "custrecord_l54_acum_ret_proveedor", line: lineNum, value: informacionRetenciones.detalleAcumulados[i].proveedor });
+                                                        objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", fieldId: "custrecord_l54_acum_ret_periodo", line: lineNum, value: informacionRetenciones.detalleAcumulados[i].periodo });
+                                                        objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", fieldId: "custrecord_l54_acum_ret_subsidiaria", line: lineNum, value: informacionRetenciones.detalleAcumulados[i].subsidiaria });
+                                                        objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", fieldId: "custrecord_l54_acum_ret_base_calculo", line: lineNum, value: informacionRetenciones.detalleAcumulados[i].baseCalculo });
+                                                        objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", fieldId: "custrecord_l54_acum_ret_jurisdiccion", line: lineNum, value: informacionRetenciones.detalleAcumulados[i].jurisdiccion });
+                                                        objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", fieldId: "custrecord_l54_acum_ret_cod_ret", line: lineNum, value: informacionRetenciones.detalleAcumulados[i].codigo });
+                                                        objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", fieldId: "custrecord_l54_acum_ret_fecha", line: lineNum, value: fecha });
+                                                        objRecord.setSublistValue({ sublistId: "recmachcustrecord_l54_acum_ret_pago_asoc", fieldId: "custrecord_l54_acum_ret_tipo_cambio", line: lineNum, value: informacionRetenciones.detalleAcumulados[i].tipoCambio });
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }        
+    
+                                }catch (e) {
+                                    
+    
+                                    /* INICIO - SE ELIMINAN LOS ACUMULADOS  */
+    
+                                    if (!utilidades.isEmpty(arrayAcumuladosCSV) && arrayAcumuladosCSV.length > 0) {
+                                        eliminarAcumuladosCSV(arrayAcumuladosCSV);
+                                    }
+    
+                                    arrayAcumuladosCSV = null;
+    
+                                    /* FIN - SE ELIMINAN LOS ACUMULADOS  */
+    
+    
+                                    if (e.type.toString() == "error.SuiteScriptError" && e.name.toString() == "SSS_REQUEST_TIME_EXCEEDED") {
+                                        log.error("L54 - Calcular Retenciones (SS)", "Ingreso a capture de error con SSS_REQUEST_TIME_EXCEEDED");
+                                        mensajeErrorRetencionAutomatica = "Error: El cálculo de retenciones para las facturas: " + arrayTranID.toString() + "; ha excedido el límite de tiempo para devolver una respuesta. Intente repetir el proceso nuevamente.";
+                                        log.error("L54 - Calcular Retenciones (SS)", "mensajeErrorRetencionAutomatica: " + mensajeErrorRetencionAutomatica);
+                                        throw mensajeErrorRetencionAutomatica;
+                                    }
+                                }
+                                
+                               
+                            }
+                        }
+                        
+
+
                     }
 
-                    if (!utilidades.isEmpty(arrayRetencionesCSV) && arrayRetencionesCSV.length > 0) {
+                        if (!utilidades.isEmpty(arrayRetencionesCSV) && arrayRetencionesCSV.length > 0) {
+                            objRecord.setValue({
+                                fieldId: "custbody_l54_id_retenciones_csv",
+                                value: JSON.stringify(arrayRetencionesCSV),
+                                ignoreFieldChange: false
+                            });
+                        }
+
+
+                    /* INICIO - SE GUARDAN LOS ACUMULADOS  */
+
+                    if (!utilidades.isEmpty(arrayAcumuladosCSV) && arrayAcumuladosCSV.length > 0) {
                         objRecord.setValue({
-                            fieldId: "custbody_l54_id_retenciones_csv",
-                            value: JSON.stringify(arrayRetencionesCSV),
+                            fieldId: "custbody_l54_id_acumulados_csv",
+                            value: JSON.stringify(arrayAcumuladosCSV),
                             ignoreFieldChange: false
                         });
                     }
+
+                    /* FIN - SE GUARDAN LOS ACUMULADOS  */
+
                     log.audit("L54 - Calcular Retenciones (SS)", "FIN - BEFORESUBMIT " + scriptContext.type);
-                   
-                    
                 }
 
                 if (scriptContext.type == "delete") {
                     log.audit("L54 - Calcular Retenciones (SS)", "INICIO - BEFORESUBMIT " + scriptContext.type);
                     var objRecord = scriptContext.oldRecord;
-                    var jeAsociado = objRecord.getValue({
+                    const jeAsociado = objRecord.getValue({
                         fieldId: "custbody_l54_id_je_vendorpayment"
                     });
 
-                    var numLocalizado = objRecord.getValue({
+                    const numLocalizado = objRecord.getValue({
                         fieldId: "custbody_l54_numero_localizado"
                     });
                     log.debug("L54 - Calcular Retenciones (SS)", "BEFORESUBMIT DELETE - JOURNALENTRY ASOCIADO: " + jeAsociado);
                     if (!utilidades.isEmpty(jeAsociado)) {
                         try {
-                            var jeDelete = record.delete({
+                            const jeDelete = record.delete({
                                 type: record.Type.JOURNAL_ENTRY,
                                 id: jeAsociado
                             });
@@ -1530,7 +1726,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                     isDynamic: true,
                                 });
 
-                                var nombrePagoProveedor = recordRetencion.getText({
+                                const nombrePagoProveedor = recordRetencion.getText({
                                     fieldId: "custrecord_l54_ret_ref_pago_prov"
                                 });
                                 recordRetencion.setValue({ fieldId: "custrecord_l54_ret_eliminado", value: true });
@@ -1552,8 +1748,8 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                 if (scriptContext.type == "edit") {
                     log.audit("L54 - Calcular Retenciones (SS)", "INICIO - BEFORESUBMIT " + scriptContext.type);
                     var objRecord = scriptContext.newRecord;
-                    var idPagoProveedor = objRecord.id;
-                    var cantidadRetRecmach = objRecord.getLineCount({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov" });
+                    const idPagoProveedor = objRecord.id;
+                    const cantidadRetRecmach = objRecord.getLineCount({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov" });
                     var arrayRetenciones = new Array();
 
                     for (var i = 0; !utilidades.isEmpty(cantidadRetRecmach) && i < cantidadRetRecmach; i++) {
@@ -1619,7 +1815,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                         {
                             importeTotalSUSS = parseFloat(importeTotalSUSS, 10) + parseFloat(importeRetener, 10);
                         }
-                        if (idTipoRetencion == 5)//MUNICIPAL
+                        if(idTipoRetencion == 5)//MUNICIPAL
                         {
                             importeTotalMuni = parseFloat(importeTotalMuni, 10) + parseFloat(importeRetener, 10);
                         }
@@ -1633,7 +1829,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                         }
 
                         if (!utilidades.isEmpty(idTipoRetencion) && !utilidades.isEmpty(idRetencion) && !utilidades.isEmpty(idPagoProveedor)) {
-                            var resultRecMach = arrayRetenciones.filter(function (obj) {
+                            const resultRecMach = arrayRetenciones.filter(function (obj) {
                                 return (obj.idInternoRet == idInternoRet);
                             });
 
@@ -1671,6 +1867,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                     if (!utilidades.isEmpty(tarifa) && idTipoRetencion == 6) recordRetencion.setValue({ fieldId: "custrecord_l54_ret_tarifa", value: tarifa });
 
                                     if (!utilidades.isEmpty(unidad) && idTipoRetencion == 6) recordRetencion.setValue({ fieldId: "custrecord_l54_ret_unidad", value: unidad });
+
 
                                     try {
                                         var idRR = recordRetencion.save();
@@ -1750,6 +1947,18 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
 
                 arrayRetencionesCSV = null;
 
+
+                /* INICIO - SE ELIMINAN LOS ACUMULADOS  */
+
+                if (!utilidades.isEmpty(arrayAcumuladosCSV) && arrayAcumuladosCSV.length > 0) {
+                    eliminarAcumuladosCSV(arrayAcumuladosCSV);
+                }
+
+                arrayAcumuladosCSV = null;
+
+                /* FIN - SE ELIMINAN LOS ACUMULADOS  */
+
+
                 if (!utilidades.isEmpty(mensajeErrorRetencionAutomatica)) {
                     throw mensajeErrorRetencionAutomatica;
                 } else {
@@ -1757,6 +1966,16 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                         throw erroresCalculoRetencionesFacturaM;
                     }
                 }
+            }
+            //IVA TOTAL
+            let amountNeto = objRecord.getValue({
+                fieldId: "custbody_l54_importe_neto_a_abonar"
+            });
+
+            log.debug("amountNeto", amountNeto)
+            if(amountNeto < 0){
+                let messageAmount = "El monto de las retenciones es mayor al total a pagar."
+                throw messageAmount;
             }
         }
 
@@ -1773,11 +1992,8 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
 
             try {
                 log.audit("L54 - Calcular Retenciones (SS)", "INICIO - AFTERSUBMIT " + scriptContext.type);
-                var script = runtime.getCurrentScript();
-
-                log.debug("Governance Monitoring", "Memoria = " + script.getRemainingUsage());
-
-                var objRta = new Object();
+                const script = runtime.getCurrentScript();
+                const objRta = new Object();
                 objRta.error = false;
                 objRta.warning = false;
                 objRta.mensajeError = new Array();
@@ -1787,21 +2003,23 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                 //INVOCO A LA FUNCION
                 var recId = scriptContext.newRecord.id;
                 var recType = scriptContext.newRecord.type;
-                var type = scriptContext.type;
+                const type = scriptContext.type;
 
                 log.debug("L54 - Calcular Retenciones (SS)", "AFTERSUBMIT - ANTES DE LLAMAR PROCESAVENDORPAYMENT - PARAMETROS - RECID: " + recId + " - RECTYPE: " + recType + " - TYPE: " + type);
 
                 if (!utilidades.isEmpty(recId) && !utilidades.isEmpty(recType) && recId > 0) {
                     // Se actualizan las retenciones creadas desde importacion CSV para que se relacionen con el pago actual
                     if (runtime.executionContext == "CSVIMPORT" || runtime.executionContext == "WEBSERVICES") {
-                        var recordT = scriptContext.newRecord;
-                        var arrayRetencionesCSV = !utilidades.isEmpty(recordT.getValue({ fieldId: "custbody_l54_id_retenciones_csv" })) ? JSON.parse(recordT.getValue({ fieldId: "custbody_l54_id_retenciones_csv" })) : [];
+                        const recordT = scriptContext.newRecord;
+                        const arrayRetencionesCSV = !utilidades.isEmpty(recordT.getValue({ fieldId: "custbody_l54_id_retenciones_csv" })) ? JSON.parse(recordT.getValue({ fieldId: "custbody_l54_id_retenciones_csv" })) : [];
+                        const arrayAcumuladosCSV = !utilidades.isEmpty(recordT.getValue({ fieldId: "custbody_l54_id_acumulados_csv" })) ? JSON.parse(recordT.getValue({ fieldId: "custbody_l54_id_acumulados_csv" })) : [];
                         // var arrayRetencionesCSV = JSON.parse(recordT.getValue({ fieldId: 'custbody_l54_id_retenciones_csv' }));
                         // var arrayAcumuladosCSV = JSON.parse(recordT.getValue({ fieldId: 'custbody_l54_id_acumulados_csv' }));
 
                         log.audit("L54 - Calcular Retenciones (SS)", "LINE 1746 - Antes de actualizar registros de retenciones: " + JSON.stringify(arrayRetencionesCSV) + " - Unidades de ejecuion restantes: " + script.getRemainingUsage());
+
                         if (!utilidades.isEmpty(arrayRetencionesCSV) && arrayRetencionesCSV.length > 0) {
-                            for (var m = 0; m < arrayRetencionesCSV.length; m++) {
+                            for (let m = 0; m < arrayRetencionesCSV.length; m++) {
                                 record.submitFields({
                                     type: "customrecord_l54_retencion",
                                     id: arrayRetencionesCSV[m],
@@ -1816,7 +2034,30 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                 });
                             }
                         }
+
                         log.audit("L54 - Calcular Retenciones (SS)", "LINE 1762 - Despues de actualizar registros de retenciones - Unidades de ejecuion restantes: " + script.getRemainingUsage());
+
+
+                        log.audit("L54 - Calcular Retenciones (SS)", "LINE 1775 - Antes de actualizar registros de acumulados: " + JSON.stringify(arrayAcumuladosCSV) + " - Unidades de ejecuion restantes: " + script.getRemainingUsage());
+
+                        if (!utilidades.isEmpty(arrayAcumuladosCSV) && arrayAcumuladosCSV.length > 0) {
+                            for (let m = 0; m < arrayAcumuladosCSV.length; m++) {
+                                record.submitFields({
+                                    type: "customrecord_l54_acumulados_retenciones",
+                                    id: arrayAcumuladosCSV[m],
+                                    values: {
+                                        isinactive: false,
+                                        custrecord_l54_acum_ret_pago_asoc: recId,
+                                    },
+                                    options: {
+                                        enableSourcing: true,
+                                        ignoreMandatoryFields: true
+                                    }
+                                });
+                            }
+                        }
+
+                        log.audit("L54 - Calcular Retenciones (SS)", "LINE 1796 - Despues de actualizar registros de acumulados - Unidades de ejecuion restantes: " + script.getRemainingUsage());
                     }
 
                     procesaVendorPayment(type, recType, recId, objRta, null, script);
@@ -1832,14 +2073,14 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
             try {
                 log.audit("L54 - Calcular Retenciones (SS)", "INICIO - AFTERSUBMIT - PROCESAVENDORPAYMENT - PARAMETROS: TYPE: " + type + " - RECTYPE: " + recType + " - RECID:  " + recId + " - OBJRTA: " + JSON.stringify(objRta) + ",infoRetIIBB:" + JSON.stringify(infoRetIIBB));
                 log.audit("L54 - Calcular Retenciones (SS)", "LINE 1687 - Unidades de ejecuion restantes: " + script.getRemainingUsage());
-                var registroCargado = false;
-                var idFolderRetencion = null;
-                var cal_ret_auto = false;
-                var subsidiary = null;
+                let registroCargado = false;
+                let idFolderRetencion = null;
+                let cal_ret_auto = false;
+                let subsidiary = null;
                 var esOneWorld = false;
-                var numerador_manual = false;
+                let numerador_manual = false;
 
-                if (type == "create" || type == "edit" || type == "paybills") {
+                if (type == "create" || type == "edit" || type == "paybills" || type == "xedit") {
                     if (!utilidades.isEmpty(recId)) {
                         try {
                             var recordT = record.load({
@@ -1848,8 +2089,8 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                 isDynamic: true,
                             });
 
-                            var recVoided = recordT.getValue({ fieldId: "voided" });
-                            var recStatus = recordT.getValue({ fieldId: "status" });
+                            const recVoided = recordT.getValue({ fieldId: "voided" });
+                            const recStatus = recordT.getValue({ fieldId: "status" });
                             var codigo_op = recordT.getValue({ fieldId: "custbody_l54_numero_localizado" });
                             var entity = recordT.getValue({ fieldId: "entity" });
                             var trandate = recordT.getValue({ fieldId: "trandate" });
@@ -1869,15 +2110,15 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
 
                             //DEFINO IDENTIFICADORES PARA LAS CUENTAS CONTABLES
                             var id_account = recordT.getValue({ fieldId: "account" }); // cuenta contable original del pago
-                            var objDatosImpositivos = consultaDatosImpositivos(subsidiaria);
+                            const objDatosImpositivos = consultaDatosImpositivos(subsidiaria);
                             log.debug("L54 - Calcular Retenciones (SS)", "AFTERSUBMIT - PROCESAVENDORPAYMENT - DATOS IMPOSITIVOS INFO: " + JSON.stringify(objDatosImpositivos) + " - ES PAGOMASIVO?: " + esPagoMasivo + " - CODIGO_OP (NUM LOCALIZADO): " + codigo_op);
                             var id_ret_ganancias = objDatosImpositivos[0].idCCRetGAN; // cuenta contable ganancias
                             var id_ret_suss = objDatosImpositivos[0].idCCRetSUSS; // cuenta contable SUSS
                             var id_ret_iva = objDatosImpositivos[0].idCCRetIVA; // cuenta contable IVA
-                            var idsRetGanancia = recordT.getValue({ fieldId: "custbody_l54_id_ret_ganancias" });
-                            var idsRetIVA = recordT.getValue({ fieldId: "custbody_l54_id_ret_iva" });
-                            var idsRetIIBB = recordT.getValue({ fieldId: "custbody_l54_id_ret_iibb" });
-                            var idsRetSUSS = recordT.getValue({ fieldId: "custbody_l54_id_ret_suss" });
+                            const idsRetGanancia = recordT.getValue({ fieldId: "custbody_l54_id_ret_ganancias" });
+                            const idsRetIVA = recordT.getValue({ fieldId: "custbody_l54_id_ret_iva" });
+                            const idsRetIIBB = recordT.getValue({ fieldId: "custbody_l54_id_ret_iibb" });
+                            const idsRetSUSS = recordT.getValue({ fieldId: "custbody_l54_id_ret_suss" });
                             cal_ret_auto = objDatosImpositivos[0].calRetAutomaticamente;
                             idFolderRetencion = objDatosImpositivos[0].folderIdRetenciones;
                             registroCargado = true;
@@ -1886,7 +2127,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                             /** Modificación 16-01 Clearing Account */
                             var ctaBancoAuxiliar = recordT.getValue('custbody_l54_cuenta_banco');
                             var currency = recordT.getValue({ fieldId: "currency" });
-                            var paramFormaPago = runtime.getCurrentScript().getParameter({ name: "custscript_l54_calcular_ret_ss_form" });
+                            var paramFormaPago = runtime.getCurrentScript().getParameter({ name: "custscript_l54_calc_ret_ss_lineas_formpm" });
                             var formaPago= recordT.getValue({ fieldId: "custbody_3k_forma_pago_local" });
                             var cantLinRet = recordT.getLineCount({ sublistId: 'recmachcustrecord_l54_ret_ref_pago_prov' });
                             var montoTotal = parseFloat(recordT.getValue('total'), 10).toFixedOK(2);
@@ -1898,11 +2139,10 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                 idCuentaCont = cuentaClearing;
                                 flagClearing = true;
                                 
-                                log.debug("Governance Monitoring", "Memoria = " + script.getRemainingUsage());
+                                log.error("Governance Monitoring", "Memoria = " + script.getRemainingUsage());
                             }else{
                                 idCuentaCont = id_account;
                             }
-
                         }
                         catch (e) {
                             log.error("L54 - Calcular Retenciones (SS)", "AFTERSUBMIT - PROCESAVENDORPAYMENT - ERROR MIENTRAS SE CARGABA TRANSACCION: " + recType + " - ID INTERNO: " + recId + " - CONTEXTO: " + type + ". EXCEPCION DETALLES:: " + e.message);
@@ -1915,20 +2155,15 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                 log.debug("L54 - Calcular Retenciones (SS)", "AFTERSUBMIT - PROCESAVENDORPAYMENT - REGISTRO CARGADO?: " + registroCargado + " - NUMERADOR MANUAL: " + numerador_manual + " - CONTEXTO: " + type);
                 log.audit("L54 - Calcular Retenciones (SS)", "LINE 1775 - Unidades de ejecuion restantes: " + script.getRemainingUsage());
                 if (registroCargado == true) {
-                    
-                    if (type == "create" || type == "paybills") { // Alex Crear
+                    if (type == "create" || type == "paybills") {
                         // si se utiliza numerador automatico
                         if (numerador_manual == false && utilidades.isEmpty(codigo_op)) {
-                            var tipoTransId = numeradorAUtilizar(getTipoTransId(tipoTransStr), esND, subsidiaria);
+                            const tipoTransId = numeradorAUtilizar(getTipoTransId(tipoTransStr), esND, subsidiaria);
                             var numeradorArray = devolverNuevoNumero(tipoTransId, bocaId, letraId, subsidiaria);
                             recordT.setValue({ fieldId: "custbody_l54_numero", value: numeradorArray["numerador"] });
                             recordT.setValue({ fieldId: "custbody_l54_numero_localizado", value: numeradorArray["numeradorPrefijo"] });
-                            var numeradorClearig = numeradorArray["numerador"];
-                            var numLocalizadoClearing = numeradorArray["numeradorPrefijo"];
                             codigo_op = numeradorArray["numeradorPrefijo"];
                             log.debug("L54 - Calcular Retenciones (SS)", "AFTERSUBMIT - PROCESAVENDORPAYMENT - TIPOTRANSID: " + tipoTransId + " - PUNTO VENTA: " + bocaId + " LETRA: " + letraId + " SUBSIDIARIA: " + subsidiaria + " - NUMERADOR: " + JSON.stringify(numeradorArray) + " - CODIGO OP: " + codigo_op);
-                            
-                            log.debug("Governance Monitoring", "Memoria = " + script.getRemainingUsage());
                         }
 
                         var moneda = recordT.getValue({ fieldId: "currency" });
@@ -1975,11 +2210,11 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                         monto_ret_total = monto_ret_total.toFixed(2);
                         var importeNetoAbonar = parseFloat(parseFloat(montoTotal, 10) - parseFloat(monto_ret_total, 10), 10).toFixedOK(2);
 
+
                         log.debug("L54 - Calcular Retenciones (SS)", "AFTERSUBMIT - PROCESAVENDORPAYMENT - MONTOS USADOS EN LAS RETENCIONES GENERADAS - RETENCION TOTAL: " + monto_ret_total + " - RETENCION GANANCIAS: " + monto_ret_ganancias + " - RETENCION SUSS: " + monto_ret_suss + " - RETENCION IVA: " + monto_ret_iva + " - RETENCION IIBB: " + monto_ret_iibb);
 
                         //SI EL PAGO SUFRE ALGUN TIPO DE RETENCION
-                        if (parseFloat(monto_ret_ganancias, 10) != 0 || parseFloat(monto_ret_suss, 10) != 0 || parseFloat(monto_ret_iva, 10) != 0 || parseFloat(monto_ret_iibb, 10) != 0 || parseFloat(monto_ret_muni, 10) != 0 || parseFloat(monto_ret_inym, 10) != 0) {
-                            
+                        if (parseFloat(monto_ret_ganancias, 10) != 0 || parseFloat(monto_ret_suss, 10) != 0 || parseFloat(monto_ret_iva, 10) != 0 || parseFloat(monto_ret_iibb, 10) != 0 || parseFloat(monto_ret_muni, 10) != 0  || parseFloat(monto_ret_inym, 10) != 0) {
                             //SE CREA JOURNAL ENTRY
                             var record_journalentry = record.create({
                                 type: record.Type.JOURNAL_ENTRY,
@@ -1987,10 +2222,9 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                             });
                             configurarEstadoAprobacionJournalEntry(record_journalentry);
 
-                            log.debug("Governance Monitoring", "Memoria = " + script.getRemainingUsage());
+                            record_journalentry.setValue({ fieldId: "custbody_l54_op_asociado", value: codigo_op });
                             record_journalentry.setValue({ fieldId: "customform", value: formJournalEntryRetencion });
                             record_journalentry.setValue({ fieldId: "memo", value: codigo_op });
-                            record_journalentry.setValue({ fieldId: "custbody_l54_op_asociado", value: codigo_op });
                             if (!utilidades.isEmpty(subsidiary)) {
                                 record_journalentry.setValue("subsidiary", subsidiary);
                             }
@@ -2012,7 +2246,6 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                 record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "class", value: clase });
 
                             record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "memo", value: codigo_op });
-
                             record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "account", value: idCuentaCont });
                             if(flagClearing){
                                 record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "debit", value: parseFloat(montoTotal, 10) });
@@ -2021,28 +2254,27 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                             }
                             record_journalentry.commitLine("line");
                             //FIN - SE AGREGA LINEA DE MONTO TOTAL (DEBITO)
-
                             if(flagClearing){
                                 record_journalentry.selectNewLine("line");
                                 record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "entity", value: entity });
-
+    
                                 if (!utilidades.isEmpty(department))
                                     record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "department", value: department });
-
+    
                                 if (!utilidades.isEmpty(location))
                                     record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "location", value: location });
-
+    
                                 if (!utilidades.isEmpty(clase))
                                     record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "class", value: clase });
-
+    
                                 record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "memo", value: codigo_op });
-
+    
                                 record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "account", value: ctaBancoAuxiliar });
                                 record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "credit", value: parseFloat(importeNetoAbonar, 10) });
                                 
                                 record_journalentry.commitLine("line");
                                 
-                                log.debug("Governance Monitoring flagClearing", "Memoria = " + script.getRemainingUsage());
+                                log.error("Governance Monitoring flagClearing", "Memoria = " + script.getRemainingUsage());
                             }
 
                             //SI TIENE RETENCIONES DE GANANCIAS
@@ -2065,8 +2297,6 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                 record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "entity", value: entity });
                                 record_journalentry.commitLine("line");
                                 //FIN - SE AGREGA LINEA DE RET GANANCIAS (CREDIT)
-                                
-                                log.debug("Governance Monitoring monto_ret_ganancias", "Memoria = " + script.getRemainingUsage());
                             }
 
                             //SI TIENE RETENCIONES DE SUSS
@@ -2089,8 +2319,6 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                 record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "entity", value: entity });
                                 record_journalentry.commitLine("line");
                                 //FIN - SE AGREGA LINEA DE RET SUSS (CREDIT)
-                                
-                log.debug("Governance Monitoring monto_ret_suss", "Memoria = " + script.getRemainingUsage());
                             }
 
                             //SI TIENE RETENCIONES DE IVA
@@ -2112,34 +2340,30 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                 record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "entity", value: entity });
                                 record_journalentry.commitLine("line");
                                 //FIN - SE AGREGA LINEA DE RET IVA (CREDIT)
-                                
-                                log.debug("Governance Monitoring monto_ret_iva", "Memoria = " + script.getRemainingUsage());
                             }
 
                             //SI TIENE RETENCIONES DE IIBB
-                            if ((parseFloat(monto_ret_iibb, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_iibb, 10))) || (parseFloat(monto_ret_muni, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_muni, 10))) || (parseFloat(monto_ret_inym, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_inym, 10)))) {
+                            if ((parseFloat(monto_ret_iibb, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_iibb, 10))) || (parseFloat(monto_ret_muni, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_muni, 10)))  || (parseFloat(monto_ret_inym, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_inym, 10)))) {
                                 var importeIIBB;
                                 var jurisdiccionIIBB;
                                 var numLinesRetenciones = recordT.getLineCount({
                                     sublistId: "recmachcustrecord_l54_ret_ref_pago_prov"
                                 });
-
-                                log.debug("L54 - Calcular Retenciones (SS)", "AFTERSUBMIT - PROCESAVENDORPAYMENT - NUMLINESRETENCIONES: " + numLinesRetenciones);
                                 /** Optimizando Codigo */
 
                                 var arrayCuenta = obtenerArraysCuentas(subsidiaria);
+                                log.debug("L54 - Calcular Retenciones (SS)", "AFTERSUBMIT - PROCESAVENDORPAYMENT - NUMLINESRETENCIONES: " + numLinesRetenciones);
                                 for (var j = 0; !utilidades.isEmpty(numLinesRetenciones) && j < numLinesRetenciones; j++) {
                                     var tipoRetencion = recordT.getSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_tipo", line: j });
-                                    if (tipoRetencion == 3 || tipoRetencion == 5 || tipoRetencion == 6)//IIBB
+                                    if (tipoRetencion == 3 || tipoRetencion == 5  || tipoRetencion == 6)//IIBB
                                     {
                                         jurisdiccionIIBB = recordT.getSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_jurisdiccion", line: j });
                                         importeIIBB = recordT.getSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_importe", line: j });
-                                       
                                         /** Optimizando Codigo */
                                         var result = arrayCuenta.filter(function (obj) {
                                             return (obj.jurisdiccion == jurisdiccionIIBB)
                                         });
-                                       
+                                    
                                         var flag = (!isEmpty(result) && result.length > 0) ? true : false;
 
                                         if(flag){
@@ -2167,8 +2391,6 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                         record_journalentry.commitLine("line");
                                     }
                                 }
-                                
-                            log.debug("Governance Monitoring numLinesRetenciones", "Memoria = " + script.getRemainingUsage());
                             }
                             log.debug("L54 - Calcular Retenciones (SS)", "AFTERSUBMIT - PROCESAVENDORPAYMENT - ACTUALIZANDO REGISTROS DE RETENCIONES - INDICE: " + j + " - TIPO RETENCION: " + tipoRetencion + " - CODIGO PAGO PROVEEDOR: " + codigo_op + " - NUMERO RETENCION: " + numeradorArray["numeradorPrefijo"]);
                             //SOLO GENERA NUMERADOR SI NO VINO POR PAGO MASIVO. SI ES PAGO MASIVO SE GENERA PREVIAMENTE
@@ -2176,6 +2398,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                 var numLinesRetenciones = recordT.getLineCount({
                                     sublistId: "recmachcustrecord_l54_ret_ref_pago_prov"
                                 });
+
                                 log.debug("L54 - Calcular Retenciones (SS)", "AFTERSUBMIT - PROCESAVENDORPAYMENT - NUMLINESRETENCIONES: " + numLinesRetenciones);
                                 /** Optimizando codigo */
                                 var objTipoTransID = {
@@ -2189,7 +2412,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                 for (var j = 0; !utilidades.isEmpty(numLinesRetenciones) && j < numLinesRetenciones; j++) {
 
                                     var tipoRetencion = recordT.getSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_tipo", line: j });
-                                    var jurisdiccion = recordT.getSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_jurisdiccion", line: j });
+                                    const jurisdiccion = recordT.getSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_jurisdiccion", line: j });
 
                                     try {
                                         var numeradorArray = null;
@@ -2202,7 +2425,6 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                                 objTipoTransID.tipoTransIdGan = tipoTransIdGan;
                                             }
                                             numeradorArray = devolverNuevoNumero(tipoTransIdGan, bocaId, letraId, subsidiaria, null);
-                                        
                                         }
                                         if (tipoRetencion == 2)//IVA
                                         {
@@ -2212,7 +2434,6 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                                 var tipoTransIdIVA = getTipoTransId("num_ret_iva");
                                                 objTipoTransID.tipoTransIdIVA = tipoTransIdIVA;
                                             }
-                                            
                                             numeradorArray = devolverNuevoNumero(tipoTransIdIVA, bocaId, letraId, subsidiaria, null);
                                         }
                                         if (tipoRetencion == 3)//INGRESOS BRUTOS
@@ -2223,7 +2444,6 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                                 var tipoTransIdIIBB = getTipoTransId("num_ret_iibb");
                                                 objTipoTransID.tipoTransIdIIBB = tipoTransIdIIBB;
                                             }
-
                                             numeradorArray = devolverNuevoNumero(tipoTransIdIIBB, bocaId, letraId, subsidiaria, jurisdiccion);
                                         }
                                         if (tipoRetencion == 4)//SUSS
@@ -2234,7 +2454,6 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                                 var tipoTransIdSUSS = getTipoTransId("num_ret_suss");
                                                 objTipoTransID.tipoTransIdSUSS = tipoTransIdSUSS;
                                             }
-                                            
                                             numeradorArray = devolverNuevoNumero(tipoTransIdSUSS, bocaId, letraId, subsidiaria, null);
                                         }
                                         if (tipoRetencion == 5)//Municipal
@@ -2260,7 +2479,6 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                             numeradorArray = devolverNuevoNumero(tipoTransIdYnym, bocaId, letraId, subsidiaria, jurisdiccion);
                                         }
                                         var numeradoPrefijo = numeradorArray["numeradorPrefijo"] ? numeradorArray["numeradorPrefijo"] : '';
-                                       
                                         recordT.selectLine({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", line: j });
                                         recordT.setCurrentSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_cod_pago_prov", value: codigo_op, ignoreFieldChange: false });
                                         recordT.setCurrentSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_numerador", value: numeradoPrefijo, ignoreFieldChange: false });
@@ -2276,19 +2494,9 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                             }
 
 
-                            var id_journalentry = null;
+                            let id_journalentry = null;
                             try {
-                                
                                 id_journalentry = record_journalentry.save();
-                                //recordT = aplicarJournalEntry(recordT, id_journalentry);
-                                /*if (flagClearing) { // si se aplica clearing
-                                    recordT.setValue('account', cuentaClearing);
-                                    recordT.setValue({ fieldId: "custbody_l54_numero", value: numeradorClearig });
-                                    recordT.setValue({ fieldId: "custbody_l54_numero_localizado", value: numLocalizadoClearing });
-                                
-                                    log.error("Governance Monitoring guarda journlas", "Memoria = " + script.getRemainingUsage());
-                                }*/
-                                
                                 log.debug("L54 - Calcular Retenciones (SS)", "AFTERSUBMIT - PROCESAVENDORPAYMENT - SE GENERO EL JOURNALENTRY EXITOSAMENTE - ID: " + id_journalentry);
                             }
                             catch (e) {
@@ -2298,7 +2506,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                             }
 
                             try {
-                                var pdfFile = file.create({
+                                const pdfFile = file.create({
                                     name: "RET PAGO " + recordT.getValue({ fieldId: "custbody_l54_numero_localizado" }) + ".pdf",
                                     fileType: file.Type.PLAINTEXT,
                                     contents: "dummy",
@@ -2336,7 +2544,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                         if (!utilidades.isEmpty(numeroEnLetras))
                             recordT.setValue({ fieldId: "custbody_l54_monto_escrito", value: normalize(numeroEnLetras) });
 
-                        var infoVendorPayment = new Object();
+                        const infoVendorPayment = new Object();
                         infoVendorPayment.ret_gan_numerador = recordT.getValue({ fieldId: "custbody_l54_ret_gan_numerador" });
                         infoVendorPayment.ret_suss_numerador = recordT.getValue({ fieldId: "custbody_l54_ret_suss_numerador" });
                         infoVendorPayment.ret_iva_numerador = recordT.getValue({ fieldId: "custbody_l54_ret_iva_numerador" });
@@ -2352,12 +2560,12 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                         infoVendorPayment.idVendorPayment = recId;
 
                         //ARREGLOS QUE GUARDARAN LOS ID DE RETENCION POR CADA TIPO
-                        var arrayIdGAN = new Array();
-                        var arrayIdSUSS = new Array();
-                        var arrayIdIIBB = new Array();
-                        var arrayIdMuni = new Array();
-                        var arrayIdYnym = new Array();
-                        var arrayIdIVA = new Array();
+                        const arrayIdGAN = new Array();
+                        const arrayIdSUSS = new Array();
+                        const arrayIdIIBB = new Array();
+                        const arrayIdMuni = new Array();
+                        const arrayIdYnym = new Array();
+                        const arrayIdIVA = new Array();
 
                         //INICIO - SE ACTUALIZAN LOS CAMPOS SUBSIDIARIA, PUNTO DE VENTA, LETRA, IMPORTE NETO A ABONAR YA QUE NO SALTA LA FUNCIONALIDAD DE ORIGEN Y FILTRACION
                         var numLinesRetenciones = recordT.getLineCount({
@@ -2365,9 +2573,9 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                         });
 
                         var tipoRetencion = null;
-                        var idRetencion = null;
-                        var bocaAUX = recordT.getText({ fieldId: "custbody_l54_boca" });
-                        var letraAUX = recordT.getText({ fieldId: "custbody_l54_letra" });
+                        let idRetencion = null;
+                        const bocaAUX = recordT.getText({ fieldId: "custbody_l54_boca" });
+                        const letraAUX = recordT.getText({ fieldId: "custbody_l54_letra" });
 
                         for (var j = 0; !utilidades.isEmpty(numLinesRetenciones) && j < numLinesRetenciones; j++) {
                             tipoRetencion = recordT.getSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_tipo", line: j });
@@ -2412,15 +2620,15 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                             {
                                                 arrayIdYnym.push(idRetencion);
                                             }
-                                            else{
+                                            else {
                                             //SUSS
                                             arrayIdSUSS.push(idRetencion);
-                                            }
                                         }
                                     }
                                 }
                             }
-                            log.debug("L54 - Calcular Retenciones (SS)", "AFTERSUBMIT - PROCESAVENDORPAYMENT - ARRAYIDGAN: " + JSON.stringify(arrayIdGAN) + " - ARRAYIDIVA: " + JSON.stringify(arrayIdIVA) + " - ARRAYIDIIBB: " + JSON.stringify(arrayIdIIBB) + " - ARRAYIDMUNI: " + JSON.stringify(arrayIdMuni)+ " - ARRAYIDSUSS: " + JSON.stringify(arrayIdSUSS));
+                            }
+                            log.debug("L54 - Calcular Retenciones (SS)", "AFTERSUBMIT - PROCESAVENDORPAYMENT - ARRAYIDGAN: " + JSON.stringify(arrayIdGAN) + " - ARRAYIDIVA: " + JSON.stringify(arrayIdIVA) + " - ARRAYIDIIBB: " + JSON.stringify(arrayIdIIBB) + " - ARRAYIDMUNI: " + JSON.stringify(arrayIdMuni) + " - ARRAYIDSUSS: " + JSON.stringify(arrayIdSUSS));
 
                             if (arrayIdGAN.length > 0)
                                 recordT.setValue({ fieldId: "custbody_l54_id_ret_ganancias", value: arrayIdGAN.toString() });
@@ -2439,15 +2647,11 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                             
                             if (arrayIdYnym.length > 0)
                                 recordT.setValue({ fieldId: "custbody_l54_id_ret_inym", value: arrayIdYnym.toString() });
-
                         }
-                        
                         //FIN - SE ACTUALIZAN LOS CAMPOS SUBSIDIARIA, PUNTO DE VENTA, LETRA, IMPORTE NETO A ABONAR YA QUE NO SALTA LA FUNCIONALIDAD DE ORIGEN Y FILTRACION
 
                         try {
-                            
                             var idTmp = recordT.save();
-                                        
                             log.debug("L54 - Calcular Retenciones (SS)", "AFTERSUBMIT - PROCESAVENDORPAYMENT - SE GENERO EL VENDORPAYMENT EXITOSAMENTE. ID: " + idTmp);
 
                             if (!utilidades.isEmpty(cal_ret_auto) || (cal_ret_auto == "T" || cal_ret_auto == true)) {
@@ -2462,11 +2666,9 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                             objRta.mensajeError = "AFTERSUBMIT - PROCESAVENDORPAYMENT - ERROR GENERANDO EL VENDORPAYMENT - EXCEPTION DETALLES: " + e.message;
                         }
                     }
-                    
-                    
 
-                    if (type == "edit") { // Alex Editar
-                        var creacionJournal = false;
+                    if (type == "edit" || type == "xedit") {
+                        let creacionJournal = false;
                         var moneda = recordT.getValue({ fieldId: "currency" });
                         var department = recordT.getValue({ fieldId: "department" });
                         var location = recordT.getValue({ fieldId: "location" });
@@ -2478,7 +2680,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                         }
 
                         //OBTENGO EL JOURNAL DEL PAGO A PROVEEDOR
-                        var idJournalPagoProveedor = recordT.getValue({ fieldId: "custbody_l54_id_je_vendorpayment" });
+                        const idJournalPagoProveedor = recordT.getValue({ fieldId: "custbody_l54_id_je_vendorpayment" });
                         var monto_ret_ganancias = recordT.getValue({ fieldId: "custbody_l54_gan_imp_a_retener" });
 
                         if (utilidades.isEmpty(monto_ret_ganancias) || isNaN(monto_ret_ganancias))
@@ -2516,14 +2718,14 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                         monto_ret_muni = parseFloat(monto_ret_muni, 10).toFixed(2);
                         monto_ret_inym = parseFloat(monto_ret_inym, 10).toFixed(2);
 
-                        var monto_ret_total = (parseFloat(monto_ret_ganancias, 10) + parseFloat(monto_ret_suss, 10) + parseFloat(monto_ret_iva, 10) + parseFloat(monto_ret_iibb, 10) + parseFloat(monto_ret_muni, 10) + parseFloat(monto_ret_inym, 10));
+                        var monto_ret_total = (parseFloat(monto_ret_ganancias, 10) + parseFloat(monto_ret_suss, 10) + parseFloat(monto_ret_iva, 10) + parseFloat(monto_ret_iibb, 10) + parseFloat(monto_ret_muni, 10)  + parseFloat(monto_ret_inym, 10));
                         monto_ret_total = monto_ret_total.toFixed(2);
                         var importeNetoAbonar = parseFloat(parseFloat(montoTotal, 10) - parseFloat(monto_ret_total, 10), 10).toFixedOK(2);
 
                         log.debug("L54 - Calcular Retenciones (SS)", "AFTERSUBMIT - PROCESAVENDORPAYMENT - MONTOS USADOS EN LAS RETENCIONES GENERADAS - RETENCION TOTAL: " + monto_ret_total + " - RETENCION GANANCIAS: " + monto_ret_ganancias + " - RETENCION SUSS: " + monto_ret_suss + " - RETENCION IVA: " + monto_ret_iva + " - RETENCION IIBB: " + monto_ret_iibb);
 
                         if (parseFloat(monto_ret_ganancias, 10) != 0 || parseFloat(monto_ret_suss, 10) != 0 || parseFloat(monto_ret_iva, 10) != 0 || parseFloat(monto_ret_iibb, 10) != 0 || parseFloat(monto_ret_muni, 10) != 0 || parseFloat(monto_ret_inym, 10) != 0) {
-                            
+
                             var record_journalentry = null;
 
                             if (!utilidades.isEmpty(idJournalPagoProveedor)) {
@@ -2534,9 +2736,9 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                 });
 
                                 //SI EXISTE JOURNAL SE BORRAN LAS LINEAS
-                                var cantidadLineasJournal = record_journalentry.getLineCount("line");
+                                const cantidadLineasJournal = record_journalentry.getLineCount("line");
 
-                                for (var i = cantidadLineasJournal; i > 0; i--) {
+                                for (let i = cantidadLineasJournal; i > 0; i--) {
                                     record_journalentry.removeLine({
                                         sublistId: "line",
                                         line: 0,
@@ -2554,8 +2756,9 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                 configurarEstadoAprobacionJournalEntry(record_journalentry);
                                 record_journalentry.setValue({ fieldId: "customform", value: formJournalEntryRetencion });
                             }
-                            record_journalentry.setValue({ fieldId: "memo", value: codigo_op });
+
                             record_journalentry.setValue({ fieldId: "custbody_l54_op_asociado", value: codigo_op });
+                            record_journalentry.setValue({ fieldId: "memo", value: codigo_op });
 
                             if (creacionJournal == true && !utilidades.isEmpty(subsidiaria)) {
                                 record_journalentry.setValue({ fieldId: "subsidiary", value: subsidiaria });
@@ -2583,7 +2786,6 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                 record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "debit", value: parseFloat(monto_ret_total, 10) });
                             }
                             record_journalentry.commitLine("line");
-
                             if(objDatosImpositivos[0].applyAccountClearing && paramFormaPago != formaPago){
                                 record_journalentry.selectNewLine("line");
                                 record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "entity", value: entity });
@@ -2668,17 +2870,16 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                             }
 
                             //SI TIENE RETENCIONES DE IIBB
-                            if ((parseFloat(monto_ret_iibb, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_iibb, 10))) || (parseFloat(monto_ret_muni, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_muni, 10))) || (parseFloat(monto_ret_inym, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_inym, 10)))) {
+                            if ((parseFloat(monto_ret_iibb, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_iibb, 10)))  || (parseFloat(monto_ret_muni, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_muni, 10))) || (parseFloat(monto_ret_inym, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_inym, 10)))){
                                 var importeIIBB;
                                 var jurisdiccionIIBB;
                                 var numLinesRetenciones = recordT.getLineCount({
                                     sublistId: "recmachcustrecord_l54_ret_ref_pago_prov"
                                 });
 
-
                                 for (var j = 0; !utilidades.isEmpty(numLinesRetenciones) && j < numLinesRetenciones; j++) {
                                     var tipoRetencion = recordT.getSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_tipo", line: j });
-                                    if (tipoRetencion == 3 || tipoRetencion == 5 || tipoRetencion == 6)//IIBB
+                                    if (tipoRetencion == 3 || tipoRetencion == 5  || tipoRetencion == 6)//IIBB || Municipal || INYM
                                     {
                                         jurisdiccionIIBB = recordT.getSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_jurisdiccion", line: j });
                                         importeIIBB = recordT.getSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_importe", line: j });
@@ -2706,10 +2907,6 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
 
                             try {
                                 var idTmpJE = record_journalentry.save();
-                                //recordT = aplicarJournalEntry(recordT, idTmpJE);
-                                if (objDatosImpositivos[0].applyAccountClearing && paramFormaPago != formaPago) { // si se aplica clearing
-                                    recordT.setValue('account', cuentaClearing);
-                                }
                                 log.debug("L54 - CALCULAR RETENCIONES (SS)", "AFTERSUBMIT - PROCESAVENDORPAYMENT - SE GENERO EL JOURNALENTRY EXITOSAMENTE - ID: " + idTmpJE);
                             }
                             catch (e) {
@@ -2720,15 +2917,15 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
 
                             if (creacionJournal == true) {
                                 //PARA ENVIO POR MAIL-PDF RET
-                                var archivo = file.create({
+                                const archivo = file.create({
                                     name: "RET PAGO " + recordT.getValue({ fieldId: "custbody_l54_numero_localizado" }) + ".pdf",
                                     fileType: file.Type.PLAINTEXT,
                                     contents: "dummy",
                                     folder: idFolderRetencion
                                 });
 
-                                var subsidiariaPDF = null;
-                                var esOneWorldPDF = utilidades.l54esOneworld();
+                                let subsidiariaPDF = null;
+                                const esOneWorldPDF = utilidades.l54esOneworld();
                                 if (esOneWorldPDF) {
                                     subsidiariaPDF = recordT.getValue({ fieldId: "subsidiary" });
                                 }
@@ -2749,7 +2946,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                             //SI SE CANCELARON TODAS LAS RETENCIONES , BORRO EL DIARIO O DEBERIA PONER LOS IMPORTES EN 0
                             if (!utilidades.isEmpty(idJournalPagoProveedor)) {
                                 try {
-                                    var deleteJE = record.delete({
+                                    const deleteJE = record.delete({
                                         type: record.Type.JOURNAL_ENTRY,
                                         id: idJournalPagoProveedor,
                                     });
@@ -2779,6 +2976,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
 
                         if (!utilidades.isEmpty(numeroEnLetras))
                             recordT.setValue({ fieldId: "custbody_l54_monto_escrito", value: normalize(numeroEnLetras) });
+
                         try {
                             var idTmp = recordT.save();
                             log.debug("L54 - Calcular Retenciones (SS)", "AFTERSUBMIT - PROCESAVENDORPAYMENT - SE ACTUALIZO EL VENDORPAYMENT EXITOSAMENTE (EDIT) - ID: " + idTmp);
@@ -2793,7 +2991,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                 log.audit("L54 - Calcular Retenciones (SS)", "LINE 2475 - Unidades de ejecuion restantes: " + script.getRemainingUsage());
             }
             catch (err) {
-                log.error("L54 - Calcular Retenciones (SS)", "AFTERSUBMIT - PROCESAVENDORPAYMENT - Error EN PROCESAVENDORPAYMENT - EXCEPTION DETALLES: " + err.message);
+                log.error("L54 - Calcular Retenciones (SS)", "AFTERSUBMIT - PROCESAVENDORPAYMENT - Error EN PROCESAVENDORPAYMENT - EXCEPTION DETALLES: " + err);
                 objRta.error = true;
                 objRta.mensajeError = "AFTERSUBMIT - PROCESAVENDORPAYMENT - Error EN PROCESAVENDORPAYMENT - EXCEPTION DETALLES: " + err.message;
             }
@@ -2801,25 +2999,24 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
         }
 
         Number.prototype.toFixedOK = function (decimals) {
-            var sign = this >= 0 ? 1 : -1;
+            const sign = this >= 0 ? 1 : -1;
             return (Math.round((this * Math.pow(10, decimals)) + (sign * 0.001)) / Math.pow(10, decimals)).toFixed(decimals);
         };
-
         function obtenerConfRetCtaClearing (subsidiaria, moneda, cuentaBanco) {
 
             var proceso = 'obtenerConfRetCtaClearing';
             var respuesta = { error: false, mensaje: '', ctaClearing: '' };
-
+    
             try {
-
+    
                 var filtros = [];
-
+    
                 filtros[0] = search.createFilter({
                     name: 'isinactive',
                     operator: search.Operator.IS,
                     values: 'F'
                 });
-
+    
                 filtros[1] = search.createFilter({
                     name: 'custrecord_l54_config_ctas_cl_moneda',
                     operator: search.Operator.ANYOF,
@@ -2832,12 +3029,12 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                     values: subsidiaria
                 });
 
-                filtros[3] = search.createFilter({
+              filtros[3] = search.createFilter({
                     name: 'custrecord_l54_config_ctas_cl_cuenta',
                     operator: search.Operator.ANYOF,
                     values: cuentaBanco
                 });
-
+              
                 var ssDatosImp = search.create({
                     type: 'customrecord_l54_panel_config_ctas_cl',
                     filters: filtros,
@@ -2846,7 +3043,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                     respuesta.ctaClearing = result.getValue('custrecord_l54_config_ctas_cl_debito');
                     return true;
                 });
-
+    
                 if (respuesta.ctaClearing == '') {
                     respuesta.error = true;
                     respuesta.mensaje = 'No existe cuenta clearing para los datos enviados por parametros.';
@@ -2856,7 +3053,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                 respuesta.error = true;
                 log.error(proceso, respuesta.mensaje);
             }
-
+    
             log.debug(proceso, 'respuesta config cuentas clearing: ${respuesta}');
             return respuesta.ctaClearing;
         }
@@ -2867,12 +3064,12 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
             log.audit("L54 - Calculo Retenciones", "INICIO - consultaDatosImpositivos");
             log.debug("L54 - Calculo Retenciones", "Parámetros - subsidiaria: " + subsidiaria);
 
-            var searchDatosImpositivos = search.load({
+            const searchDatosImpositivos = search.load({
                 id: "customsearch_3k_datos_imp_empresa"
             });
 
             if (!utilidades.isEmpty(subsidiaria)) {
-                var filtroSubsidiaria = search.createFilter({
+                const filtroSubsidiaria = search.createFilter({
                     name: "custrecord_l54_subsidiaria",
                     operator: search.Operator.IS,
                     values: subsidiaria
@@ -2880,22 +3077,21 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                 searchDatosImpositivos.filters.push(filtroSubsidiaria);
             }
 
-            var resultSet = searchDatosImpositivos.run();
+            const resultSet = searchDatosImpositivos.run();
 
-            var searchResult = resultSet.getRange({
+            const searchResult = resultSet.getRange({
                 start: 0,
                 end: 1
             });
 
             if (!utilidades.isEmpty(searchResult)) {
                 if (searchResult.length > 0) {
-                    var arrayDatosImpositivos = new Array();
-                    var objDatosImpositivos = new Object();
-                    var subsidiariaSS; // usada para logear si hay error.
+                    const arrayDatosImpositivos = new Array();
+                    const objDatosImpositivos = new Object();
+
                     objDatosImpositivos.subsidiariaSS = searchResult[0].getValue({
                         name: resultSet.columns[8]
                     });
-                    subsidiariaSS = objDatosImpositivos.subsidiariaSS;
                     //Agente de Retención
                     objDatosImpositivos.esAgenteGanancias = searchResult[0].getValue({
                         name: resultSet.columns[12]
@@ -2946,6 +3142,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                     objDatosImpositivos.formJurnalEntryRet = searchResult[0].getValue({
                         name: resultSet.columns[34]
                     });
+
                     arrayDatosImpositivos.push(objDatosImpositivos);
                     log.debug("L54 - Calculo Retenciones", "RETURN - arrayDatosImpositivos: " + JSON.stringify(arrayDatosImpositivos));
                     log.audit("L54 - Calculo Retenciones", "FIN - consultaDatosImpositivos");
@@ -2965,12 +3162,12 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
             log.audit("L54 - Calculo Retenciones", "INICIO - obtenerPuntoVenta");
             log.debug("L54 - Calculo Retenciones", "Parámetros - esND: " + esND + " - subsidiaria: " + subsidiaria + " - tipoTransStr: " + tipoTransStr + " - locationId: " + locationId);
 
-            var categoriaNumerador = null;
-            var resultgetTipoTransId = getTipoTransId(tipoTransStr);
-            var tipoTransId = numeradorAUtilizar(resultgetTipoTransId, esND, subsidiaria);
+            let categoriaNumerador = null;
+            const resultgetTipoTransId = getTipoTransId(tipoTransStr);
+            const tipoTransId = numeradorAUtilizar(resultgetTipoTransId, esND, subsidiaria);
 
             if (!utilidades.isEmpty(locationId)) {
-                var fieldLookUp = search.lookupFields({
+                const fieldLookUp = search.lookupFields({
                     type: search.Type.LOCATION,
                     id: locationId,
                     columns: ["custrecord_l54_loc_categoria_numerador"]
@@ -2990,7 +3187,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
             log.audit("L54 - Calculo Retenciones", "INICIO - getLetraId");
             log.debug("L54 - Calculo Retenciones", "Parámetros - letraStr: " + letraStr);
 
-            var letraId = null;
+            let letraId = null;
 
             if (letraStr == "A")
                 letraId = 1;
@@ -3015,36 +3212,36 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
             log.audit("L54 - Calculo Retenciones", "INICIO - loadRetenciones");
             log.debug("L54 - Calculo Retenciones", "Parámetros - idVendorPayment: " + idVendorPayment);
 
-            var arrayRetenciones = new Array();
+            const arrayRetenciones = new Array();
 
             //DECLARACION DEL SAVE SEARCH A EJECUTAR
-            var saveSearch = search.load({
+            const saveSearch = search.load({
                 id: "customsearch_l54_retenciones_cal_ret"
             });
 
             //FILTRO PAGO DE PROVEEDOR
             if (!utilidades.isEmpty(idVendorPayment)) {
                 //FILTRO DE SUBSIDIARIA
-                var filtroVendorPayment = search.createFilter({
+                const filtroVendorPayment = search.createFilter({
                     name: "custrecord_l54_ret_ref_pago_prov",
                     operator: search.Operator.IS,
                     values: idVendorPayment
                 });
                 saveSearch.filters.push(filtroVendorPayment);
 
-                var filtroIsInactive = search.createFilter({
+                const filtroIsInactive = search.createFilter({
                     name: "isinactive",
                     operator: search.Operator.IS,
                     values: "F"
                 });
                 saveSearch.filters.push(filtroIsInactive);
 
-                var resultSearch = saveSearch.run();
-                var resultIndex = 0;
-                var resultStep = 1000; // Number of records returned in one step (maximum is 1000)
-                var resultado; // temporary variable used to store the result set
-                var rangoInicial = 0;
-                var completeResultSet = [];
+                const resultSearch = saveSearch.run();
+                let resultIndex = 0;
+                const resultStep = 1000; // Number of records returned in one step (maximum is 1000)
+                let resultado; // temporary variable used to store the result set
+                let rangoInicial = 0;
+                let completeResultSet = [];
 
                 do {
                     resultado = resultSearch.getRange({
@@ -3060,8 +3257,8 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                 } while (!utilidades.isEmpty(resultado) && resultado.length > 0);
                 rangoInicial = rangoInicial + resultStep;
 
-                for (var i = 0; !utilidades.isEmpty(completeResultSet) && i < completeResultSet.length; i++) {
-                    var objRetenciones = new Object();
+                for (let i = 0; !utilidades.isEmpty(completeResultSet) && i < completeResultSet.length; i++) {
+                    const objRetenciones = new Object();
                     objRetenciones.ret_id_retencion = completeResultSet[i].getValue({ name: resultSearch.columns[0] });
                     objRetenciones.ret_retencion = completeResultSet[i].getValue({ name: resultSearch.columns[1] });
                     objRetenciones.ret_jurisdiccion = completeResultSet[i].getValue({ name: resultSearch.columns[2] });
@@ -3094,14 +3291,14 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
             log.audit("L54 - Calculo Retenciones", "INICIO - parametrizacionRetenciones");
             log.debug("L54 - Calculo Retenciones", "Parámetros - subsidiaria: " + subsidiaria);
 
-            var informacionCodigosVB = new Array();
+            const informacionCodigosVB = new Array();
 
-            var searchParametrizacionRet = search.load({
+            const searchParametrizacionRet = search.load({
                 id: "customsearch_l54_parametrizacion_ret"
             });
 
             if (!utilidades.isEmpty(subsidiaria)) {
-                var filtroSubsidiaria = search.createFilter({
+                const filtroSubsidiaria = search.createFilter({
                     name: "custrecord_l54_param_ret_subsidiaria",
                     operator: search.Operator.IS,
                     values: subsidiaria
@@ -3109,13 +3306,13 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                 searchParametrizacionRet.filters.push(filtroSubsidiaria);
             }
 
-            var resultSearch = searchParametrizacionRet.run();
+            const resultSearch = searchParametrizacionRet.run();
 
-            var completeResultSet = null;
+            let completeResultSet = null;
 
-            var resultIndex = 0;
-            var resultStep = 1000; // Number of records returned in one step (maximum is 1000)
-            var resultado; // temporary variable used to store the result set
+            let resultIndex = 0;
+            const resultStep = 1000; // Number of records returned in one step (maximum is 1000)
+            let resultado; // temporary variable used to store the result set
 
             do {
                 // fetch one result set
@@ -3140,7 +3337,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
             //log.debug('L54 - Calcular Retenciones (SS) - LINE 1311', 'completeResultSet.length: ' +completeResultSet.length+' - completeResultSet: '+JSON.stringify(completeResultSet));
 
             if (!utilidades.isEmpty(completeResultSet)) {
-                for (var i = 0; i < completeResultSet.length; i++) {
+                for (let i = 0; i < completeResultSet.length; i++) {
                     //log.debug('L54 - Calcular Retenciones (SS) - LINE 1316', 'INDICE: ' +i);
                     informacionCodigosVB[i] = new Object();
                     informacionCodigosVB[i].codigo = 0;
@@ -3189,13 +3386,13 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                 esND = false;
 
             //SAVE SEARCH A EJECUTAR
-            var saveSearch = search.load({
+            const saveSearch = search.load({
                 id: "customsearch_l54_num_transac_cal_ret"
             });
 
             //FILTRO TIPO TRANSACCION NS
             if (!utilidades.isEmpty(tipoTransNetSuite)) {
-                var filtroTipoTransNS = search.createFilter({
+                const filtroTipoTransNS = search.createFilter({
                     name: "custrecord_l54_tipo_trans_netsuite",
                     operator: search.Operator.IS,
                     values: tipoTransNetSuite
@@ -3205,7 +3402,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
 
             //FILTRO ES NOTA DE DEBITO?
             if (!utilidades.isEmpty(esND)) {
-                var filtroND = search.createFilter({
+                const filtroND = search.createFilter({
                     name: "custrecord_l54_es_nd",
                     operator: search.Operator.IS,
                     values: esND
@@ -3215,7 +3412,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
 
             //FILTRO SUBSIDIARIA
             if (!utilidades.isEmpty(subsidiaria)) {
-                var filtroSubsidiaria = search.createFilter({
+                const filtroSubsidiaria = search.createFilter({
                     name: "custrecord_l54_num_trans_subsidiaria",
                     operator: search.Operator.IS,
                     values: subsidiaria
@@ -3223,11 +3420,11 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                 saveSearch.filters.push(filtroSubsidiaria);
             }
 
-            var resultSearch = saveSearch.run();
-            var completeResultSet = null;
-            var resultIndex = 0;
-            var resultStep = 1000; // Number of records returned in one step (maximum is 1000)
-            var resultado; // temporary variable used to store the result set
+            const resultSearch = saveSearch.run();
+            let completeResultSet = null;
+            let resultIndex = 0;
+            const resultStep = 1000; // Number of records returned in one step (maximum is 1000)
+            let resultado; // temporary variable used to store the result set
 
             do {
                 // fetch one result set
@@ -3250,7 +3447,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
 
             if (!utilidades.isEmpty(completeResultSet)) {
                 if (completeResultSet.length > 0) {
-                    var numerador = completeResultSet[0].getValue({
+                    const numerador = completeResultSet[0].getValue({
                         name: resultSearch.columns[1]
                     });
                     log.debug("L54 - Calculo Retenciones", "RETURN - numerador: " + numerador);
@@ -3272,7 +3469,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
 
             if (!utilidades.isEmpty(tipoTransStr)) {
 
-                var saveSearch = search.create({
+                const saveSearch = search.create({
                     type: "customlist_l54_tipo_transaccion",
                     columns: [{
                         name: "internalId"
@@ -3284,11 +3481,11 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                     }]
                 });
 
-                var resultSearch = saveSearch.run();
-                var completeResultSet = null;
-                var resultIndex = 0;
-                var resultStep = 1000; // Number of records returned in one step (maximum is 1000)
-                var resultado; // temporary variable used to store the result set
+                const resultSearch = saveSearch.run();
+                let completeResultSet = null;
+                let resultIndex = 0;
+                const resultStep = 1000; // Number of records returned in one step (maximum is 1000)
+                let resultado; // temporary variable used to store the result set
 
                 do {
                     // fetch one result set
@@ -3312,7 +3509,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                 //log.debug('getTipoTransId','LINE 3550 - completeResultSet: '+JSON.stringify(completeResultSet));
                 if (!utilidades.isEmpty(completeResultSet)) {
                     if (completeResultSet.length > 0) {
-                        var internalId = completeResultSet[0].getValue({
+                        const internalId = completeResultSet[0].getValue({
                             name: resultSearch.columns[0]
                         });
                         log.debug("L54 - Calculo Retenciones", "RETURN - internalId: " + internalId);
@@ -3336,18 +3533,18 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
 
             if (!utilidades.isEmpty(tipoTransId) && !utilidades.isEmpty(boca) && !utilidades.isEmpty(letra)) {
 
-                var numeradorElectronico = false;
-                var tipoMiddleware = 1;
-                var tipoTransaccionAFIP = "";
+                let numeradorElectronico = false;
+                let tipoMiddleware = 1;
+                let tipoTransaccionAFIP = "";
                 var idInternoNumerador = "";
 
                 //SAVE SEARCH A EJECUTAR
-                var saveSearch = search.load({
+                const saveSearch = search.load({
                     id: "customsearch_l54_numeradores_cal_ret"
                 });
                 //FILTRO TIPO TRANSACCION
                 if (!utilidades.isEmpty(tipoTransId)) {
-                    var filtroTipoTrans = search.createFilter({
+                    const filtroTipoTrans = search.createFilter({
                         name: "custrecord_l54_num_tipo_trans",
                         operator: search.Operator.ANYOF,
                         values: tipoTransId
@@ -3356,7 +3553,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                 }
                 //FILTRO BOCA
                 if (!utilidades.isEmpty(boca)) {
-                    var filtroBoca = search.createFilter({
+                    const filtroBoca = search.createFilter({
                         name: "custrecord_l54_num_boca",
                         operator: search.Operator.ANYOF,
                         values: boca
@@ -3365,7 +3562,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                 }
                 //FILTRO LETRA
                 if (!utilidades.isEmpty(letra)) {
-                    var filtroLetra = search.createFilter({
+                    const filtroLetra = search.createFilter({
                         name: "custrecord_l54_num_letra",
                         operator: search.Operator.ANYOF,
                         values: letra
@@ -3374,7 +3571,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                 }
                 //FILTRO SUBSIDIARIA
                 if (!utilidades.isEmpty(subsidiaria)) {
-                    var filtroSubsidiaria = search.createFilter({
+                    const filtroSubsidiaria = search.createFilter({
                         name: "custrecord_l54_num_subsidiaria",
                         operator: search.Operator.IS,
                         values: subsidiaria
@@ -3383,7 +3580,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                 }
                 //FILTRO JURISDICCION
                 if (!utilidades.isEmpty(jurisdiccion)) {
-                    var filtroJurisdiccion = search.createFilter({
+                    const filtroJurisdiccion = search.createFilter({
                         name: "custrecord_l54_num_jurisdiccion",
                         operator: search.Operator.IS,
                         values: jurisdiccion
@@ -3391,11 +3588,11 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                     saveSearch.filters.push(filtroJurisdiccion);
                 }
 
-                var resultSearch = saveSearch.run();
-                var completeResultSet = null;
-                var resultIndex = 0;
-                var resultStep = 1000; // Number of records returned in one step (maximum is 1000)
-                var resultado; // temporary variable used to store the result set
+                const resultSearch = saveSearch.run();
+                let completeResultSet = null;
+                let resultIndex = 0;
+                const resultStep = 1000; // Number of records returned in one step (maximum is 1000)
+                let resultado; // temporary variable used to store the result set
 
                 do {
                     // fetch one result set
@@ -3435,7 +3632,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                     log.audit("L54 - Calculo Retenciones", "FIN - devolverNuevoNumero");
                     return 1;
                 }
-                
+
                 if (!utilidades.isEmpty(numeradorElectronico) && (numeradorElectronico == "T" || numeradorElectronico == true)) {
                     // Si es Numerador Electronico
                     var numeradorArray = new Array();
@@ -3490,7 +3687,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                         numeradorArray["numeradorPrefijo"] = numeradorPrefijo.toString() + numerador.toString(); // prefijo + numerador
                         numeradorArray["numeradorElectronico"] = "F";
                         numeradorArray["tipoTransAFIP"] = tipoTransaccionAFIP;
-                        log.debug("L54 - Calculo Retenciones", "RETURN - numeradorArray1: " + JSON.stringify(numeradorArray));
+                        log.debug("L54 - Calculo Retenciones", "RETURN - numeradorArray: " + JSON.stringify(numeradorArray));
                         log.audit("L54 - Calculo Retenciones", "FIN - devolverNuevoNumero");
                         return numeradorArray;
                     } else {
@@ -3501,7 +3698,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                         numeradorArray["numeradorPrefijo"] = numerador.toString(); // prefijo + numerador
                         numeradorArray["numeradorElectronico"] = "F";
                         numeradorArray["tipoTransAFIP"] = tipoTransaccionAFIP;
-                        log.debug("L54 - Calculo Retenciones", "RETURN - numeradorArray2: " + JSON.stringify(numeradorArray));
+                        log.debug("L54 - Calculo Retenciones", "RETURN - numeradorArray: " + JSON.stringify(numeradorArray));
                         log.audit("L54 - Calculo Retenciones", "FIN - devolverNuevoNumero");
                         return numeradorArray;
                     }
@@ -3513,7 +3710,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                 numeradorArray["numeradorPrefijo"] = ""; // prefijo + numerador
                 numeradorArray["numeradorElectronico"] = "F";
                 numeradorArray["tipoTransAFIP"] = "";
-                log.debug("L54 - Calculo Retenciones", "RETURN - numeradorArray3: " + JSON.stringify(numeradorArray));
+                log.debug("L54 - Calculo Retenciones", "RETURN - numeradorArray: " + JSON.stringify(numeradorArray));
                 log.audit("L54 - Calculo Retenciones", "FIN - devolverNuevoNumero");
                 return numeradorArray;
             }
@@ -3522,7 +3719,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
 
             log.audit("L54 - Calculo Retenciones", "INICIO - obtenerArraysCuentaIIBB");
             log.debug("L54 - Calculo Retenciones", "Parámetros - subsidiaria:" + subsidiaria);
-
+    
            
             var idConfGeneral = null;
                 //SAVE SEARCH A EJECUTAR
@@ -3539,20 +3736,20 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                     });
                     saveSearch.filters.push(filtroSubsidiaria);
                 }
-
+    
                 var resultSearch = saveSearch.run();
                 var completeResultSet = null;
                 var resultIndex = 0;
                 var resultStep = 1000; // Number of records returned in one step (maximum is 1000)
                 var resultado; // temporary variable used to store the result set
-
+    
                 do {
                     // fetch one result set
                     resultado = resultSearch.getRange({
                         start: resultIndex,
                         end: resultIndex + resultStep
                     });
-
+    
                     if (!utilidades.isEmpty(resultado) && resultado.length > 0) {
                         if (resultIndex == 0)
                             completeResultSet = resultado;
@@ -3561,10 +3758,10 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                     }
                     //increase pointer
                     resultIndex = resultIndex + resultStep;
-
+    
                     // once no records are returned we already got all of them
                 } while (!utilidades.isEmpty(resultado) && resultado.length > 0);
-
+    
                 if (!utilidades.isEmpty(completeResultSet)) {
                     if (completeResultSet.length > 0) {
                         idConfGeneral = completeResultSet[0].getValue({ name: resultSearch.columns[0] });
@@ -3576,14 +3773,14 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                     log.audit("L54 - Calculo Retenciones", "FIN - obtenerCuentaIIBB");
                     return null;
                 }*/
-
-
+    
+    
                 //if (!utilidades.isEmpty(idConfGeneral) && idConfGeneral > 0) {
                     //SAVE SEARCH A EJECUTAR
                 var saveSearch = search.load({
                     id: "customsearch_l54_iibb_config_detalle"
                 });
-
+    
                 if (!utilidades.isEmpty(subsidiaria)) {
                     var filtroSubsidiaria = search.createFilter({
                         name: "custrecord_l54_pv_gral_subsidiaria",
@@ -3593,7 +3790,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                     });
                     saveSearch.filters.push(filtroSubsidiaria);
                 }
-
+    
                 //FILTRO ID CONFIG GENERAL
                 if (!utilidades.isEmpty(idConfGeneral)) {
                     var filtroConfGeneral = search.createFilter({
@@ -3612,20 +3809,20 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                     });
                     saveSearch.filters.push(filtroJurisdiccion);
                 }*/
-
+    
                 var resultSearch = saveSearch.run();
                 var completeResultSet = null;
                 var resultIndex = 0;
                 var resultStep = 1000; // Number of records returned in one step (maximum is 1000)
                 var resultado; // temporary variable used to store the result set
-
+    
                 do {
                     // fetch one result set
                     resultado = resultSearch.getRange({
                         start: resultIndex,
                         end: resultIndex + resultStep
                     });
-
+    
                     if (!utilidades.isEmpty(resultado) && resultado.length > 0) {
                         if (resultIndex == 0)
                             completeResultSet = resultado;
@@ -3634,19 +3831,19 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                     }
                     //increase pointer
                     resultIndex = resultIndex + resultStep;
-
+    
                     // once no records are returned we already got all of them
                 } while (!utilidades.isEmpty(resultado) && resultado.length > 0);
-
+    
                 var idCuenta = 0;
                 var jurisdiccion = '';
                 var arrayCuentas = []
-
+    
                 if (!utilidades.isEmpty(completeResultSet)) {
                     if (completeResultSet.length > 0) {
-
+    
                         for (var i = 0; i < completeResultSet.length; i++) {
-
+    
                             idCuenta = completeResultSet[i].getValue({
                                 name: resultSearch.columns[3]
                             });
@@ -3654,7 +3851,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                             jurisdiccion = completeResultSet[i].getValue({
                                 name: resultSearch.columns[5]
                             });
-
+    
                             arrayCuentas.push({
                                 idCuenta: idCuenta,
                                 jurisdiccion: jurisdiccion
@@ -3820,7 +4017,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
             log.audit("L54 - Calculo Retenciones", "INICIO - redondeo2decimales");
             log.debug("L54 - Calculo Retenciones", "Parámetros - numero: " + numero);
 
-            var result = parseFloat(Math.round(parseFloat(numero) * 100) / 100).toFixed(2);
+            const result = parseFloat(Math.round(parseFloat(numero) * 100) / 100).toFixed(2);
 
             log.debug("L54 - Calculo Retenciones", "RETURN - result: " + result);
             log.audit("L54 - Calculo Retenciones", "FIN - redondeo2decimales");
@@ -3834,17 +4031,17 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
             if (!utilidades.isEmpty(numero)) {
 
                 //var currency_name = 'PESOS';
-                var partes = numero.split(".");
-                var parteEntera = partes[0];
-                var parteDecimal = partes[1];
-                var parteEnteraLetras = "";
+                const partes = numero.split(".");
+                const parteEntera = partes[0];
+                const parteDecimal = partes[1];
+                let parteEnteraLetras = "";
 
                 // convierto la parte entera en letras
                 parteEnteraLetras = getNumberLiteral(parteEntera);
                 // le hago un TRIM a la parte entera en letras
                 parteEnteraLetras = parteEnteraLetras.replace(/^\s*|\s*$/g, "");
 
-                var numeroEnLetras = "Son " + parteEnteraLetras + " con " + parteDecimal;
+                let numeroEnLetras = "Son " + parteEnteraLetras + " con " + parteDecimal;
 
                 // dejo toda la palabra en mayusculas
                 numeroEnLetras = numeroEnLetras.toUpperCase();
@@ -3864,19 +4061,19 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
         function getBocaPreferidaParaTrans(tipoTransId, subsidiaria, categoriaNumerador) {
             log.audit("L54 - Calculo Retenciones", "INICIO - getBocaPreferidaParaTrans");
             log.debug("L54 - Calculo Retenciones", "Parámetros - tipoTransId: " + tipoTransId + "- subsidiaria: " + subsidiaria + " - categoriaNumerador: " + categoriaNumerador);
-            var i = 0;
+            const i = 0;
 
             if (utilidades.isEmpty(tipoTransId))
                 return 1;
 
             //SAVE SEARCH A EJECUTAR
-            var saveSearch = search.load({
+            const saveSearch = search.load({
                 id: "customsearch_l54_numeradores_cal_ret"
             });
 
             //FILTRO TIPO TRANSACCION
             if (!utilidades.isEmpty(tipoTransId)) {
-                var filtroTipoTrans = search.createFilter({
+                const filtroTipoTrans = search.createFilter({
                     name: "custrecord_l54_num_tipo_trans",
                     operator: search.Operator.ANYOF,
                     values: tipoTransId
@@ -3886,7 +4083,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
 
             //FILTRO SUBSIDIARIA
             if (!utilidades.isEmpty(subsidiaria)) {
-                var filtroSubsidiaria = search.createFilter({
+                const filtroSubsidiaria = search.createFilter({
                     name: "custrecord_l54_num_subsidiaria",
                     operator: search.Operator.IS,
                     values: subsidiaria
@@ -3895,14 +4092,14 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
             }
 
             //FILTRO PREFERIDO
-            var filtroPreferido = search.createFilter({
+            const filtroPreferido = search.createFilter({
                 name: "custrecord_l54_num_preferido",
                 operator: search.Operator.IS,
                 values: true
             });
             saveSearch.filters.push(filtroPreferido);
 
-            var objDatosImpositivos = consultaDatosImpositivos(subsidiaria);
+            const objDatosImpositivos = consultaDatosImpositivos(subsidiaria);
             var numXLocation = false;
             var numXLocation = objDatosImpositivos[0].numXLocation;
             //log.debug('getBocaPreferidaParaTrans','LINE 3618 - numXLocation: '+numXLocation);
@@ -3918,7 +4115,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
 
             //FILTRO CATEGORIA NUMERADOR
             if (!utilidades.isEmpty(categoriaNumerador)) {
-                var filtroCatNumerador = search.createFilter({
+                const filtroCatNumerador = search.createFilter({
                     name: "custrecord_l54_num_categoria_numerador",
                     operator: search.Operator.IS,
                     values: categoriaNumerador
@@ -3926,11 +4123,11 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                 saveSearch.filters.push(filtroCatNumerador);
             }
 
-            var resultSearch = saveSearch.run();
-            var completeResultSet = null;
-            var resultIndex = 0;
-            var resultStep = 1000; // Number of records returned in one step (maximum is 1000)
-            var resultado; // temporary variable used to store the result set
+            const resultSearch = saveSearch.run();
+            let completeResultSet = null;
+            let resultIndex = 0;
+            const resultStep = 1000; // Number of records returned in one step (maximum is 1000)
+            let resultado; // temporary variable used to store the result set
 
             do {
                 // fetch one result set
@@ -3954,7 +4151,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
             //log.debug('getBocaPreferidaParaTrans','LINE 3667 - completeResultSet: '+JSON.stringify(completeResultSet));
             if (!utilidades.isEmpty(completeResultSet)) {
                 if (completeResultSet.length > 0) {
-                    var boca = completeResultSet[0].getValue({
+                    const boca = completeResultSet[0].getValue({
                         name: resultSearch.columns[0]
                     });
                     log.debug("L54 - Calculo Retenciones", "RETURN - boca: " + boca);
@@ -3977,6 +4174,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
             log.debug("L54 - Calculo Retenciones", "Parámetros - number: " + number + "width: " + width);
             width -= number.toString().length;
             if (width > 0) {
+
                 return new Array(width + (/\./.test(number) ? 2 : 1)).join("0") + number;
             }
 
@@ -3990,7 +4188,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
             log.audit("L54 - Calculo Retenciones", "INICIO - getNumberLiteral");
             log.debug("L54 - Calculo Retenciones", "Parámetros - n: " + n);
 
-            var m0,
+            let m0,
                 cm,
                 dm,
                 um,
@@ -4121,12 +4319,12 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
             log.audit("L54 - Calculo Retenciones", "INICIO - letras");
             log.debug("L54 - Calculo Retenciones", "Parámetros - c: " + c + ", d: " + d + ", u: " + u);
 
-            var centenas,
+            let centenas,
                 decenas,
                 decom;
-            var lc = "";
-            var ld = "";
-            var lu = "";
+            let lc = "";
+            let ld = "";
+            let lu = "";
             centenas = eval(c);
             decenas = eval(d);
             decom = eval(u);
@@ -4299,7 +4497,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
         function parseDate(fecha, offsetInDays) {
 
             if (!utilidades.isEmpty(fecha)) {
-                var parseDate = format.parse({
+                let parseDate = format.parse({
                     value: fecha,
                     type: format.Type.DATE,
                     timezone: format.Timezone.AMERICA_BUENOS_AIRES
@@ -4334,14 +4532,57 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
             return fecha instanceof Date && !isNaN(fecha.valueOf());
         }
 
-        function guardarRetenciones(datosRetencion, paramRetenciones, entity, id_posting_period, tasa_cambio_pago, moneda, fecha, esRetIIBB) {
+        function guardarAcumulados(datosAcumulados, fecha) {
 
-            var proceso = "guardarRetenciones";
+            const proceso = "guardarAcumulados";
+            log.debug(proceso, "INICIO - guardarAcumulados");
 
             try {
-                var objRetencion = {};
+                const objAcumulado = {};
+                objAcumulado.custrecord_l54_acum_ret_proveedor = datosAcumulados.proveedor;
+                objAcumulado.custrecord_l54_acum_ret_fecha = fecha;
+                objAcumulado.custrecord_l54_acum_ret_periodo = datosAcumulados.periodo;
+                objAcumulado.custrecord_l54_acum_ret_subsidiaria = datosAcumulados.subsidiaria;
+                objAcumulado.custrecord_l54_acum_ret_base_calculo = datosAcumulados.baseCalculo;
+                if(!utilidades.isEmpty(datosAcumulados.jurisdiccion)){
+                    objAcumulado.custrecord_l54_acum_ret_jurisdiccion = datosAcumulados.jurisdiccion;
+                }
+                objAcumulado.custrecord_l54_acum_ret_cod_ret = datosAcumulados.codigo;
+                objAcumulado.custrecord_l54_acum_ret_anulado = false;
+                objAcumulado.isinactive = false;
 
-                var resultInfoCodRetencion = paramRetenciones.filter(function (obj) {
+                const recordAcum = record.create({
+                    type: "customrecord_l54_acumulados_retenciones",
+                });
+
+                for (const key in objAcumulado) {
+                    recordAcum.setValue(key, objAcumulado[key]);
+                }
+
+                const idAcum = recordAcum.save({
+                    enableSourcing: true,
+                    ignoreMandatoryFields: true
+                });
+
+                log.debug(proceso, `Se creo el registro de acumulado de manera correcta - Detalle idAcum: ${idAcum}`);
+
+                return idAcum;
+            } catch (error) {
+                log.error(proceso, `Error NetSuite Excepcion - guardarAcumulados - Detalles: ${error.message}`);
+            }
+
+            log.debug(proceso, "FIN - guardarAcumulados");
+            return null;
+        }
+
+        function guardarRetenciones(datosRetencion, paramRetenciones, entity, id_posting_period, tasa_cambio_pago, moneda, fecha, esRetIIBB) {
+
+            const proceso = "guardarRetenciones";
+
+            try {
+                const objRetencion = {};
+
+                const resultInfoCodRetencion = paramRetenciones.filter(function (obj) {
                     return (obj.codigo == datosRetencion.tipo_ret);
                 });
 
@@ -4378,7 +4619,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                     objRetencion.custrecord_l54_ret_tipo_exencion = datosRetencion.tipoExencion;
                     objRetencion.custrecord_l54_ret_cert_exencion = datosRetencion.certExencion;
 
-                    if ((datosRetencion.retencion == 3 || datosRetencion.retencion == 5 || datosRetencion.retencion == 6) && !utilidades.isEmpty(datosRetencion.condicionID)) {
+                    if ((datosRetencion.retencion == 3 || datosRetencion.retencion == 5  || datosRetencion.retencion == 6) && !utilidades.isEmpty(datosRetencion.condicionID)) {
                         objRetencion.custrecord_l54_ret_tipo_contrib_iibb = datosRetencion.condicionID;
                     }
 
@@ -4386,7 +4627,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                         //log.error('beforeSubmit', 'fechaExencion: ' + fechaExencion);
                         datosRetencion.fcaducidadExencion = new Date(datosRetencion.fcaducidadExencion);
                         //log.error('beforeSubmit', 'fechaExencion con new Date: ' + fechaExencion);
-                        var fechaExencionString = format.parse({
+                        const fechaExencionString = format.parse({
                             value: datosRetencion.fcaducidadExencion,
                             type: format.Type.DATE,
                             timezone: format.Timezone.AMERICA_BUENOS_AIRES
@@ -4397,15 +4638,15 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                 }
 
                 try {
-                    var recordRetencion = record.create({
+                    const recordRetencion = record.create({
                         type: "customrecord_l54_retencion",
                     });
 
-                    for (var key in objRetencion) {
+                    for (const key in objRetencion) {
                         recordRetencion.setValue(key, objRetencion[key]);
                     }
 
-                    var idRet = recordRetencion.save({
+                    const idRet = recordRetencion.save({
                         enableSourcing: true,
                         ignoreMandatoryFields: true
                     });
@@ -4422,12 +4663,12 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
 
         function eliminarRetencionesCSV(arrayRetenciones) {
 
-            var proceso = "eliminarRetencionesCSV";
+            const proceso = "eliminarRetencionesCSV";
 
             try {
-                log.debug(proceso, "arrayRetencionesCSV a eliminar: " + JSON.stringify(arrayRetenciones));
+                log.debug(proceso, "arrayRetenciones a eliminar: " + JSON.stringify(arrayRetenciones));
                 if (!utilidades.isEmpty(arrayRetenciones)) {
-                    for (var i = 0; i < arrayRetenciones.length; i++) {
+                    for (let i = 0; i < arrayRetenciones.length; i++) {
                         try {
                             record.delete({
                                 type: "customrecord_l54_retencion",
@@ -4443,47 +4684,44 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
             }
         }
 
+        function eliminarAcumuladosCSV(arrayAcumulados) {
+
+            const proceso = "eliminarAcumuladosCSV";
+
+            try {
+                log.debug(proceso, "arrayAcumulados a eliminar: " + JSON.stringify(arrayAcumulados));
+                if (!utilidades.isEmpty(arrayAcumulados)) {
+                    for (let i = 0; i < arrayAcumulados.length; i++) {
+                        try {
+                            record.delete({
+                                type: "customrecord_l54_acumulados_retenciones",
+                                id: arrayAcumulados[i]
+                            });
+                        } catch (e) {
+                            log.error(proceso, "Error eliminando la retencion con ID: " + arrayAcumulados[i] + " - Detalles del error: " + e.message);
+                        }
+                    }
+                }
+            } catch (error) {
+                log.error(proceso, "Error NetSuite Excepcion - eliminarAcumuladosCSV - Detalles: " + error.message);
+            }
+        }
+
         function configurarEstadoAprobacionJournalEntry(record_journalentry) {
-            var configRecObj = config.load({
+            const configRecObj = config.load({
                 type: config.Type.ACCOUNTING_PREFERENCES
             });
-            var tieneEstadosDeAprobacionLosAsientos = configRecObj.getValue({ fieldId: "CUSTOMAPPROVALJOURNAL" });
+            const tieneEstadosDeAprobacionLosAsientos = configRecObj.getValue({ fieldId: "CUSTOMAPPROVALJOURNAL" });
             log.audit("tieneEstadosDeAprobacionLosAsientos", tieneEstadosDeAprobacionLosAsientos);
             if (tieneEstadosDeAprobacionLosAsientos !== true) {
                 return;
             }
-            var estadoPorDefectoAsiento = runtime.getCurrentScript().getParameter({ name: "custscript_l54_calcular_ret_ss_estado_ap" });
+            const estadoPorDefectoAsiento = runtime.getCurrentScript().getParameter({ name: "custscript_l54_calcular_ret_ss_est_li_ap" });
             if (utilidades.isEmpty(estadoPorDefectoAsiento)) {
-                log.audit("parametro de script custscript_l54_calcular_ret_ss_estado_ap es vacio", "se utilizara el valor predeterminado que seleccione netsuite");
+                log.audit("parametro de script custscript_l54_calcular_ret_ss_est_li_ap es vacio", "se utilizara el valor predeterminado que seleccione netsuite");
                 return;
             }
             record_journalentry.setValue({ fieldId: "approvalstatus", value: estadoPorDefectoAsiento });
-        }
-
-        /**
-         * Debe llamarse despues de guardar la journal, y volverla a cargar
-         */
-        function aplicarJournalEntry(recordT, journalEntryID) {
-            recordT = record.load({
-                type: recordT.type,
-                id: recordT.id,
-                isDynamic: true,
-            });
-            log.audit("aplicarJournalEntry", "inicio funcion");
-            var cantidadItems = recordT.getLineCount({ sublistId: "apply" });
-            log.audit("aplicarJournalEntry", "cantidadItems= " + cantidadItems);
-            for (var j = 0; j < cantidadItems; j++) {
-                var aplicado = recordT.getSublistValue({ sublistId: "apply", fieldId: "apply", line: j });
-                var id = recordT.getSublistValue({ sublistId: "apply", fieldId: "internalid", line: j });
-                log.audit("aplicarJournalEntry", "se encontro en journalEntryID= " + journalEntryID + " aplicado= " + aplicado + " id= " + id);
-                if (id == journalEntryID) {
-                    if (aplicado == "F" || aplicado == false) {
-                        recordT.setSublistValue({ sublistId: "apply", fieldId: "apply", line: j, value: true });
-                    }
-                }
-            }
-            log.audit("aplicarJournalEntry", "fin funcion");
-            return recordT;
         }
 
         return {

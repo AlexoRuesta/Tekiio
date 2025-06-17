@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<iva>
+    <IdInformante>${infoC.inforA.IdInformante}</IdInformante>
+    <razonSocial>${infoC.inforA.razonSocial}</razonSocial>
+    <Anio>${infoC.inforA.anio}</Anio>
+    <Mes>${infoC.inforA.mes}</Mes>
+    <#if infoC.inforA.regimenMicroempresa != ''>
+    <RegimenMicroempresa>${infoC.inforA.regimenMicroempresa}</RegimenMicroempresa>
+    </#if>
+    <numEstabRuc>${infoC.inforA.numEstabRuc}</numEstabRuc>
+    <codigoOperativo>${infoC.inforA.codigoOperativo}</codigoOperativo>
+    <compras>
+        <#list infoC.data.compras as info>
+        <detalleCompras>
+            <codSustento>${info.codSustento}</codSustento>
+            <tpIdProv>${info.tpIdProv}</tpIdProv>
+            <idProv>${info.idProv}</idProv>
+            <tipoComprobante>${info.tipoComprobante}</tipoComprobante>
+            <parteRel>${info.parteRel}</parteRel>
+            <tipoProv>${info.tipoProv}</tipoProv>
+            <denopr>${info.denopr}</denopr>
+            <fechaRegistro>${info.fechaRegistro}</fechaRegistro>
+            <establecimiento>${info.establecimiento}</establecimiento>
+            <puntoEmision>${info.puntoEmision}</puntoEmision>
+            <secuencial>${info.secuencial}</secuencial>
+            <fechaEmision>${info.fechaEmision}</fechaEmision>
+            <autorizacion>${info.autorizacion}</autorizacion>
+            <baseNoGraIva>${info.baseNoGraIva?number?string('0.00')}</baseNoGraIva>
+            <baseImponible>${info.baseImponible?number?string('0.00')}</baseImponible>
+            <baseImpGrav>${info.baseImpGrav?number?string('0.00')}</baseImpGrav>
+            <baseImpExe>${info.baseImpExe?number?string('0.00')}</baseImpExe>
+            <montoIce>${info.montoIce?number?string('0.00')}</montoIce>
+            <montoIva>${info.montoIva?number?string('0.00')}</montoIva>
+            <valRetBien10>${info.valRetBien10?number?string('0.00')}</valRetBien10>
+            <valRetServ20>${info.valRetServ20?number?string('0.00')}</valRetServ20>
+            <valorRetBienes>${info.valorRetBienes?number?string('0.00')}</valorRetBienes>
+            <valRetServ50>${info.valRetServ50?number?string('0.00')}</valRetServ50>
+            <valorRetServicios>${info.valorRetServicios?number?string('0.00')}</valorRetServicios>
+            <valRetServ100>${info.valRetServ100?number?string('0.00')}</valRetServ100>
+            <valorRetencionNc>${info.valorRetencionNc?number?string('0.00')}</valorRetencionNc>
+            <pagoLocExt>${info.pagoLocExt}</pagoLocExt>
+            <tipoRegi>${info.tipoRegi}</tipoRegi>
+            <paisEfecPagoGen>${info.paisEfecPagoGen}</paisEfecPagoGen>
+            <paisEfecPagoParFis>${info.paisEfecPagoParFis}</paisEfecPagoParFis>
+            <denopago>${info.denopago}</denopago>
+            <paisEfecPago>${info.paisEfecPago}</paisEfecPago>
+            <aplicConvDobTrib>${info.aplicConvDobTrib}</aplicConvDobTrib>
+            <pagExtSujRetNorLeg>${info.pagExtSujRetNorLeg}</pagExtSujRetNorLeg>
+            <pagoRegFis>${info.pagoRegFis}</pagoRegFis>
+            <formaPago>${info.formaPago}</formaPago>
+            <#if info.objRet != 'VACIO'>
+            <#assign objRetParse = info.objRet?eval>
+            <#if objRetParse?has_content>
+            <air>
+                <#list objRetParse as objr>
+                <detalleAir>
+                    <codRetAir>${objr.codRetAir}</codRetAir>
+                    <baseImpAir>${objr.baseImpAir}</baseImpAir>    
+                    <porcentajeAir>${objr.porcentajeAir}</porcentajeAir>
+                    <valRetAir>${objr.valRetAir}</valRetAir>      
+                </detalleAir>                                                  
+                </#list>
+            </air> 
+            </#if>
+            </#if>
+            <fechaPagoDiv>${info.fechaPagoDiv}</fechaPagoDiv>
+            <imRentaSoc>${info.imRentaSoc}</imRentaSoc>
+            <anioUtDiv>${info.anioUtDiv}</anioUtDiv>
+            <numCajBan>${info.numCajBan}</numCajBan>
+            <precCajBan>${info.precCajBan}</precCajBan>
+            <estabRetencion1>${info.estabRetencion1}</estabRetencion1>
+            <ptoEmiRetencion1>${info.ptoEmiRetencion1}</ptoEmiRetencion1>
+            <secRetencion1>${info.secRetencion1}</secRetencion1>
+            <autRetencion1>${info.autRetencion1}</autRetencion1>
+            <fechaEmiRet1>${info.fechaEmiRet1}</fechaEmiRet1>
+            <docModificado>${info.docModificado}</docModificado>
+            <estabModificado>${info.estabModificado}</estabModificado>
+            <ptoEmiModificado>${info.ptoEmiModificado}</ptoEmiModificado>
+            <secModificado>${info.secModificado}</secModificado>
+            <autModificado>${info.autModificado}</autModificado>
+            <#if info.objReemb != 'VACIO'>
+            <#assign objReembParse = info.objReemb?eval>
+            <#if objReembParse?has_content>
+            <reembolsos>
+                <#list objReembParse as objrb>
+                <reembolso>
+                    <tipoComprobanteReemb>${objrb.tipoComprobanteReemb}</tipoComprobanteReemb>
+                    <tpIdProvReemb>${objrb.tpIdProvReemb}</tpIdProvReemb>
+                    <idProvReemb>${objrb.idProvReemb}</idProvReemb>
+                    <establecimientoReemb>${objrb.establecimientoReemb}</establecimientoReemb>
+                    <puntoEmisionReemb>${objrb.puntoEmisionReemb}</puntoEmisionReemb>
+                    <secuencialReemb>${objrb.secuencialReemb}</secuencialReemb>
+                    <fechaEmisionReemb>${objrb.fechaEmisionReemb}</fechaEmisionReemb>
+                    <autorizacionReemb>${objrb.autorizacionReemb}</autorizacionReemb>
+                    <baseImponibleReemb>${objrb.baseImponibleReemb?number?string('0.00')}</baseImponibleReemb>
+                    <baseImpGravReemb>${objrb.baseImpGravReemb?number?string('0.00')}</baseImpGravReemb>
+                    <baseNoGraIvaReemb>${objrb.baseNoGraIvaReemb?number?string('0.00')}</baseNoGraIvaReemb>
+                    <baseImpExeReemb>${objrb.baseImpExeReemb?number?string('0.00')}</baseImpExeReemb>
+                </reembolso>
+                </#list>
+            </reembolsos>
+            </#if>
+            </#if>
+        </detalleCompras>
+        </#list>
+    </compras>
+    <ventas>
+        <#list infoC.data.ventas as info>
+            <detalleVentas>
+                <tpIdCliente>${info.tpIdCliente}</tpIdCliente>
+                <idCliente>${info.idCliente}</idCliente>
+                <parteRel>${info.parteRel}</parteRel>
+                <tipoCliente>${info.tipoCliente}</tipoCliente>
+                <DenoCli>${info.DenoCli}</DenoCli>
+                <tipoComprobante>${info.tipoComprobante}</tipoComprobante>
+                <tipoEm>${info.tipoEm}</tipoEm>
+                <numeroComprobantes>${info.numeroComprobantes}</numeroComprobantes>
+                <baseNoGraIva>${info.baseNoGraIva?number?string('0.00')}</baseNoGraIva>
+                <baseImponible>${info.baseImponible?number?string('0.00')}</baseImponible>
+                <baseImpGrav>${info.baseImpGrav?number?string('0.00')}</baseImpGrav>
+                <montoIva>${info.montoIva?number?string('0.00')}</montoIva>
+                <tipoCompe>${info.tipoCompe}</tipoCompe>
+                <monto>${info.monto?number?string('0.00')}</monto>
+                <montoIce>${info.montoIce?number?string('0.00')}</montoIce>
+                <valorRetIva>${info.valorRetIva?number?string('0.00')}</valorRetIva>
+                <valorRetRenta>${info.valorRetRenta?number?string('0.00')}</valorRetRenta>
+                <formaPago>${info.formaPago}</formaPago>
+                <codEstab>${info.codEstab}</codEstab>
+                <ventasEstab>${info.ventasEstab?number?string('0.00')}</ventasEstab>
+                <ivaComp>${info.ivaComp?number?string('0.00')}</ivaComp>
+            </detalleVentas>
+        </#list>
+    </ventas> 
+    <anulados>
+        <#list infoC.data.anuladas as info>
+            <detalleAnulados>
+                <tipoComprobante>${info.tipoComprobante}</tipoComprobante>
+                <establecimiento>${info.establecimiento}</establecimiento>
+                <puntoEmision>${info.puntoEmision}</puntoEmision>
+                <secuencialInicio>${info.secuencialInicio}</secuencialInicio>
+                <secuencialFin>${info.secuencialFin}</secuencialFin>
+                <autorizacion>${info.autorizacion}</autorizacion>
+            </detalleAnulados>
+        </#list>
+    </anulados>  
+    <exportaciones>
+        <#list infoC.data.exportaciones as info>
+            <detalleExportaciones>
+                <tpIdClienteEx>${info.tpIdClienteEx}</tpIdClienteEx>
+                <idClienteEx>${info.idClienteEx}</idClienteEx>
+                <parteRel>${info.parteRel}</parteRel>
+                <tipoCli>${info.tipoCli}</tipoCli>
+                <denoExpCli>${info.denoExpCli}</denoExpCli>
+                <tipoRegi>${info.tipoRegi}</tipoRegi>
+                <paisEfecPagoGen>${info.paisEfecPagoGen}</paisEfecPagoGen>
+                <paisEfecPagoParFis>${info.paisEfecPagoParFis}</paisEfecPagoParFis>
+                <denopagoRegFis>${info.denopagoRegFis}</denopagoRegFis>
+                <paisEfecExp>${info.paisEfecExp}</paisEfecExp>
+                <pagoRegFis></pagoRegFis>
+                <exportacionDe>${info.exportacionDe}</exportacionDe>
+                <tipIngExt>${info.tipIngExt}</tipIngExt>
+                <ingextgravotropais>${info.ingextgravotropais}</ingextgravotropais>
+                <impuestootropais>${info.impuestootropais?number?string('0.00')}</impuestootropais>
+                <tipoComprobante>${info.tipoComprobante}</tipoComprobante>
+                <distAduanero>${info.distAduanero}</distAduanero>
+                <anio>${info.anio}</anio>
+                <regimen>${info.regimen}</regimen>
+                <correlativo>${info.correlativo}</correlativo>
+                <verificador></verificador>
+                <docTransp>${info.docTransp}</docTransp>
+                <fechaEmbarque>${info.fechaEmbarque}</fechaEmbarque>
+                <fue></fue>
+                <valorFOB>${info.valorFOB?number?string('0.00')}</valorFOB>
+                <valorFOBComprobante>${info.valorFOBComprobante?number?string('0.00')}</valorFOBComprobante>
+                <establecimiento>${info.establecimiento}</establecimiento>
+                <puntoEmision>${info.puntoEmision}</puntoEmision>
+                <secuencial>${info.secuencial}</secuencial>
+                <autorizacion>${info.autorizacion}</autorizacion>
+                <fechaEmision>${info.fechaEmision}</fechaEmision>
+            </detalleExportaciones>
+        </#list>
+    </exportaciones>  
+</iva>
+
