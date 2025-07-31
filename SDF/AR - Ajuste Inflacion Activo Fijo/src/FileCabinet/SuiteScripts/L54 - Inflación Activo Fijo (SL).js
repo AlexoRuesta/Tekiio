@@ -259,7 +259,10 @@ define(["N/log", "N/url", "N/file", "N/encode", "N/runtime", "N/ui/serverWidget"
                         ["isinactive", "onorbefore", "F"]
                     ];
 
-        let columns = ["custrecord_l54_config_ajusinf_libajus","custrecord_l54_config_ajusinf_folder"]
+        let columns = [
+            { name: 'custrecord_l54_config_ajusinf_libajus', alias: 'custrecord_l54_config_ajusinf_libajus' },
+            { name: 'custrecord_l54_config_ajusinf_folder', alias: 'custrecord_l54_config_ajusinf_folder'}
+        ]
         
         let array = InitSearch.getSearchCreated("customrecord_l54_config_ajust_inf", filters, columns)
 
@@ -267,6 +270,7 @@ define(["N/log", "N/url", "N/file", "N/encode", "N/runtime", "N/ui/serverWidget"
     }
 
     const getIndex = (parameters) => {
+        
         let months = parameters.map(p => p.internalid);
         let filters = [["isinactive", "is", "F"],
                         "AND",
@@ -274,22 +278,23 @@ define(["N/log", "N/url", "N/file", "N/encode", "N/runtime", "N/ui/serverWidget"
                             
                     ];
 
-        let columns = ["custrecord_l54_axi_indice_mes.periodname", 
-                        search.createColumn({
-                            name: "startdate",
-                            join: "custrecord_l54_axi_indice_mes",
-                            sort: search.Sort.ASC // Aquí defines el orden ascendente
-                        }),
-                        search.createColumn({
-                            name: "enddate",
-                            join: "custrecord_l54_axi_indice_mes",
-                        }),
-                        "custrecord_l54_axi_indice_mes", 
-                        "custrecord_l54_axi_indice_num"]
+        let columns = [
+            { name: 'periodname', join: 'custrecord_l54_axi_indice_mes', alias: 'periodname'},
+            { name: 'startdate', join: 'custrecord_l54_axi_indice_mes', alias: 'startdate', sort: 'ASC'},
+            { name: 'enddate', join: 'custrecord_l54_axi_indice_mes', alias: 'enddate'},
+            { name: 'custrecord_l54_axi_indice_mes', alias: 'custrecord_l54_axi_indice_mes'},
+            { name: 'custrecord_l54_axi_indice_num', alias: 'custrecord_l54_axi_indice_num'}
+        ]
         
         let array = InitSearch.getSearchCreated("customrecord_l54_axi_indice", filters, columns)
 
-        return array;
+        const uniqueIndexPeriods = Array.from(
+            new Map(
+                array.map(item => [JSON.stringify(item), item])
+            ).values()
+        );
+
+        return uniqueIndexPeriods;
     }
 
     const getRequiredFields = (parameters) => {
@@ -381,13 +386,12 @@ define(["N/log", "N/url", "N/file", "N/encode", "N/runtime", "N/ui/serverWidget"
                         ['isyear', 'is', 'F']
                     ];
                     
-        let columns = ["internalid", 
-                        "periodname", 
-                        search.createColumn({
-                            name: "startdate",
-                            sort: search.Sort.ASC // Aquí defines el orden ascendente
-                          }), 
-                        "enddate"]
+        let columns = [
+            { name: 'internalid', alias: 'internalid' }, 
+            { name: 'periodname', alias: 'periodname' }, 
+            { name: 'startdate', alias: 'startdate', sort: 'ASC' }, 
+            { name: 'enddate', alias: 'enddate' },
+        ];
         
         let array = InitSearch.getSearchCreated("accountingperiod", filters, columns)
 
@@ -402,13 +406,12 @@ define(["N/log", "N/url", "N/file", "N/encode", "N/runtime", "N/ui/serverWidget"
                     ['isyear', 'is', 'F']
                 ];
 
-        columns = ["internalid", 
-                    "periodname", 
-                    search.createColumn({
-                        name: "startdate",
-                        sort: search.Sort.DESC // Aquí defines el orden ascendente
-                    }), 
-                    "enddate"];
+        columns = [
+            { name: 'internalid', alias: 'internalid' }, 
+            { name: 'periodname', alias: 'periodname' }, 
+            { name: 'startdate', alias: 'startdate', sort: 'DESC' }, 
+            { name: 'enddate', alias: 'enddate' },
+        ];
 
         
         let array2 = InitSearch.getSearchCreated("accountingperiod", filters, columns)

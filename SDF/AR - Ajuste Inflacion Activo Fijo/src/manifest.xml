@@ -1,0 +1,51 @@
+<manifest projecttype="ACCOUNTCUSTOMIZATION">
+  <projectname>AR - Ajuste Inflacion Activo Fijo</projectname>
+  <frameworkversion>1.0</frameworkversion>
+  <dependencies>
+    <features>
+      <feature required="false">MULTILANGUAGE</feature>
+      <feature required="true">ACCOUNTINGPERIODS</feature>
+      <feature required="false">EXPREPORTS</feature>
+      <feature required="true">MULTIBOOK</feature>
+      <feature required="false">MULTILOCINVT</feature>
+      <feature required="true">ACCOUNTING</feature>
+      <feature required="false">INVENTORY</feature>
+      <feature required="false">CRM</feature>
+      <feature required="false">EXTREMELIST</feature>
+      <feature required="false">SUBSCRIPTIONBILLING</feature>
+      <feature required="false">CUSTOMTRANSACTIONS</feature>
+      <feature required="false">MAILMERGE</feature>
+      <feature required="false">RECEIVABLES</feature>
+      <feature required="true">CUSTOMSEGMENTS</feature>
+      <feature required="true">CUSTOMRECORDS</feature>
+      <feature required="true">SUBSIDIARIES</feature>
+      <feature required="true">ADVRECEIVING</feature>
+      <feature required="false">PAYABLES</feature>
+      <feature required="false">PERIODENDJOURNALENTRIES</feature>
+      <feature required="true">SERVERSIDESCRIPTING</feature>
+      <feature required="false">OPPORTUNITIES</feature>
+    </features>
+    <objects>
+      <object>customrecord_ncfar_asset</object>
+      <object>custtab_4_t1195989_150</object>
+      <object>customrecord_ncfar_altdepreciation.custrecord_altdeprlifetime</object>
+      <object>customrecord_ncfar_altdepreciation.custrecord_altdepr_currentcost</object>
+      <object>customrecord_ncfar_altdepreciation.custrecord_altdeprcurrentage</object>
+      <object>customlist_ncfar_taxmethodstatus</object>
+      <object>customrecord_ncfar_altdepreciation.custrecord_altdepr_depraccount</object>
+      <object>customrecord_ncfar_altdepreciation.custrecord_altdepr_assetaccount</object>
+      <object>customrecord_ncfar_altdepreciation.custrecord_altdeprnbv</object>
+      <object>customrecord_ncfar_asset.custrecord_l54_ncfar_asset</object>
+      <object>customrecord_ncfar_altdepreciation</object>
+      <object>customrecord_ncfar_altdepreciation.custrecord_l54_account_auxiliar</object>
+      <object>customrecord_ncfar_altdepreciation.custrecord_altdeprstartdeprdate</object>
+      <object>customrecord_ncfar_altdepreciation.custrecord_altdepr_currency</object>
+      <object>customrecord_ncfar_altdepreciation.custrecord_altdeprlastdeprdate</object>
+      <object>customrecord_ncfar_altdepreciation.custrecord_altdeprstatus</object>
+      <object>customrecord_ncfar_altdepreciation.custrecord_altdeprasset</object>
+      <object>customrecord_ncfar_altdepreciation.custrecord_altdepr_originalcost</object>
+      <object>customrecord_ncfar_asset.custrecord_assetpurchasedate</object>
+      <object>customrecord_ncfar_altdepreciation.custrecord_altdeprcd</object>
+    </objects>
+  </dependencies>
+</manifest>

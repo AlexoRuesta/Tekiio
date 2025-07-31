@@ -65,6 +65,8 @@
                     respuestaRetenciones.importe_percepciones = 0.0;
                     respuestaRetenciones.detalleAcumulados = [];
                     respuestaRetenciones.version_calc_ret = '';
+                    respuestaRetenciones.esNoInscriptoIVA = false;
+                    respuestaRetenciones.esNoInscriptoGAN = false;
                     var mensajeJurisdiccionesNotValid = "";
 
                     var informacionPago = context.request.parameters;
@@ -137,6 +139,13 @@
                                     estadoExentoIVA         = resultadoDatosImp[0].exentoIVA,
                                     estadoExentoIIBB        = resultadoDatosImp[0].exentoIIBB,
                                     esONG                   = resultadoDatosImp[0].esONG,
+                                    contribuyenteIVA        = resultadoDatosImp[0].contribuyenteIVANoInscrito,
+                                    parametrizacionIVA      = resultadoDatosImp[0].parametrizacionIVANoInscrito,
+                                    nombreParamIVA          = resultadoDatosImp[0].nombreParamIVANoInscrito,
+                                    contribuyenteGAN        = resultadoDatosImp[0].contribuyenteGANNoInscrito,
+                                    parametrizacionGAN      = resultadoDatosImp[0].parametrizacionGANNoInscrito,
+                                    nombreParamGAN          = resultadoDatosImp[0].nombreParamGANNoInscrito,
+                                    calcularSobreIVANoInscrito= resultadoDatosImp[0].calcularSobreIVANoInscrito,
                                     jurisdiccionEmpresa     = resultadoDatosImp[0].jurisdiccionEmpresa;
 
                                 respuestaRetenciones.esAgenteRetencionGan   = esAgenteRetencionGan;
@@ -254,6 +263,8 @@
                                                 if (estaInscriptoRegimenIIBB == true) {
                                                     calcularRetIIBB = true;
                                                 }
+
+                                                respuestaRetenciones.esNoInscriptoIVA = respuestaRetenciones.esNoInscriptoGAN = objInscriptoRegimen.contribuyenteIVA == contribuyenteIVA ? true : false;
 
                                                 // Obtener Codigo de Retencion M
                                                 var codigoRetMGananciasConfigurado  = false,
@@ -374,9 +385,9 @@
                                                     let jurisdiccionUtilizacion = '';
 
                                                     if (!utilidades.isEmpty(objCodigos)) {
-                                                        if (!isEmpty(objCodigos.codigoRetGanancias)) {
-                                                            codigo_retencion_ganancias = objCodigos.codigoRetGanancias;
-                                                            nombre_retencion_ganancias = objCodigos.nombreRetGanancias;
+                                                        if (!isEmpty(objCodigos.codigoRetGanancias) || respuestaRetenciones.esNoInscriptoIVA) {
+                                                            codigo_retencion_ganancias = respuestaRetenciones.esNoInscriptoGAN? parametrizacionGAN : objCodigos.codigoRetGanancias;
+                                                            nombre_retencion_ganancias = respuestaRetenciones.esNoInscriptoGAN ? nombreParamGAN : objCodigos.nombreRetGanancias;
                                                             if (!isEmpty(objCodigos.esFacturaM) && (objCodigos.esFacturaM == 'T' || objCodigos.esFacturaM == true)) {
                                                                 esFacturaM = true;
                                                                 cantidadFacturasM++;
@@ -386,9 +397,9 @@
                                                             codigo_retencion_suss = objCodigos.codigoRetSUSS;
                                                             nombre_retencion_suss = objCodigos.nombreRetSUSS;
                                                         }
-                                                        if (!isEmpty(objCodigos.codigoRetIVA)) {
-                                                            codigo_retencion_iva = objCodigos.codigoRetIVA;
-                                                            nombre_retencion_iva = objCodigos.nombreRetIVA;
+                                                        if (!isEmpty(objCodigos.codigoRetIVA) || respuestaRetenciones.esNoInscriptoIVA) {
+                                                            codigo_retencion_iva = respuestaRetenciones.esNoInscriptoIVA ? parametrizacionIVA : objCodigos.codigoRetIVA;
+                                                            nombre_retencion_iva = respuestaRetenciones.esNoInscriptoIVA ? nombreParamIVA : objCodigos.nombreRetIVA;
                                                             if (!isEmpty(objCodigos.esFacturaM) && (objCodigos.esFacturaM == 'T' || objCodigos.esFacturaM == true)) {
                                                                 esFacturaM = true;
                                                                 cantidadFacturasM++;
@@ -396,6 +407,8 @@
                                                             if (!isEmpty(objCodigos.calcularSobreIVA) && (objCodigos.calcularSobreIVA == 'T' || objCodigos.calcularSobreIVA == true)) {
                                                                 calcularSobreIVA = true;
                                                             }
+                                                            
+                                                            calcularSobreIVA = respuestaRetenciones.esNoInscriptoIVA ? calcularSobreIVANoInscrito : calcularSobreIVA;
                                                         }
                                                         importe_bruto_factura_proveedor = parseFloat(objCodigos.importeTotal, 10);
                                                     }
@@ -603,7 +616,7 @@
                                                         if (!isEmpty(codigo_retencion_ganancias)) {
 
                                                             var resultGanRetManual = paramRetenciones.filter(function (obj) {
-                                                                return (obj.codigo == codigo_retencion_ganancias && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                return ((respuestaRetenciones.esNoInscriptoGAN && obj.codigo == codigo_retencion_ganancias) || (obj.codigo == codigo_retencion_ganancias && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                             });
 
                                                             if (!isEmpty(resultGanRetManual) && resultGanRetManual.length > 0) {
@@ -663,12 +676,13 @@
                                                             if ((utilidades.isEmpty(lineNumber) && !esRetencionPorLinea) || (!utilidades.isEmpty(lineNumber) && validateSobreIva && esRetencionPorLinea)) {
 
                                                                 var resultIVARetManual = paramRetenciones.filter(function (obj) {
-                                                                    return (obj.codigo == codigo_retencion_iva && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                    return ((respuestaRetenciones.esNoInscriptoIVA && obj.codigo == codigo_retencion_iva) || (obj.codigo == codigo_retencion_iva && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                                 });
 
                                                                 if (!isEmpty(resultIVARetManual) && resultIVARetManual.length > 0) {
                                                                     var esRetManual = false;
                                                                     esRetManual = resultIVARetManual[0].esRetManual;
+                                                                    // calcularSobreIVA = respuestaRetenciones.esNoInscriptoIVA ? resultIVARetManual[0].sobreIVA : calcularSobreIVA;
 
                                                                     log.debug("Montos para IVA", importeIVAPagoParcial + "->> " + importe_neto_factura_proveedor_a_pagar)
                                                                     /** Modificación IVA Importe Total */
@@ -871,7 +885,7 @@
 
 
                                                             // Obtengo los Codigos de Retencion de Cada Jurisdiccion
-                                                            codigosRetencionIIBB = obtenerCodigosRetencionIIBB(entity, subsidiariaPago, objJurisdUnificado, jurisdiccionesAgenteRetencion.idConfGeneral, importeNetoPagado, resultsNetosJurisdiccion, arrayFacturasJurisdiccionEntregaUnificado, existeFacturaSinJurisdiccionEntrega, tipoContribuyenteIVA, importeBrutoPagado, jurisdiccionCordoba, importe_bruto_total_facturas_aliados, importeBrutoPago, paramNoAplicaProvincia,id_posting_period);
+                                                            codigosRetencionIIBB = obtenerCodigosRetencionIIBB(entity, subsidiariaPago, objJurisdUnificado, jurisdiccionesAgenteRetencion.idConfGeneral, importeNetoPagado, resultsNetosJurisdiccion, arrayFacturasJurisdiccionEntregaUnificado, existeFacturaSinJurisdiccionEntrega, tipoContribuyenteIVA, importeBrutoPagado, jurisdiccionCordoba, importe_bruto_total_facturas_aliados, importeBrutoPago, paramNoAplicaProvincia,id_posting_period, respuestaRetenciones.esNoInscriptoIVA);
 
                                                             if (!isEmpty(codigosRetencionIIBB) && !isEmpty(codigosRetencionIIBB.warning)) {
                                                                 respuestaRetenciones.warning = true;
@@ -910,7 +924,7 @@
                                                                 // INICIO - Extraccion de código de retenciones de ganancias
                                                                 for (var i = 0; i < retencion_ganancias.length; i++) {
                                                                     var resultGananciaMonotributo = paramRetenciones.filter(function (obj) {
-                                                                        return (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                        return ((respuestaRetenciones.esNoInscriptoGAN && obj.codigo == retencion_ganancias[i].codigo) || (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                                     });
 
                                                                     var esGanMonotributo = false;
@@ -1020,7 +1034,7 @@
                                                                     for (var i = 0; i < retencion_ganancias.length; i++) {
                                                         
                                                                         var resultGananciaMonotributo = paramRetenciones.filter(function (obj) {
-                                                                            return (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                            return ((respuestaRetenciones.esNoInscriptoGAN && obj.codigo == retencion_ganancias[i].codigo) || (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                                         });
                                                         
                                                                         var esGanMonotributo = false;
@@ -1038,7 +1052,7 @@
                                                                     var subListAcumulados = [];
                                                         
                                                                     if (!utilidades.isEmpty(arrayCodRetGanancias) && arrayCodRetGanancias.length > 0) {
-                                                                        subListAcumulados = obtenerAcumSinJurisdicciones(entity, id_posting_period, subsidiariaPago, arrayCodRetGanancias); // alex
+                                                                        subListAcumulados = obtenerAcumSinJurisdicciones(entity, id_posting_period, subsidiariaPago, arrayCodRetGanancias); 
                                                                     }
                                                                     if (!utilidades.isEmpty(arrayCodRetGananciasMonotributos) && arrayCodRetGananciasMonotributos.length > 0){
                                                                         var subListAcumuladosAux = obtenerAcumSinJurisdicciones(entity, id_posting_period, subsidiariaPago, arrayCodRetGananciasMonotributos);
@@ -1083,7 +1097,7 @@
                                                                             }
                                                                             
                                                                             var resultMinNoImponible = paramRetenciones.filter(function (obj) {
-                                                                                return (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                                return ((respuestaRetenciones.esNoInscriptoGAN && obj.codigo == retencion_ganancias[i].codigo) || (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                                             });
                                                         
                                                                             log.debug('L54 - Calculo Retenciones', 'LINE 1235 - CALCULARETENCIONES - Retenciones Gan M - resultMinNoImponible: ' + JSON.stringify(resultMinNoImponible) + ' ** TIEMPO' + new Date());
@@ -1151,7 +1165,7 @@
                                                                         if (!isEmpty(retencion_ganancias[i].codigo)) {
                                                         
                                                                             var resultGananciaMonotributo = paramRetenciones.filter(function (obj) {
-                                                                                return (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                                return ((respuestaRetenciones.esNoInscriptoGAN && obj.codigo == retencion_ganancias[i].codigo) || (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                                             });
                                                         
                                                                             log.debug('L54 - Calculo Retenciones', 'LINE 1046 - CALCULARETENCIONES - resultGananciaMonotributo: ' + JSON.stringify(resultGananciaMonotributo) + ' ** TIEMPO' + new Date());
@@ -1192,7 +1206,7 @@
                                                         
                                                                                 
                                                                                 var resultMinNoImponible = paramRetenciones.filter(function (obj) {
-                                                                                    return (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                                    return ((respuestaRetenciones.esNoInscriptoGAN && obj.codigo == retencion_ganancias[i].codigo) || (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                                                 });
                                                         
                                                                                 log.debug('L54 - Calculo Retenciones', 'LINE 1126 - CALCULARETENCIONES - resultMinNoImponible: ' + JSON.stringify(resultMinNoImponible));
@@ -1287,7 +1301,7 @@
                                                         
                                                                                     
                                                                                     var resultMinNoImponible = paramRetenciones.filter(function (obj) {
-                                                                                        return (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                                        return ((respuestaRetenciones.esNoInscriptoGAN && obj.codigo == retencion_ganancias[i].codigo) || (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                                                     });
                                                         
                                                                                     log.debug('L54 - Calculo Retenciones', 'CALCULARETENCIONES  - resultMinNoImponible: ' + JSON.stringify(resultMinNoImponible) + ' ** TIEMPO' + new Date());
@@ -1404,13 +1418,13 @@
                                                                     var subListAcumulados = [];
                                                         
                                                                     if (!utilidades.isEmpty(arrayCodRetSUSS) && arrayCodRetSUSS.length > 0) {
-                                                                        subListAcumulados = obtenerAcumSinJurisdicciones(entity, id_posting_period, subsidiariaPago, arrayCodRetSUSS); // alex
+                                                                        subListAcumulados = obtenerAcumSinJurisdicciones(entity, id_posting_period, subsidiariaPago, arrayCodRetSUSS);
                                                                     }
                                                         
                                                                     log.audit("Governance Monitoring", "LINE 1933 - Remaining Usage = " + script.getRemainingUsage() + ' --- time: ' + new Date());
                                                         
                                                                     if (!utilidades.isEmpty(arrayCodRetSUSSMonotributos) && arrayCodRetSUSSMonotributos.length > 0) {
-                                                                        var subListAcumuladosAux = obtenerAcumSinJurisdicciones(entity, id_posting_period, subsidiariaPago, arrayCodRetSUSSMonotributos); // alex
+                                                                        var subListAcumuladosAux = obtenerAcumSinJurisdicciones(entity, id_posting_period, subsidiariaPago, arrayCodRetSUSSMonotributos);
                                                                         if(subListAcumuladosAux.length != 0){
                                                                             subListAcumulados = subListAcumulados.concat(subListAcumuladosAux);
                                                                         }
@@ -1688,7 +1702,7 @@
                                                                                                                                                     
                                                         
                                                                             var resultMinNoImponible = paramRetenciones.filter(function (obj) {
-                                                                                return (obj.codigo == retencion_iva[i].codigo && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                                return ((respuestaRetenciones.esNoInscriptoIVA && obj.codigo == retencion_iva[i].codigo) || (obj.codigo == retencion_iva[i].codigo && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                                             });
                                                         
                                                                             log.debug('L54 - Calculo Retenciones', 'CALCULARETENCIONES - Retenciones IVA M - resultMinNoImponible: ' + JSON.stringify(resultMinNoImponible) + ' ** TIEMPO' + new Date());
@@ -1757,7 +1771,7 @@
                                                                             retencion_iva[i].imp_retenido_anterior = 0.0;
                                                         
                                                                             var resultMinNoImponible = paramRetenciones.filter(function (obj) {
-                                                                                return (obj.codigo == retencion_iva[i].codigo && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                                return ((respuestaRetenciones.esNoInscriptoIVA && obj.codigo == retencion_iva[i].codigo) || (obj.codigo == retencion_iva[i].codigo && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                                             });
                                                         
                                                                             log.debug('L54 - Calculo Retenciones', 'CALCULARETENCIONES - resultMinNoImponible: ' + JSON.stringify(resultMinNoImponible) + ' ** TIEMPO' + new Date());
@@ -1822,7 +1836,7 @@
                                                                                 retencion_iva[i].imp_retenido_anterior = 0.0;
                                                         
                                                                                 var resultMinNoImponible = paramRetenciones.filter(function (obj) {
-                                                                                    return (obj.codigo == retencion_iva[i].codigo && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                                    return ((respuestaRetenciones.esNoInscriptoIVA && obj.codigo == retencion_iva[i].codigo) || (obj.codigo == retencion_iva[i].codigo && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                                                 });
                                                         
                                                                                 log.debug('L54 - Calculo Retenciones', 'CALCULARETENCIONES - resultMinNoImponible: ' + JSON.stringify(resultMinNoImponible) + ' ** TIEMPO' + new Date());
@@ -2245,7 +2259,7 @@
                                                                         var objGanancias = new Object();
 
                                                                         var resultInfRetencion = paramRetenciones.filter(function (obj) {
-                                                                            return (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                            return ((respuestaRetenciones.esNoInscriptoGAN && obj.codigo == retencion_ganancias[i].codigo) || (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                                         });
 
                                                                         log.debug('L54 - Calculo Retenciones', 'CALCULARETENCIONES - resultInfRetencion: ' + JSON.stringify(resultInfRetencion) + ' ** TIEMPO' + new Date());
@@ -2266,7 +2280,7 @@
                                                                             objGanancias.tipo_ret = retencion_ganancias[i].codigo;
                                                                             objGanancias.jurisdiccion = '';
                                                                             //objGanancias.condicion = condicion_ganancias;
-                                                                            objGanancias.condicion = condicionesRetencion.codRetGAN;
+                                                                            objGanancias.condicion = respuestaRetenciones.esNoInscriptoIVA ? contribuyenteGAN : condicionesRetencion.codRetGAN;
                                                                             objGanancias.neto_bill = parseFloat(numberTruncTwoDec(parseFloat(importe_neto_factura_proveedor_a_pagar_total, 10) / parseFloat(tasa_cambio_pago, 10)), 10);
                                                                             objGanancias.base_calculo = parseFloat(numberTruncTwoDec(parseFloat(retencion_ganancias[i].base_calculo_retencion, 10) / parseFloat(tasa_cambio_pago, 10)), 10);
                                                                             objGanancias.base_calculo_imp = parseFloat(numberTruncTwoDec(parseFloat(retencion_ganancias[i].base_calculo_retencion_impresion, 10) / parseFloat(tasa_cambio_pago, 10)), 10);
@@ -2460,7 +2474,7 @@
                                                                         var objIVA = new Object();
 
                                                                         var resultInfRetencion = paramRetenciones.filter(function (obj) {
-                                                                            return (obj.codigo == retencion_iva[i].codigo && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                            return ((respuestaRetenciones.esNoInscriptoIVA && obj.codigo == retencion_iva[i].codigo) || (obj.codigo == retencion_iva[i].codigo && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                                         });
 
                                                                         log.debug('L54 - Calculo Retenciones', 'CALCULARETENCIONES - resultInfRetencion: ' + JSON.stringify(resultInfRetencion) + ' ** TIEMPO' + new Date());
@@ -3715,6 +3729,27 @@
                     objDatosImpositivos.calcularTI = searchResult[0].getValue({
                         name: resultSet.columns[35]
                     });
+                    objDatosImpositivos.contribuyenteIVANoInscrito = searchResult[0].getValue({
+                        name: resultSet.columns[36]
+                    });
+                    objDatosImpositivos.parametrizacionIVANoInscrito = searchResult[0].getValue({
+                        name: resultSet.columns[37]
+                    });
+                    objDatosImpositivos.nombreParamIVANoInscrito = searchResult[0].getText({
+                        name: resultSet.columns[37]
+                    });
+                    objDatosImpositivos.contribuyenteGANNoInscrito = searchResult[0].getText({
+                        name: resultSet.columns[38]
+                    }); 
+                    objDatosImpositivos.parametrizacionGANNoInscrito = searchResult[0].getValue({
+                        name: resultSet.columns[39]
+                    });
+                    objDatosImpositivos.nombreParamGANNoInscrito = searchResult[0].getText({
+                        name: resultSet.columns[39]
+                    });
+                    objDatosImpositivos.calcularSobreIVANoInscrito = searchResult[0].getValue({
+                        name: resultSet.columns[40]
+                    });
                     arrayDatosImpositivos.push(objDatosImpositivos);
                     // log.debug('L54 - Calculo Retenciones', 'RETURN - arrayDatosImpositivos: ' + JSON.stringify(arrayDatosImpositivos));
                     log.debug('FIN - consultaDatosImpositivos', JSON.stringify(arrayDatosImpositivos));
@@ -4215,6 +4250,10 @@
             proveedorInscripto.inscripto_regimen_suss = inscripto_regimen_suss;
             proveedorInscripto.inscripto_regimen_iva = inscripto_regimen_iva;
 
+            
+            proveedorInscripto.contribuyenteIVA = estadoRegimenIVA;
+            proveedorInscripto.contribuyenteGAN = estadoRegimenGan;
+
             log.debug('FIN - getProveedorInscriptoRegimen', 'RETURN - proveedorInscripto: ' + JSON.stringify(proveedorInscripto));
             return proveedorInscripto;
 
@@ -4323,6 +4362,9 @@
                     });
                     informacionCodigosVB[i].aplicaTotal = completeResultSet[i].getValue({
                         name: resultSearch.columns[14]
+                    });
+                    informacionCodigosVB[i].sobreIVA = completeResultSet[i].getValue({
+                        name: resultSearch.columns[15]
                     });
                 }
             }
@@ -5923,7 +5965,7 @@
         }
 
         //ABRITO 09/11/2018: Método que me devuelve por cada Jurisdiccion de IIBB los Codigos de Retencion a utilizar
-        function obtenerCodigosRetencionIIBB(id_proveedor, subsidiaria, objEstadosIIBB, idConfGeneral, importeNetoTotalFacturas, resultsNetosJurisdiccion, arrayJurisdiccionesEntregaUnificado, existeFacturaSinJurisdiccionEntrega, tipoContribuyenteIVA, importeBrutoFacturasProveedorNormal, jurisdiccionCordoba, importeBrutoFacturasAliados, importeBrutoTotalFacturas, paramNoAplicaProvincia,id_posting_period) {
+        function obtenerCodigosRetencionIIBB(id_proveedor, subsidiaria, objEstadosIIBB, idConfGeneral, importeNetoTotalFacturas, resultsNetosJurisdiccion, arrayJurisdiccionesEntregaUnificado, existeFacturaSinJurisdiccionEntrega, tipoContribuyenteIVA, importeBrutoFacturasProveedorNormal, jurisdiccionCordoba, importeBrutoFacturasAliados, importeBrutoTotalFacturas, paramNoAplicaProvincia,id_posting_period, ignorarTipoContribuyenteIVA) {
 
             let proceso = 'obtenerCodigosRetencionIIBB';
             var codigosRetencionIIBB = {};
@@ -6011,7 +6053,7 @@
                             if (buscarConfig) {
                                 infoConfigDetalle = arrayConfigDetalle.filter(function (obj) {
                                     return ((obj.jurisdiccionConfigDetalle == objEstadosIIBB.jurisdicciones[i].jurisdiccion) && (obj.tipoContribuyenteIIBB.split(',').indexOf(objEstadosIIBB.jurisdicciones[i].tipoContribuyente) >= 0) &&
-                                        (obj.jurisdiccionSede === objEstadosIIBB.jurisdicciones[i].jurisdiccionSede) && (obj.tipoContribuyenteIVA.split(',').indexOf(tipoContribuyenteIVA) >= 0) && 
+                                        (obj.jurisdiccionSede === objEstadosIIBB.jurisdicciones[i].jurisdiccionSede) && (ignorarTipoContribuyenteIVA || obj.tipoContribuyenteIVA.split(',').indexOf(tipoContribuyenteIVA) >= 0) && 
                                         (obj.critJurisdUtilizacion.split(',').indexOf(objEstadosIIBB.jurisdicciones[i].critJurisdUtilizacion) >= 0) && (obj.critJurisdEntrega.split(',').indexOf(objEstadosIIBB.jurisdicciones[i].critJurisdEntrega) >= 0) && 
                                         (obj.critJurisdOrigen.split(',').indexOf(objEstadosIIBB.jurisdicciones[i].critJurisdOrigen) >= 0) && (obj.critJurisdFacturacion.split(',').indexOf(objEstadosIIBB.jurisdicciones[i].critJurisdFacturacion) >= 0));
                                 });

@@ -1,0 +1,24 @@
+<scheduledscript scriptid="customscript_l54_inflation_asset_aut_ss">
+  <description></description>
+  <isinactive>F</isinactive>
+  <name>L54 - Inflación Activo Fijo Aut (SS)</name>
+  <notifyadmins>F</notifyadmins>
+  <notifyemails></notifyemails>
+  <notifyowner>T</notifyowner>
+  <scriptfile>[/SuiteScripts/L54 - Inflación Activo Fijo Automatico (SS).js]</scriptfile>
+  <scriptdeployments>
+    <scriptdeployment scriptid="customdeploy_l54_inflation_asset_aut_ss">
+      <isdeployed>T</isdeployed>
+      <loglevel>DEBUG</loglevel>
+      <status>NOTSCHEDULED</status>
+      <title>L54 - Inflación Activo Fijo Aut (SS)</title>
+      <recurrence>
+        <single>
+          <repeat></repeat>
+          <startdate>2025-07-21</startdate>
+          <starttime>17:00:00Z</starttime>
+        </single>
+      </recurrence>
+    </scriptdeployment>
+  </scriptdeployments>
+</scheduledscript>

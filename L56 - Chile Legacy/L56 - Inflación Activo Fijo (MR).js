@@ -1,9 +1,9 @@
 /**
  *@NApiVersion 2.1
  *@NScriptType MapReduceScript
- *@NAmdConfig /SuiteScripts/L54 - configuration.json
+ *@NAmdConfig /SuiteScripts/L56 - configuration.json
  */
-define(["N/record", "N/runtime", "N/email", "N/error", "LIB - Search", "L54/utilidades"],
+define(["N/record", "N/runtime", "N/email", "N/error", "LIB - Search", "L56/utilidades"],
 
     function (record, runtime, email, error, libSearch, utilities) {
 
@@ -24,9 +24,9 @@ define(["N/record", "N/runtime", "N/email", "N/error", "LIB - Search", "L54/util
                 let parameters = new Object();
                 let currScript = runtime.getCurrentScript();
 
-                parameters.subsidiary = currScript.getParameter({ name: "custscript_l54_inflation_asset_mr_sub"});
-                parameters.assetType = currScript.getParameter({ name: "custscript_l54_inflation_asset_mr_type"});
-                parameters.input = JSON.parse(currScript.getParameter({ name: "custscript_l54_inflation_asset_mr_input"}));
+                parameters.subsidiary = currScript.getParameter({ name: "custscript_l56_inflation_asset_mr_sub"});
+                parameters.assetType = currScript.getParameter({ name: "custscript_l56_inflation_asset_mr_type"});
+                parameters.input = JSON.parse(currScript.getParameter({ name: "custscript_l56_inflation_asset_mr_input"}));
                 parameters.assetType = parameters.assetType.split("\u0005")
 
                 log.audit(proceso, "Parámetros recibidos: " + JSON.stringify(parameters));
@@ -47,7 +47,7 @@ define(["N/record", "N/runtime", "N/email", "N/error", "LIB - Search", "L54/util
                 const filtros = buildFilters(parameters);
                 let filters = filtros.map(n => InitSearch.getFilter(n.name, n.join, n.operator, n.values, n.formula));
                 
-                const savedSearch = InitSearch.getSavedSearch("customsearch_l54_fam_altdepreciation", filters);
+                const savedSearch = InitSearch.getSavedSearch("customsearch_l56_fam_altdepreciation", filters);
                 
                 return savedSearch;
 
@@ -65,7 +65,7 @@ define(["N/record", "N/runtime", "N/email", "N/error", "LIB - Search", "L54/util
                     saveObjJournal = null,
                     saveObjAudit = null,
                     saveObjRecord = null,
-                    indexPeriods = input.indexPeriods,
+                    indexPeriods = input.rangePeriod,
                     indexCC = 1,
                     indexA = 1;
 
@@ -73,6 +73,9 @@ define(["N/record", "N/runtime", "N/email", "N/error", "LIB - Search", "L54/util
                 log.debug("result", JSON.stringify(result));
 
                 if (!utilities.isEmpty(result)){
+                    const indexes = getIndexes();
+
+                    log.debug("indexes", indexes);
                     let asset = result.values["custrecord_altdeprasset"];
                     let dateDepreciation = result.values["custrecord_altdeprstartdeprdate"];
 
@@ -83,39 +86,42 @@ define(["N/record", "N/runtime", "N/email", "N/error", "LIB - Search", "L54/util
                     let cumulativeDepreciation = result.values["custrecord_altdeprcd"];
                     let purchasedate = result.values["custrecord_assetpurchasedate.CUSTRECORD_ALTDEPRASSET"];
                     
-                    log.debug("indexPeriods[0].startdate", indexPeriods[0].startdate);
-                    log.debug("indexPeriods[0].startdate", dateDepreciation);
-                    log.debug("getComparePeriods(purchasedate,indexPeriods[0].startdate", getComparePeriods(purchasedate,indexPeriods[0].startdate, "<"));
+                    
                     if(getComparePeriods(purchasedate,indexPeriods[0].startdate, "<")){ // 01/01/2025 < 01/01/2025
-                        indexCC = parameters.input.index;
-                    }else{
+                        log.debug("Debio entrar aca", indexes[parameters.input.init + '_' + parameters.input.end])
+                        indexCC = indexes[parameters.input.init + '_' + parameters.input.end] ? indexes[parameters.input.init + '_' + parameters.input.end] : indexes['0_' + parameters.input.end];
+                    }else{                                                                                                                     
                          for (let i = 1; i < indexPeriods.length; i++) {
                             let prev = indexPeriods[i-1];
                             let current = indexPeriods[i]; // feb 2025
                             if(getComparePeriods(purchasedate,current.startdate, "<")){ // 01/01/2025 < 28/02/2025
-                                indexCC = parseFloat(parseFloat(indexPeriods[indexPeriods.length - 1].custrecord_l54_axi_indice_num, 10) / parseFloat(prev.custrecord_l54_axi_indice_num, 10), 10);
+                                indexCC = indexes[prev.internalid + '_' + indexPeriods[indexPeriods.length - 1].internalid] ? indexes[prev.internalid + '_' + indexPeriods[indexPeriods.length - 1].internalid] : indexes['0_' + indexPeriods[indexPeriods.length - 1].internalid];
                                 break;
                             }
                          }
                     }
 
                     if(getComparePeriods(dateDepreciation,indexPeriods[0].startdate, "<")){
-                        indexA = parameters.input.index;
+                        indexA = indexes[parameters.input.init + '_' + parameters.input.end] ? indexes[parameters.input.init + '_' + parameters.input.end] : indexes['0_' + parameters.input.end];
                     }else{
                         for (let i = 1; i < indexPeriods.length; i++) {
                             let prev = indexPeriods[i-1];
                             let current = indexPeriods[i];
                             if(!getComparePeriods(dateDepreciation,current.enddate, ">") && getComparePeriods(purchasedate,current.startdate, "<")){
-                                indexA = parseFloat(parseFloat(indexPeriods[indexPeriods.length - 1].custrecord_l54_axi_indice_num, 10) / parseFloat(prev.custrecord_l54_axi_indice_num, 10), 10);
+                                indexA = indexes[prev.internalid + '_' + indexPeriods[indexPeriods.length - 1].internalid] ? indexes[prev.internalid + '_' + indexPeriods[indexPeriods.length - 1].internalid] : indexes['0_' + indexPeriods[indexPeriods.length - 1].internalid];
                                 break;
                             }
                          }
                     }
                     log.debug("indices", indexCC + " ->> " + indexA);
+                    if (parseFloat(indexCC, 10) < 0 || parseFloat(indexA, 10) < 0) {
+                        // Saltar esta entrada, sin hacer nada
+                        return;
+                    }
                     //Cuentas
                     let assetAccount = result.values["custrecord_altdepr_assetaccount"];
                     let depreciationAccount = result.values["custrecord_altdepr_depraccount"];
-                    let auxiliarAccount = result.values["custrecord_l54_account_auxiliar"];
+                    let auxiliarAccount = result.values["custrecord_l56_account_auxiliar"];
 
                     let newCurrentCost = parseFloat(parseFloat(currentCost, 10) * parseFloat(indexCC, 10), 10);
                     let oldCurrentCost = parseFloat(parseFloat(currentCost, 10) * parseFloat(parseFloat(depreciationPeriod, 10) / parseFloat(assetLife, 10), 10), 10);
@@ -134,7 +140,7 @@ define(["N/record", "N/runtime", "N/email", "N/error", "LIB - Search", "L54/util
                     log.debug("Importes",newCurrentCost + " ->> " + oldCurrentCost + " ->> " + newCumulativeDepreciation + " ->> " + newBookValue + " ->> " + amortization  )
                     
                     /** Crear el Journal */
-                    if (parseFloat(amount, 10) != 0 || parseFloat(amortization, 10) != 0) {
+                    if ((!utilities.isEmpty(amount) && parseFloat(amount, 10) != 0) || (!utilities.isEmpty(amortization) && parseFloat(amortization, 10) != 0)) {
                         //SE CREA JOURNAL ENTRY
                         var objJournal = record.create({
                             type: record.Type.JOURNAL_ENTRY,
@@ -147,12 +153,12 @@ define(["N/record", "N/runtime", "N/email", "N/error", "LIB - Search", "L54/util
                         objJournal.setValue({ fieldId: "accountingbook", value: input.configuration[0].custrecord_l54_config_ajusinf_libajus }); 
                         objJournal.setValue({ fieldId: "approved", value: false });
                         objJournal.setValue({ fieldId: "memo", value: "Activo Fijo Asociado: " + asset.text });
-                        objJournal.setValue({ fieldId: "custbody_l54_altdepreciation", value: result.values["internalid"].value });
+                        objJournal.setValue({ fieldId: "custbody_l56_altdepreciation", value: result.values["internalid"].value });
                         
                         let dia  = indexPeriods[indexPeriods.length - 1].enddate.substring(0,2),
                             mes  = Number(indexPeriods[indexPeriods.length - 1].enddate.substring(3,5)) - 1,
                             anio = Number(indexPeriods[indexPeriods.length - 1].enddate.substring(6,10)),
-                            mesID = indexPeriods[indexPeriods.length - 1].custrecord_l54_axi_indice_mes;
+                            mesID = indexPeriods[indexPeriods.length - 1].internalid;
                         
                         if (!utilities.isEmpty(parameters.subsidiary)) {
                             objJournal.setValue({ fieldId: "subsidiary", value: parameters.subsidiary});
@@ -165,12 +171,14 @@ define(["N/record", "N/runtime", "N/email", "N/error", "LIB - Search", "L54/util
                         objJournal.setCurrentSublistValue({ sublistId: "line", fieldId: "memo", value: input.memo });
                         objJournal.setCurrentSublistValue({ sublistId: "line", fieldId: "account", value: assetAccount.value });
                         objJournal.setCurrentSublistValue({ sublistId: "line", fieldId: "debit", value: parseFloat(amount, 10) });
+                        addJournalLine(objJournal, input.mandatoryCamps)
                         objJournal.commitLine("line");
                         
                         objJournal.selectNewLine("line");
                         objJournal.setCurrentSublistValue({ sublistId: "line", fieldId: "memo", value: input.memo });
                         objJournal.setCurrentSublistValue({ sublistId: "line", fieldId: "account", value: auxiliarAccount.value });
                         objJournal.setCurrentSublistValue({ sublistId: "line", fieldId: "credit", value: parseFloat(amount, 10) });
+                        addJournalLine(objJournal, input.mandatoryCamps)
                         objJournal.commitLine("line");
                         
                         if (!utilities.isEmpty(dateDepreciation)){
@@ -178,12 +186,14 @@ define(["N/record", "N/runtime", "N/email", "N/error", "LIB - Search", "L54/util
                             objJournal.setCurrentSublistValue({ sublistId: "line", fieldId: "memo", value: input.memo });
                             objJournal.setCurrentSublistValue({ sublistId: "line", fieldId: "account", value: auxiliarAccount.value });
                             objJournal.setCurrentSublistValue({ sublistId: "line", fieldId: "debit", value: parseFloat(amortization, 10) });
+                            addJournalLine(objJournal, input.mandatoryCamps)
                             objJournal.commitLine("line");
                             
                             objJournal.selectNewLine("line");
                             objJournal.setCurrentSublistValue({ sublistId: "line", fieldId: "memo", value: input.memo });
                             objJournal.setCurrentSublistValue({ sublistId: "line", fieldId: "account", value: depreciationAccount.value });
                             objJournal.setCurrentSublistValue({ sublistId: "line", fieldId: "credit", value: parseFloat(amortization, 10) });
+                            addJournalLine(objJournal, input.mandatoryCamps)
                             objJournal.commitLine("line");
                         }
                         
@@ -215,34 +225,32 @@ define(["N/record", "N/runtime", "N/email", "N/error", "LIB - Search", "L54/util
                             if((!getComparePeriods(dateDepreciation,current.enddate, ">") && !utilities.isEmpty(dateDepreciation)) || (getComparePeriods(purchasedate,current.startdate, "<") && !utilities.isEmpty(purchasedate)) ){
                                 log.debug("prev", prev)
                                 log.debug("current", current)
-                                let indexCurrent = current.custrecord_l54_axi_indice_num;
-                                let periodCurrent = current.custrecord_l54_axi_indice_mes;
+                                let indexCurrent = current.internalid;
     
     
-                                var indexPrev = prev.custrecord_l54_axi_indice_num;
-                                var periodPrev = prev.custrecord_l54_axi_indice_mes;
+                                var indexPrev = prev.internalid;
                                 var valorPrev = (firstPeriod) ? currentCost : valorInicial;
-    
-                                let index = parseFloat(parseFloat(indexCurrent, 10) / parseFloat(indexPrev, 10), 10);
-    
+                                let index = indexes[indexPrev + '_' + indexCurrent] ? indexes[indexPrev + '_' + indexCurrent] : indexes['0_' + indexCurrent];
+                                index = Number(index) < 0 ? 1 : index;
+                                
                                 valorInicial = parseFloat(parseFloat(valorPrev, 10) * parseFloat(index, 10), 10);
                                 let ajuste = parseFloat(valorInicial, 10) - parseFloat(valorPrev, 10);
     
                                 var objAudit = record.create({
-                                    type: "customrecord_l54_audit_inflation",
+                                    type: "customrecord_l56_audit_inflation",
                                     isDynamic: true
                                 });
 
-                                objAudit.setValue({ fieldId: "custrecord_l54_audit_inflation_asset", value: asset.value });
-                                objAudit.setValue({ fieldId: "custrecord_l54_audit_inflation_date_ini", value: periodPrev });
-                                objAudit.setValue({ fieldId: "custrecord_l54_audit_inflation_date_end", value: periodCurrent });
-                                objAudit.setValue({ fieldId: "custrecord_l54_audit_inflation_index", value: index });
-                                objAudit.setValue({ fieldId: "custrecord_l54_audit_inflation_journal", value: saveObjJournal });
-                                objAudit.setValue({ fieldId: "custrecord_l54_audit_inflation_ca", value: currentCost });
-                                objAudit.setValue({ fieldId: "custrecord_l54_audit_inflation_nbv", value: bookValue });
-                                objAudit.setValue({ fieldId: "custrecord_l54_audit_inflation_va", value: valorInicial });
-                                objAudit.setValue({ fieldId: "custrecord_l54_audit_inflation_a", value: ajuste });
-                                objAudit.setValue({ fieldId: "custrecord_l54_audit_inflation_amort", value: amortizationValue });
+                                objAudit.setValue({ fieldId: "custrecord_l56_audit_inflation_asset", value: asset.value });
+                                objAudit.setValue({ fieldId: "custrecord_l56_audit_inflation_date_ini", value: indexPrev });
+                                objAudit.setValue({ fieldId: "custrecord_l56_audit_inflation_date_end", value: indexCurrent });
+                                objAudit.setValue({ fieldId: "custrecord_l56_audit_inflation_index", value: index });
+                                objAudit.setValue({ fieldId: "custrecord_l56_audit_inflation_journal", value: saveObjJournal });
+                                objAudit.setValue({ fieldId: "custrecord_l56_audit_inflation_ca", value: currentCost });
+                                objAudit.setValue({ fieldId: "custrecord_l56_audit_inflation_nbv", value: bookValue });
+                                objAudit.setValue({ fieldId: "custrecord_l56_audit_inflation_va", value: valorInicial });
+                                objAudit.setValue({ fieldId: "custrecord_l56_audit_inflation_a", value: ajuste });
+                                objAudit.setValue({ fieldId: "custrecord_l56_audit_inflation_amort", value: amortizationValue });
         
                                 try {
                                     saveObjAudit = objAudit.save();
@@ -426,25 +434,42 @@ define(["N/record", "N/runtime", "N/email", "N/error", "LIB - Search", "L54/util
             return filtros;
         };
 
-        // const getComparePeriods = (paramInit, paramDate) => {
-        //     let date1 = paramInit,
-        //     dia1  = date1.substring(0,2),
-        //     mes1  = Number(date1.substring(3,5)),
-        //     anio1 = Number(date1.substring(6,10)),
-        //     resultDate1 = new Date(anio1,mes1,dia1);
+        const addJournalLine = (objJournal, obligCampos) => {
+            obligCampos.forEach(({ fieldId, value }) => {
+                if (fieldId && value !== undefined) {
+                objJournal.setCurrentSublistValue({
+                    sublistId: "line",
+                    fieldId,
+                    value,
+                    ignoreFieldChange: true
+                });
+                }
+            });
 
-        //     let date2 = paramDate,
-        //     dia2  = date2.substring(0,2),
-        //     mes2  = Number(date2.substring(3,5)),
-        //     anio2 = Number(date2.substring(6,10)),
-        //     resulDate2 = new Date(anio2,mes2,dia2);
+        }
 
-        //     if(resultDate1 <= resulDate2){
-        //         return true;
-        //     }
+        const getIndexes = () => {
+            let jsonArrayResult = {};
+            let columns = ['custrecord_l56_axi_indice_per_adq', 'custrecord_l56_axi_indice_num']
+            
+            let array = InitSearch.getSearchCreated("customrecord_l56_axi_indice", null, columns);
+            log.debug("array", array.length)
 
-        //     return false;
-        // }
+            let jsonArray = array.flatMap(reg => {
+                try {
+                    return JSON.parse(reg.custrecord_l56_axi_indice_num);
+                } catch (e) {
+                    console.warn("Error al parsear JSON:", e);
+                    return [];
+                }
+            });
+            
+            jsonArray.forEach(item => {
+                jsonArrayResult[`${item.row}_${item.col}`] = item.value;
+            });
+            
+            return jsonArrayResult;
+        }
 
         const getComparePeriods = (date1, date2, operador) =>{
             let dia1  = date1.substring(0,2),
@@ -472,20 +497,12 @@ define(["N/record", "N/runtime", "N/email", "N/error", "LIB - Search", "L54/util
 
             return operator[operador](resultDate1, resulDate2);
         }
-        
-        function safeSave(recordObj, entityName) {
-            try {
-                return recordObj.save({ enableSourcing: false, ignoreMandatoryFields: true });
-            } catch (e) {
-                log.error(proceso, `ERROR GUARDANDO ${entityName}: ${e.message}`);
-                throw e;
-            }
-        }
 
+        
         return {
             getInputData: getInputData,
             map: map,
-            // reduce: reduce,
+            // // reduce: reduce,
             summarize: summarize
         }
     });

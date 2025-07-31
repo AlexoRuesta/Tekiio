@@ -1,12 +1,7 @@
-/**
- * @NApiVersion 2.1
-*/
-
-/**
- * Versión 1.0 23/06 Alexander R.
- */
-
-    define(["N/ui/serverWidget", "N/search", "N/format", "N/record", 'N/ui/message'], function (serverWidget, search, format, record, message) {
+    /**
+     *@NApiVersion 2.1
+    */
+     define(["N/ui/serverWidget", "N/search", "N/format", "N/record"], function (serverWidget, search, format, record) {
 
         class Constant {
             constructor() {
@@ -104,7 +99,6 @@
         class UserInterface {
             constructor() {
                 this.FORM = null;
-                this.MESSAGE = message;
                 this.FIELDS_NAME = this.getFormFieldsName();
                 this.FIELDS_ID = this.getFormFieldsId();
                 this.CONSTANT = new Constant();
@@ -120,14 +114,6 @@
 
             addSubmitButton = (name) => {
                 this.FORM.addSubmitButton(name);
-            }
-
-            addPageInitMessage = (pMessage, type, title = null, message2  = null, duration = null) => {
-                this.FORM.addPageInitMessage({
-                    message: pMessage,
-                    type: this.MESSAGE.Type[type],
-                    title:  title
-                });
             }
 
             addField = (id, type, label, container = null, source = null) => {

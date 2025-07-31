@@ -1,11 +1,11 @@
 /**
  *@NApiVersion 2.1
  *@NScriptType Suitelet
- *@NAmdConfig /SuiteScripts/L54 - configuration.json
+ *@NAmdConfig /SuiteScripts/L56 - configuration.json
  *@NModuleScope Public
 */
 
-define(["N/log", "N/url", "N/file", "N/encode", "N/runtime", "N/ui/serverWidget", "N/redirect", "N/task", "N/search", "LIB - Search", "LIB - Form", "L54/utilidades"], function (log, url, file, encode, runtime, serverWidget, redirect, task, search, libSearch, libForm, utilities) {
+define(["N/log", "N/url", "N/file", "N/encode", "N/runtime", "N/ui/serverWidget", "N/redirect", "N/task", "N/search", "LIB - Search", "LIB - Form", "L56/utilidades"], function (log, url, file, encode, runtime, serverWidget, redirect, task, search, libSearch, libForm, utilities) {
     
     let { InitSearch } = libSearch;
         InitSearch = new InitSearch();
@@ -34,7 +34,7 @@ define(["N/log", "N/url", "N/file", "N/encode", "N/runtime", "N/ui/serverWidget"
                 let nameReport = "Ajuste por Inflación a Activo Fijo";
 
                 userInterface.createForm(nameReport);
-                userInterface.setClientScript("./L54 - Inflación Activo Fijo (CL).js");
+                userInterface.setClientScript("./L56 - Inflación Activo Fijo (CL).js");
 
                 let conteinerID_1 = "custpage_group_filters";
                     userInterface.addFieldGroup(conteinerID_1, "Filtros");
@@ -43,14 +43,18 @@ define(["N/log", "N/url", "N/file", "N/encode", "N/runtime", "N/ui/serverWidget"
                 let subsidiary = userInterface.addField("custpage_subsidiary", serverWidget.FieldType.SELECT, "Subsidiaria: ", conteinerID_1, "subsidiary");
                 let dateInit = userInterface.addField("custpage_period_init", serverWidget.FieldType.SELECT, "Periodo Desde: ", conteinerID_1, "accountingperiod");
                 let dateEnd = userInterface.addField("custpage_period_end", serverWidget.FieldType.SELECT, "Periodo Hasta: ", conteinerID_1, "accountingperiod");
+                let origen = userInterface.addField("custpage_origen", serverWidget.FieldType.TEXT, "Origen: ", conteinerID_1, null);
                     
                 subsidiary.setMandatoryValue(true);
                 dateInit.setMandatoryValue(true);
                 dateEnd.setMandatoryValue(true);
 
+                origen.updateDisplayType(serverWidget.FieldDisplayType.HIDDEN);
+                origen.setDefaultValue("sl_principal");
+
                 var suiteletUrl = url.resolveScript({
-                    scriptId: "customscript_l54_inflation_asset_sl",
-                    deploymentId: "customdeploy_l54_inflation_asset_sl",
+                    scriptId: "customscript_l56_inflation_asset_sl",
+                    deploymentId: "customdeploy_l56_inflation_asset_sl",
                     params: { 
                         suitelet: 'excel'
                     }
@@ -66,32 +70,29 @@ define(["N/log", "N/url", "N/file", "N/encode", "N/runtime", "N/ui/serverWidget"
 
                 let rangePeriod = getRangePeriod(context.request.parameters)
                 log.debug("rangePeriod",JSON.stringify(rangePeriod));
-
-                let indexPeriods = getIndex(rangePeriod);
-                log.debug("indexPeriods",JSON.stringify(indexPeriods));
                 
-                // let requiredFields = getRequiredFields(context.request.parameters);
-                // log.debug("requiredFields",JSON.stringify(requiredFields));
+                let mandatoryCamps = utilities.getConfCamposObligatorios(context.request.parameters.custpage_subsidiary,1);
+                log.debug('mandatoryCamps',mandatoryCamps)
                 
-                let index = parseFloat(parseFloat(indexPeriods[indexPeriods.length - 1].custrecord_l54_axi_indice_num, 10) / parseFloat(indexPeriods[0].custrecord_l54_axi_indice_num, 10), 10);
-
-                // let customDate = new Date();
-                // let customDateParse = format.parse({ value: customDate, type: format.Type.DATE });
+                mandatoryCamps = !utilities.isEmpty(mandatoryCamps.campos) && mandatoryCamps.campos.length != 0 ? mandatoryCamps.campos : null;
+                
                 let user = runtime.getCurrentUser().id;
 
                 let jsonResult = {
                     configuration: objConfiguration,
-                    indexPeriods: indexPeriods,
+                    init: context.request.parameters.custpage_period_init,
+                    end: context.request.parameters.custpage_period_end,
                     //requiredFields: requiredFields,
-                    index: index,
+                    rangePeriod: rangePeriod,
+                    mandatoryCamps: mandatoryCamps,
                     user: user,
-                    memo: "Ajuste por Inflación de " + indexPeriods[1].periodname + " a " + indexPeriods[indexPeriods.length - 1].periodname
+                    memo: "Ajuste por Inflación de " + rangePeriod[1].periodname + " a " + rangePeriod[rangePeriod.length - 1].periodname
                 }
 
-                submitMapReduceTask(jsonResult, context.request.parameters,"customscript_l54_inflation_asset_mr", "customdeploy_l54_inflation_asset_mr");
+                submitMapReduceTask(jsonResult, context.request.parameters,"customscript_l56_inflation_asset_mr", "customdeploy_l56_inflation_asset_mr");
                 redirect.toSuitelet({
-                    scriptId: "customscript_l54_inflation_asset_sl",
-                    deploymentId: "customdeploy_l54_inflation_asset_sl",
+                    scriptId: "customscript_l56_inflation_asset_sl",
+                    deploymentId: "customdeploy_l56_inflation_asset_sl",
                     // parameters: {
                     //     "suitelet": null
                     // }
@@ -105,36 +106,32 @@ define(["N/log", "N/url", "N/file", "N/encode", "N/runtime", "N/ui/serverWidget"
     const report = () => {}
 
     report.excel = function (context){
-        let history = {};
         let objConfiguration = getConfiguration(context.request.parameters);
 
         const filtros = buildFilters(context.request.parameters, objConfiguration);
         let filters = filtros.map(n => InitSearch.getFilter(n.name, n.join, n.operator, n.values, n.formula));
                 
-        let savedSearch = InitSearch.getResultSearchObj("customsearch_l54_fam_altdepreciation", filters, 1);
+        let savedSearch = InitSearch.getResultSearchObj("customsearch_l56_fam_altdepreciation", filters, 1);
         log.debug("savedSearch", JSON.stringify(savedSearch));
         
-        if(!(Object.keys(savedSearch).length === 0)){
-            let rangePeriod = getRangePeriod(context.request.parameters)
-            log.debug("rangePeriod",JSON.stringify(rangePeriod));
+        let rangePeriod = getRangePeriod(context.request.parameters)
+        log.debug("rangePeriod",JSON.stringify(rangePeriod));
 
-            const periods = rangePeriod.map(period => period.internalid);
-            const claves = Object.keys(savedSearch);
+        const periods = rangePeriod.map(period => period.internalid);
+        const claves = Object.keys(savedSearch);
 
-            log.debug("periods", periods);
-            log.debug("claves", claves);
+        log.debug("periods", periods);
+        log.debug("claves", claves);
 
-            periods.pop();
+        periods.pop();
 
-            filters = [
-                InitSearch.getFilter("custrecord_l54_audit_inflation_asset", null, "ANYOF", claves, null),
-                InitSearch.getFilter("custrecord_l54_audit_inflation_date_ini", null, "ANYOF", periods, null)
-            ];
+        filters = [
+            InitSearch.getFilter("custrecord_l56_audit_inflation_asset", null, "ANYOF", claves, null),
+            InitSearch.getFilter("custrecord_l56_audit_inflation_date_ini", null, "ANYOF", periods, null)
+        ]
 
-            history = InitSearch.getResultSearchObj("customsearch_l54_audit_inflation", filters, 0);
-            log.debug("history", JSON.stringify(history));
-        }
-        
+        let history = InitSearch.getResultSearchObj("customsearch_l56_audit_inflation", filters, 0);
+        log.debug("history", JSON.stringify(history));
 
         let xmlString = printStyleExcel();
   
@@ -266,65 +263,6 @@ define(["N/log", "N/url", "N/file", "N/encode", "N/runtime", "N/ui/serverWidget"
         return array;
     }
 
-    const getIndex = (parameters) => {
-        let months = parameters.map(p => p.internalid);
-        let filters = [["isinactive", "is", "F"],
-                        "AND",
-                        ["custrecord_l54_axi_indice_mes", "anyof", months],
-                            
-                    ];
-
-        let columns = ["custrecord_l54_axi_indice_mes.periodname", 
-                        search.createColumn({
-                            name: "startdate",
-                            join: "custrecord_l54_axi_indice_mes",
-                            sort: search.Sort.ASC // Aquí defines el orden ascendente
-                        }),
-                        search.createColumn({
-                            name: "enddate",
-                            join: "custrecord_l54_axi_indice_mes",
-                        }),
-                        "custrecord_l54_axi_indice_mes", 
-                        "custrecord_l54_axi_indice_num"]
-        
-        let array = InitSearch.getSearchCreated("customrecord_l54_axi_indice", filters, columns)
-
-        return array;
-    }
-
-    const getRequiredFields = (parameters) => {
-        let filters = [["custrecord_tek_colc_parent.custrecord_tek_col_tipo_comprobante", "anyof", 1],
-                        "AND",
-                        ["custrecord_tek_colc_parent.custrecord_tek_col_subsidiaria", "anyof", parameters.custpage_subsidiary],
-                            
-                    ];
-
-        let columns = [
-            search.createColumn({
-                name: "custrecord_tek_colc_id_campo"
-              }),
-              search.createColumn({
-                name: "custrecord_tek_colc_valor"
-              }),
-              search.createColumn({
-                name: "custrecord_tek_col_tipo_llenado",
-                join: "custrecord_tek_colc_parent",
-              }),
-              search.createColumn({
-                name: "custrecord_tek_col_primer_valor_lista",
-                join: "custrecord_tek_colc_parent",
-              }),
-              search.createColumn({
-                name: "custrecord_tek_col_llenado_valor_defecto",
-                join: "custrecord_tek_colc_parent",
-              })
-        ];
-        
-        let array = InitSearch.getSearchCreated("customrecord_tek_conf_oblig_linea_fields", filters, columns)
-
-        return array;
-    }
-
     const buildFilters = (parameters, configuration) => {
         let filtros = [];
         if (!utilities.isEmpty(parameters.custpage_subsidiary)){
@@ -420,9 +358,9 @@ define(["N/log", "N/url", "N/file", "N/encode", "N/runtime", "N/ui/serverWidget"
 
     const submitMapReduceTask = (input, parameters, script, deploy) => {
         let params = {
-            custscript_l54_inflation_asset_mr_sub: parameters.custpage_subsidiary,
-            custscript_l54_inflation_asset_mr_type: parameters.custpage_asset_type,
-            custscript_l54_inflation_asset_mr_input: JSON.stringify(input)
+            custscript_l56_inflation_asset_mr_sub: parameters.custpage_subsidiary,
+            custscript_l56_inflation_asset_mr_type: parameters.custpage_asset_type,
+            custscript_l56_inflation_asset_mr_input: JSON.stringify(input)
         }
 
         log.debug("params:", JSON.stringify(params));

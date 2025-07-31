@@ -1758,6 +1758,16 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                     }
                 }
             }
+            //IVA TOTAL
+            let amountNeto = objRecord.getValue({
+                fieldId: "custbody_l54_importe_neto_a_abonar"
+            });
+
+            log.debug("amountNeto", amountNeto)
+            if(amountNeto < 0){
+                let messageAmount = "El monto de las retenciones es mayor al total a pagar."
+                throw messageAmount;
+            }
         }
 
         /**

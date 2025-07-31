@@ -682,6 +682,7 @@ define(["N/runtime", "L54/utilidades", "N/record", "N/file", "N/url", "N/email",
                                     params: {
                                         "custscript_3k_file_new": JSON.stringify(idFile),
                                         "custscript_3k_id_tipo_padron": idTipoPadron,
+                                        "custscript_3k_id_periodo": idPeriodo,
                                         "custscript_3k_padron_total": busquedaTotal,
                                         "custscript_3k_id_subsidiaria": idSubsidiary,
                                         "custscript_3k_id_user": idUser,
@@ -1048,11 +1049,11 @@ define(["N/runtime", "L54/utilidades", "N/record", "N/file", "N/url", "N/email",
                         }));
                     }
 
-                    var new_url = url.resolveScript({
-                        scriptId: "customscript_l54_busqueda_aux_cuit",
-                        deploymentId: "customdeploy_l54_busqueda_aux_cuit",
-                        returnExternalUrl: true
-                    });
+                    // var new_url = url.resolveScript({
+                    //     scriptId: "customscript_l54_busqueda_aux_cuit",
+                    //     deploymentId: "customdeploy_l54_busqueda_aux_cuit",
+                    //     returnExternalUrl: true
+                    // });
 
                     var completeResultSet = [];
                     var resultIndex = 0;
@@ -1072,10 +1073,22 @@ define(["N/runtime", "L54/utilidades", "N/record", "N/file", "N/url", "N/email",
                         parametros.contador = contador;
 
                         try {
-                            var respuestaAux = https.post({
-                                url: new_url,
-                                body: parametros
+                            // var respuestaAux = https.post({
+                            //     url: new_url,
+                            //     body: parametros
+                            // });
+
+                            let myRestletHeaders = new Array();
+                                myRestletHeaders['Accept'] = '*/*';
+                                myRestletHeaders['Content-Type'] = 'application/json';
+                            var respuestaAux = https.requestRestlet({
+                                scriptId: 'customscript_l54_busqueda_aux_cuit_rl',
+                                deploymentId: 'customdeploy_l54_busqueda_aux_cuit_rl',
+                                method: https.Method.POST,
+                                body: JSON.stringify(parametros),
+                                headers: myRestletHeaders,
                             });
+                            
                             if (!util.isEmpty(respuestaAux)) {
     
                                 var respuesta = JSON.parse(respuestaAux.body);
@@ -1094,7 +1107,7 @@ define(["N/runtime", "L54/utilidades", "N/record", "N/file", "N/url", "N/email",
                             resultIndex = resultIndex + resultStep;
                             contador++;
                         } catch (error) {
-                            log.error('obtenerCuitCatch', 'Detalle Excepcion / Error al consultar el suitelet de cuits: ' + JSON.stringify(errorSuiteletCuit));
+                            log.error('obtenerCuitCatch', 'Detalle Excepcion / Error al consultar el suitelet de cuits: ' + JSON.stringify(error));
                         }
 
                     } while (cantidadTotal > resultIndex)
