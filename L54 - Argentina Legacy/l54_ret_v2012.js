@@ -946,6 +946,9 @@ function anularRetenciones(tipoRetGan, tipoRetIva, tipoRetIibb, tipoRetSuss, tip
 		//El pago está anulado y tilde no marcado
 		alert('El pago está anulado a nivel de Netsuite. Por favor tildar el check RETENCIONES ANULADAS manualmente');
 		return false
+	}else if(!anuladoNS && anuladoRet){
+		alert('El pago está anulado. Actualice la pagina');
+		return false
 	}
 
 	if (confirm('El proceso de anulación de retenciones puede demorar unos segundos, desea continuar ?')) {
@@ -1469,6 +1472,7 @@ function anularRetenciones(tipoRetGan, tipoRetIva, tipoRetIibb, tipoRetSuss, tip
 			}
 		}
 	}
+	window.location.reload();
 	nlapiLogExecution('DEBUG', 'anularRetenciones()', 'CLOSE');	
 }
 

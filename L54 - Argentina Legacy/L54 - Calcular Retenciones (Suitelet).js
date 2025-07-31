@@ -518,6 +518,14 @@
                                                     log.debug("L54 - Calculo Retenciones", "LINE 593 - importe_total_factura_final: " + importe_total_factura_final);
                                                     // FIN --- Aplica sólo a la jurisdicción de córdoba
 
+                                                    var cantidadDecimalesImporteBrutoTotal = countDecimales(importe_bruto_factura_proveedor);
+                                                    var cantidadDecimalesImporteBrutoPagar = countDecimales(importe_bruto_factura_proveedor_a_pagar);
+                                                    // var cantidadDecimalesImporteBrutoFinal = cantidadDecimalesImporteBrutoPagar - cantidadDecimalesImporteBrutoTotal;
+                                                    var cantidadDecimalesImporteBrutoFinal = cantidadDecimalesImporteBrutoTotal - cantidadDecimalesImporteBrutoPagar;
+                                                    var importe_bruto_porcentaje = parseFloat(parseFloat((parseFloat(parseFloat(convertToInteger(parseFloat(importe_bruto_factura_proveedor_a_pagar, 10)) * 100, 10) / parseFloat(convertToInteger(parseFloat(importe_bruto_factura_proveedor, 10)), 10), 10) * parseFloat(Math.pow(10, cantidadDecimalesImporteBrutoFinal), 10)), 10), 10);
+                                                    importe_bruto_porcentaje = (isNaN(importe_bruto_porcentaje)) ? 0.00 : importe_bruto_porcentaje;
+                                                    importe_bruto_porcentaje = (parseFloat(countDecimales(importe_bruto_porcentaje), 10) >= 10) ? parseFloat(importe_bruto_porcentaje, 10).toFixedOK(2) : importe_bruto_porcentaje;
+
                                                     log.debug("L54 - Calculo Retenciones", "CALCULARETENCIONES - LINE 469 - importe_bruto_factura_proveedor_a_pagar antes de dividir por coeficiente: " + importe_bruto_factura_proveedor_a_pagar + " - coeficiente: " + coeficiente + " - coeficiente_iibb: " + coeficiente_iibb + " - ** TIEMPO" + new Date());
 
                                                     importe_neto_factura_proveedor_a_pagar = importe_bruto_factura_proveedor_a_pagar / coeficiente;
@@ -685,6 +693,37 @@
                                                                 var esRetManual = false;
                                                                 esRetManual = resultIVARetManual[0].esRetManual;
 
+                                                                /** Modificación IVA Importe Total */
+                                                                if(resultIVARetManual[0].aplicaTotal && importe_bruto_porcentaje != 100){
+                                                                    var flag = false;
+                                                                    if(resultsPagPasFact.length != 0){
+                                                                        let firstIVA = getInfoRetencionCalcAnteriores(entity, id_posting_period, resultIVARetManual[0].codigo, subsidiariaPago, esAnualizada, trandate, resultsPagPasFact);
+                                                                        flag = firstIVA.length === 0;
+                                                                    }else{
+                                                                        flag = true;
+                                                                    }
+                                                                    
+                                                                    if (!flag) {
+                                                                        continue; // Saltamos esta iteración si no se cumple la condición
+                                                                    }
+                                                                    if (flag) {
+                                                                    importe_neto_factura_proveedor_a_pagar = objCodigos.importeTotal / coeficiente;
+
+                                                                    if (parseFloat(countDecimales(importe_neto_factura_proveedor_a_pagar), 10) >= 10)
+                                                                        importe_neto_factura_proveedor_a_pagar = parseFloat(importe_neto_factura_proveedor_a_pagar, 10).toFixedOK(2);
+
+                                                                    importe_neto_factura_proveedor_a_pagar = parseFloat(parseFloat(importe_neto_factura_proveedor_a_pagar, 10) * parseFloat(tasa_cambio_pago, 10), 10);
+                                                                    if (parseFloat(countDecimales(importe_neto_factura_proveedor_a_pagar), 10) >= 10)
+                                                                        importe_neto_factura_proveedor_a_pagar = parseFloat(importe_neto_factura_proveedor_a_pagar, 10).toFixedOK(2);
+
+
+                                                                    porcentajePago = 1;
+                                                                    importeIVAPagoParcial = parseFloat(ivaAux, 10) * parseFloat(porcentajePago, 10);
+                                                                    importeIVAPagoParcial = parseFloat(parseFloat(importeIVAPagoParcial, 10) * parseFloat(tasa_cambio_pago, 10), 10);
+                                                                    log.debug(" Importes post", " importeIVAPagoParcial: " + importeIVAPagoParcial +  ", importe_neto_factura_proveedor_a_pagar: " + importe_neto_factura_proveedor_a_pagar)
+                                                                    } 
+                                                                    
+                                                                }
                                                                 // NUEVO ENERO 2016
                                                                 // LAS RETENCIONES DE IVA SE REALIZAN SOBRE EL MONTO TOTAL DE IVA Y NO SOBRE EL NETO DE LAS TRANSACCIONES
                                                                 // SI ES RETENCION DE IVA EN EL IMPORTE NETO SE ALMACENA EL IMPORTE DE IVA
@@ -3440,6 +3479,166 @@
 
             return respuesta;
         }
+        function getInfoRetencionCalcAnteriores(id_proveedor, id_periodo, codigo_retencion, subsidiaria, esAnualizada, fecha_pago, pagos) {
+
+            try {
+
+                log.debug('getInfoRetencionCalcAnteriores', 'INICIO - getInfoRetencionCalcAnteriores');
+                log.debug('getInfoRetencionCalcAnteriores', 'Parámetros - id_proveedor: ' + id_proveedor + ' - id_periodo: ' + id_periodo + ' - codigo_retencion: ' + JSON.stringify(codigo_retencion) + ' - subsidiaria: ' + subsidiaria + ' - esAnualizada: ' + esAnualizada + ' - fecha_pago: ' + fecha_pago);
+
+                var informacionRetencionesPasadas = [];
+                var filtros = [];
+                var filtro = {};
+
+                if (!utilidades.isEmpty(codigo_retencion) && codigo_retencion.length > 0) {
+
+                    //FILTRO PROVEEDOR
+                    if (!utilidades.isEmpty(id_proveedor)) {
+                        var filtro = {};
+                        filtro.name = 'custrecord_l54_ret_ref_proveedor';
+                        filtro.operator = 'IS';
+                        filtro.values = id_proveedor;
+                        filtros.push(filtro);
+                    }
+
+                    //FILTRO PERIODO DE ACUERDO A SI ES ANUALIZADO O NO.
+                    if (esAnualizada) {
+                        /* var trandateDate = format.parse({
+                            value: fecha_pago,
+                            type: format.Type.DATE,
+                            timezone: format.Timezone.AMERICA_BUENOS_AIRES // Montevideo - Uruguay
+                        }); */
+
+                        var trandateDate = fecha_pago;
+
+                        var dia = trandateDate.getDate();
+                        var mes = trandateDate.getMonth();
+                        var anio = trandateDate.getFullYear();
+                        var trandateDate = new Date(anio, mes, dia);
+
+                        // Busco los Pagos Anteriores de Monotributo de la Misma Moneda
+                        var fechaInicial = new Date(anio, mes, dia); // ver de poner la fecha actual o la fecha de la transacción
+                        fechaInicial.setDate(1);
+                        //fechaInicial.setMonth(fechaInicial.getMonth() - 11);
+                        fechaInicial.setMonth(0);
+
+                        var fechaFinal = new Date(anio, mes, dia);
+
+                        var fechaInicialAUX = format.format({
+                            value: fechaInicial,
+                            type: format.Type.DATE,
+                            timezone: format.Timezone.AMERICA_BUENOS_AIRES
+                        });
+
+                        var fechaFinalAUX = format.format({
+                            value: fechaFinal,
+                            type: format.Type.DATE,
+                            timezone: format.Timezone.AMERICA_BUENOS_AIRES
+                        });
+
+                        //FILTRO FECHA DESDE
+                        if (!utilidades.isEmpty(fechaInicialAUX)) {
+                            var filtro = {};
+                            filtro.name = 'custrecord_l54_ret_fecha';
+                            filtro.operator = 'ONORAFTER';
+                            filtro.values = fechaInicialAUX;
+                            filtros.push(filtro);
+                        }
+
+                        //FILTRO FECHA HASTA
+                        if (!utilidades.isEmpty(fechaFinalAUX)) {
+                            var filtro = {};
+                            filtro.name = 'custrecord_l54_ret_fecha';
+                            filtro.operator = 'ONORBEFORE';
+                            filtro.values = fechaFinalAUX;
+                            filtros.push(filtro);
+                        }
+                    } else {
+                        if (!utilidades.isEmpty(id_periodo)) {
+                            var filtro = {};
+                            filtro.name = 'custrecord_l54_ret_periodo';
+                            filtro.operator = 'IS';
+                            filtro.values = id_periodo;
+                            filtros.push(filtro);
+                        }
+                    }
+
+                    //FILTRO SUBSIDIARIA
+                    if (!utilidades.isEmpty(subsidiaria)) {
+                        var filtro = {};
+                        filtro.name = 'custrecord_l54_ret_subsidiaria';
+                        filtro.operator = 'IS';
+                        filtro.values = subsidiaria;
+                        filtros.push(filtro);
+                    }
+
+                    //FILTRO Pagos
+                    if (!utilidades.isEmpty(pagos) && pagos.length > 0) {
+                        var filtro = {};
+                        filtro.name = 'custrecord_l54_ret_ref_pago_prov';
+                        filtro.operator = 'ANYOF';
+                        filtro.values = pagos[0].pagosAsociados;
+                        filtros.push(filtro);
+                    }
+
+                    //FILTRO CODIGO RETENCION
+                    var filtro = {};
+                    filtro.name = 'custrecord_l54_ret_cod_retencion';
+                    filtro.operator = 'ANYOF';
+                    filtro.values = codigo_retencion;
+                    filtros.push(filtro);
+
+                    var objResultSet = utilidades.searchSavedPro('customsearch_l54_obtener_inf_ret_pasadas', filtros);
+
+                    if (objResultSet.error) {
+                        log.error('getInfoRetencionCalcAnteriores', 'Error Consultando searchSavedPro - getInfoRetencionCalcAnteriores - Error: ' + objResultSet.descripcion);
+                        return null;
+                    }
+
+                    var resultSet = objResultSet.objRsponseFunction.result;
+                    var resultSearch = objResultSet.objRsponseFunction.search;
+                    //log.debug(proceso, "SET: " + JSON.stringify(resultSet));
+                    //log.debug(proceso, "SEARCH: " + JSON.stringify(resultSearch));
+
+                    if ((!isEmpty(resultSet)) && (resultSet.length > 0)) {
+                        for (var i = 0; i < resultSet.length; i++) {
+
+                            informacionRetencionesPasadas[i] = {};
+
+                            informacionRetencionesPasadas[i].codigoRetencion = resultSet[i].getValue({
+                                name: resultSearch.columns[0]
+                            });//CODIGO RETENCION
+
+                            informacionRetencionesPasadas[i].referenciaProveedor = resultSet[i].getValue({
+                                name: resultSearch.columns[1]
+                            });//REFERENCIA PROVEEDOR
+
+                            informacionRetencionesPasadas[i].importe = parseFloat(resultSet[i].getValue({
+                                name: resultSearch.columns[2]
+                            }), 10);//BASE CÁLCULO
+
+                            informacionRetencionesPasadas[i].imp_retenido = parseFloat(resultSet[i].getValue({
+                                name: resultSearch.columns[3]
+                            }), 10);//IMPORTE RETENIDO
+
+                            informacionRetencionesPasadas[i].idRetenciones = resultSet[i].getValue({
+                                name: resultSearch.columns[4]
+                            });//ID RETENCIONES
+                        }
+                    } else {
+                        log.debug('getInfoRetencionCalcAnteriores', 'getInfoRetencionCalcAnteriores - No se encontró informacion de importe de pagos pasados para los parametros indicados');
+                    }
+                }
+
+                log.debug('getInfoRetencionCalcAnteriores', 'RETURN - informacionRetencionesPasadas: ' + JSON.stringify(informacionRetencionesPasadas));
+                log.debug('getInfoRetencionCalcAnteriores', 'FIN - getInfoRetencionCalcAnteriores');
+                return informacionRetencionesPasadas;
+
+            } catch (e) {
+                log.error('getInfoRetencionCalcAnteriores', 'Error - getInfoRetencionCalcAnteriores - Excepcion Error: ' + e.message);
+                return null;
+            }
+        }
 
         function obtenerRetenJurisdMens(entidad, periodo, subsidiaria, jurisdAcumuladas) {
 
@@ -3785,7 +3984,6 @@
                 validacion.error = true;
                 validacion.mensaje = "Debe seleccionar al menos una factura para poder calcular las retenciones. Verifique y vuelva a intentar.";
             }
-
             /** Mejora Transacciones Internas */
             if(informacionPago.facturas.length > 0 && !datosImpositivos[0].calcularTI){
                 for (let i = 0; i < informacionPago.facturas.length; i++) {
@@ -4599,6 +4797,9 @@
                     });
                     informacionCodigosVB[i].tipoContGAN = completeResultSet[i].getValue({
                         name: resultSearch.columns[13]
+                    });
+                    informacionCodigosVB[i].aplicaTotal = completeResultSet[i].getValue({
+                        name: resultSearch.columns[14]
                     });
                 }
             }
@@ -5656,6 +5857,10 @@
                         informacionPagoPasadosFacturaAcumulado[i].importe = parseFloat(completeResultSet[i].getValue({
                             name: resultSearch.columns[1]
                         }), 10);//IMPORTE BRUTO PAGADO
+
+                        informacionPagoPasadosFacturaAcumulado[i].pagosAsociados = (completeResultSet[i].getValue({
+                            name: resultSearch.columns[5]
+                        })).split(",");//Pagos asociados
                     }
                 }
                 else {
@@ -6007,7 +6212,8 @@
 
                     var periodo = completeResultSet[i].getValue({
                         name: resultSearch.columns[10]
-                    });//PERIODO
+                    });//ALICUOTA RETENCION ESPECIAL 
+                    //* JHB: Agregar columna al saved search
 
                     if (!isEmpty(codigoRetencionPadron))
                         arregloCodigosRetencionPadronIIBB[i].codigo = codigoRetencionPadron;

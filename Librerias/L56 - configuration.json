@@ -1,0 +1,8 @@
+{
+  "baseUrl": "/SuiteScripts",
+  "paths": {
+    "L56/utilidades": "L56 - Utilidades",
+    "LIB - Form": "LIB - Form",
+    "LIB - Search": "LIB - Search"
+  }
+}
