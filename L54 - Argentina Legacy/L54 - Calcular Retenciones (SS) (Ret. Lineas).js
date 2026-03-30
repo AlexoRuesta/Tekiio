@@ -1499,7 +1499,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                         var cantLinRet = objRecord.getLineCount({ sublistId: 'recmachcustrecord_l54_ret_ref_pago_prov' });
                         var paramFormaPago = runtime.getCurrentScript().getParameter({ name: "custscript_l54_calc_ret_ss_lineas_formpm" });
                         var formaPago= objRecord.getValue({ fieldId: "custbody_3k_forma_pago_local" });
-
+                    
                         var cuentaClearing = '';
                         
                         if (objDatosImpositivos[0].applyAccountClearing && paramFormaPago != formaPago && cantLinRet > 0) { // si se aplica clearing
@@ -1968,6 +1968,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                 }
             }
             //IVA TOTAL
+            var objRecord = scriptContext.newRecord;
             let amountNeto = objRecord.getValue({
                 fieldId: "custbody_l54_importe_neto_a_abonar"
             });
@@ -2110,7 +2111,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
 
                             //DEFINO IDENTIFICADORES PARA LAS CUENTAS CONTABLES
                             var id_account = recordT.getValue({ fieldId: "account" }); // cuenta contable original del pago
-                            const objDatosImpositivos = consultaDatosImpositivos(subsidiaria);
+                            var objDatosImpositivos = consultaDatosImpositivos(subsidiaria);
                             log.debug("L54 - Calcular Retenciones (SS)", "AFTERSUBMIT - PROCESAVENDORPAYMENT - DATOS IMPOSITIVOS INFO: " + JSON.stringify(objDatosImpositivos) + " - ES PAGOMASIVO?: " + esPagoMasivo + " - CODIGO_OP (NUM LOCALIZADO): " + codigo_op);
                             var id_ret_ganancias = objDatosImpositivos[0].idCCRetGAN; // cuenta contable ganancias
                             var id_ret_suss = objDatosImpositivos[0].idCCRetSUSS; // cuenta contable SUSS
@@ -2277,85 +2278,27 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                 log.error("Governance Monitoring flagClearing", "Memoria = " + script.getRemainingUsage());
                             }
 
-                            //SI TIENE RETENCIONES DE GANANCIAS
-                            if (parseFloat(monto_ret_ganancias, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_ganancias, 10))) {
-
-                                //INICIO - SE AGREGA LINEA DE RET GANANCIAS (CREDIT)
-                                record_journalentry.selectNewLine("line");
-                                if (!utilidades.isEmpty(department))
-                                    record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "department", value: department });
-
-                                if (!utilidades.isEmpty(location))
-                                    record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "location", value: location });
-
-                                if (!utilidades.isEmpty(clase))
-                                    record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "class", value: clase });
-
-                                record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "memo", value: codigo_op });
-                                record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "account", value: id_ret_ganancias });
-                                record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "credit", value: parseFloat(monto_ret_ganancias, 10) });
-                                record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "entity", value: entity });
-                                record_journalentry.commitLine("line");
-                                //FIN - SE AGREGA LINEA DE RET GANANCIAS (CREDIT)
-                            }
-
-                            //SI TIENE RETENCIONES DE SUSS
-                            if (parseFloat(monto_ret_suss, 10) != 0 && parseFloat(monto_ret_suss, 10) != "") {
-
-                                //INICIO - SE AGREGA LINEA DE RET SUSS (CREDIT)
-                                record_journalentry.selectNewLine("line");
-                                if (!utilidades.isEmpty(department))
-                                    record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "department", value: department });
-
-                                if (!utilidades.isEmpty(location))
-                                    record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "location", value: location });
-
-                                if (!utilidades.isEmpty(clase))
-                                    record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "class", value: clase });
-
-                                record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "memo", value: codigo_op });
-                                record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "account", value: id_ret_suss });
-                                record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "credit", value: parseFloat(monto_ret_suss, 10) });
-                                record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "entity", value: entity });
-                                record_journalentry.commitLine("line");
-                                //FIN - SE AGREGA LINEA DE RET SUSS (CREDIT)
-                            }
-
-                            //SI TIENE RETENCIONES DE IVA
-                            if (parseFloat(monto_ret_iva, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_iva, 10))) {
-                                //INICIO - SE AGREGA LINEA DE RET IVA (CREDIT)
-                                record_journalentry.selectNewLine("line");
-                                if (!utilidades.isEmpty(department))
-                                    record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "department", value: department });
-
-                                if (!utilidades.isEmpty(location))
-                                    record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "location", value: location });
-
-                                if (!utilidades.isEmpty(clase))
-                                    record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "class", value: clase });
-
-                                record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "memo", value: codigo_op });
-                                record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "account", value: id_ret_iva });
-                                record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "credit", value: parseFloat(monto_ret_iva, 10) });
-                                record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "entity", value: entity });
-                                record_journalentry.commitLine("line");
-                                //FIN - SE AGREGA LINEA DE RET IVA (CREDIT)
-                            }
-
-                            //SI TIENE RETENCIONES DE IIBB
-                            if ((parseFloat(monto_ret_iibb, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_iibb, 10))) || (parseFloat(monto_ret_muni, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_muni, 10)))  || (parseFloat(monto_ret_inym, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_inym, 10)))) {
+                            //SI TIENE RETENCIONES 
+                            if (parseFloat(monto_ret_total, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_total, 10))) {
                                 var importeIIBB;
                                 var jurisdiccionIIBB;
                                 var numLinesRetenciones = recordT.getLineCount({
                                     sublistId: "recmachcustrecord_l54_ret_ref_pago_prov"
                                 });
                                 /** Optimizando Codigo */
-
-                                var arrayCuenta = obtenerArraysCuentas(subsidiaria);
+                                var arrayCuenta = [];
+                                var retencionCuentas ={};
+                                 if ((parseFloat(monto_ret_iibb, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_iibb, 10))) || (parseFloat(monto_ret_muni, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_muni, 10)))  || (parseFloat(monto_ret_inym, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_inym, 10)))){
+                                    arrayCuenta = obtenerArraysCuentas(subsidiaria);
+                                 }
+                                 if ((parseFloat(monto_ret_iva, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_iva, 10))) || (parseFloat(monto_ret_ganancias, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_ganancias, 10)))  || (parseFloat(monto_ret_suss, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_suss, 10)))){
+                                    retencionCuentas = obtenerRetCuentas(subsidiaria,id_ret_iva,id_ret_suss, id_ret_ganancias);
+                                 }
                                 log.debug("L54 - Calcular Retenciones (SS)", "AFTERSUBMIT - PROCESAVENDORPAYMENT - NUMLINESRETENCIONES: " + numLinesRetenciones);
                                 for (var j = 0; !utilidades.isEmpty(numLinesRetenciones) && j < numLinesRetenciones; j++) {
                                     var tipoRetencion = recordT.getSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_tipo", line: j });
-                                    if (tipoRetencion == 3 || tipoRetencion == 5  || tipoRetencion == 6)//IIBB
+                                    //SI TIENE RETENCIONES DE IIBB || Municipal || INYM
+                                    if (tipoRetencion == 3 || tipoRetencion == 5  || tipoRetencion == 6)//IIBB || Municipal || INYM
                                     {
                                         jurisdiccionIIBB = recordT.getSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_jurisdiccion", line: j });
                                         importeIIBB = recordT.getSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_importe", line: j });
@@ -2387,6 +2330,24 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                         record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "memo", value: codigo_op });
                                         record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "account", value: cuentaIIBB });
                                         record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "credit", value: parseFloat(importeIIBB, 10) });
+                                        record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "entity", value: entity });
+                                        record_journalentry.commitLine("line");
+                                    }else if(tipoRetencion == 1 || tipoRetencion == 2  || tipoRetencion == 4){
+                                        importeRet = recordT.getSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_importe", line: j });
+                                        parametrizacionId = recordT.getSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_cod_retencion", line: j });
+                                        retencionCuenta = retencionCuentas[parametrizacionId]
+                                        record_journalentry.selectNewLine("line");
+                                        if (!utilidades.isEmpty(department))
+                                            record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "department", value: department });
+
+                                        if (!utilidades.isEmpty(location))
+                                            record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "location", value: location });
+
+                                        if (!utilidades.isEmpty(clase))
+                                            record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "class", value: clase });
+                                        record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "memo", value: codigo_op });
+                                        record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "account", value: retencionCuenta });
+                                        record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "credit", value: parseFloat(importeRet, 10) });
                                         record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "entity", value: entity });
                                         record_journalentry.commitLine("line");
                                     }
@@ -2621,12 +2582,12 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                                 arrayIdYnym.push(idRetencion);
                                             }
                                             else {
-                                            //SUSS
-                                            arrayIdSUSS.push(idRetencion);
+                                                //SUSS
+                                                arrayIdSUSS.push(idRetencion);
+                                            }
                                         }
                                     }
                                 }
-                            }
                             }
                             log.debug("L54 - Calcular Retenciones (SS)", "AFTERSUBMIT - PROCESAVENDORPAYMENT - ARRAYIDGAN: " + JSON.stringify(arrayIdGAN) + " - ARRAYIDIVA: " + JSON.stringify(arrayIdIVA) + " - ARRAYIDIIBB: " + JSON.stringify(arrayIdIIBB) + " - ARRAYIDMUNI: " + JSON.stringify(arrayIdMuni) + " - ARRAYIDSUSS: " + JSON.stringify(arrayIdSUSS));
 
@@ -2807,76 +2768,17 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                 record_journalentry.commitLine("line");
                             }
 
-                            //SI TIENE RETENCIONES DE GANANCIAS
-                            if (parseFloat(monto_ret_ganancias, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_ganancias, 10))) {
-                                //INICIO - SE AGREGA LINEA DE RET GANANCIAS (CREDIT)
-                                record_journalentry.selectNewLine("line");
-                                if (!utilidades.isEmpty(department))
-                                    record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "department", value: department });
-
-                                if (!utilidades.isEmpty(location))
-                                    record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "location", value: location });
-
-                                if (!utilidades.isEmpty(clase))
-                                    record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "class", value: clase });
-                                record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "memo", value: codigo_op });
-                                record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "account", value: id_ret_ganancias });
-                                record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "credit", value: parseFloat(monto_ret_ganancias, 10) });
-                                record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "entity", value: entity });
-                                record_journalentry.commitLine("line");
-                                //FIN - SE AGREGA LINEA DE RET GANANCIAS (CREDIT)
-                            }
-
-                            //SI TIENE RETENCIONES DE SUSS
-                            if (parseFloat(monto_ret_suss, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_suss, 10))) {
-                                //INICIO - SE AGREGA LINEA DE RET SUSS (CREDIT)
-                                record_journalentry.selectNewLine("line");
-                                if (!utilidades.isEmpty(department))
-                                    record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "department", value: department });
-
-                                if (!utilidades.isEmpty(location))
-                                    record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "location", value: location });
-
-                                if (!utilidades.isEmpty(clase))
-                                    record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "class", value: clase });
-
-                                record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "memo", value: codigo_op });
-                                record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "account", value: id_ret_suss });
-                                record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "credit", value: parseFloat(monto_ret_suss, 10) });
-                                record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "entity", value: entity });
-                                record_journalentry.commitLine("line");
-                                //FIN - SE AGREGA LINEA DE RET SUSS (CREDIT)
-                            }
-
-                            //SI TIENE RETENCIONES DE IVA
-                            if (parseFloat(monto_ret_iva, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_iva, 10))) {
-                                //INICIO - SE AGREGA LINEA DE RET IVA (CREDIT)
-                                record_journalentry.selectNewLine("line");
-                                if (!utilidades.isEmpty(department))
-                                    record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "department", value: department });
-
-                                if (!utilidades.isEmpty(location))
-                                    record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "location", value: location });
-
-                                if (!utilidades.isEmpty(clase))
-                                    record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "class", value: clase });
-
-                                record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "memo", value: codigo_op });
-                                record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "account", value: id_ret_iva });
-                                record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "credit", value: parseFloat(monto_ret_iva, 10) });
-                                record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "entity", value: entity });
-                                record_journalentry.commitLine("line");
-                                //FIN - SE AGREGA LINEA DE RET IVA (CREDIT)
-                            }
-
-                            //SI TIENE RETENCIONES DE IIBB
-                            if ((parseFloat(monto_ret_iibb, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_iibb, 10)))  || (parseFloat(monto_ret_muni, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_muni, 10))) || (parseFloat(monto_ret_inym, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_inym, 10)))){
+                            //SI TIENE RETENCIONES
+                            if (parseFloat(monto_ret_total, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_total, 10))) {
                                 var importeIIBB;
                                 var jurisdiccionIIBB;
                                 var numLinesRetenciones = recordT.getLineCount({
                                     sublistId: "recmachcustrecord_l54_ret_ref_pago_prov"
                                 });
-
+                                var retencionCuentas ={};
+                                if ((parseFloat(monto_ret_iva, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_iva, 10))) || (parseFloat(monto_ret_ganancias, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_ganancias, 10)))  || (parseFloat(monto_ret_suss, 10) != 0 && !utilidades.isEmpty(parseFloat(monto_ret_suss, 10)))){
+                                    retencionCuentas = obtenerRetCuentas(subsidiaria,id_ret_iva,id_ret_suss, id_ret_ganancias);
+                                }
                                 for (var j = 0; !utilidades.isEmpty(numLinesRetenciones) && j < numLinesRetenciones; j++) {
                                     var tipoRetencion = recordT.getSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_tipo", line: j });
                                     if (tipoRetencion == 3 || tipoRetencion == 5  || tipoRetencion == 6)//IIBB || Municipal || INYM
@@ -2898,6 +2800,24 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                         record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "memo", value: codigo_op });
                                         record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "account", value: cuentaIIBB });
                                         record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "credit", value: parseFloat(importeIIBB, 10) });
+                                        record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "entity", value: entity });
+                                        record_journalentry.commitLine("line");
+                                    }else if(tipoRetencion == 1 || tipoRetencion == 2  || tipoRetencion == 4){
+                                        importeRet = recordT.getSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_importe", line: j });
+                                        parametrizacionId = recordT.getSublistValue({ sublistId: "recmachcustrecord_l54_ret_ref_pago_prov", fieldId: "custrecord_l54_ret_cod_retencion", line: j });
+                                        retencionCuenta = retencionCuentas[parametrizacionId]
+                                        record_journalentry.selectNewLine("line");
+                                        if (!utilidades.isEmpty(department))
+                                            record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "department", value: department });
+
+                                        if (!utilidades.isEmpty(location))
+                                            record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "location", value: location });
+
+                                        if (!utilidades.isEmpty(clase))
+                                            record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "class", value: clase });
+                                        record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "memo", value: codigo_op });
+                                        record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "account", value: retencionCuenta });
+                                        record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "credit", value: parseFloat(importeRet, 10) });
                                         record_journalentry.setCurrentSublistValue({ sublistId: "line", fieldId: "entity", value: entity });
                                         record_journalentry.commitLine("line");
                                     }
@@ -4011,6 +3931,88 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
             log.debug("L54 - Calculo Retenciones", "RETURN - idCuenta:" + idCuenta);
             log.audit("L54 - Calculo Retenciones", "FIN - obtenerCuentaIIBB");
             return idCuenta;
+        }
+        function obtenerRetCuentas(subsidiaria,id_ret_iva,id_ret_suss, id_ret_ganancias){
+            try{
+                var retencionCuentas = {};
+                var retencionCuentasAux = {};
+                const DEFAULT_CUENTAS = {
+                    '1': id_ret_ganancias,
+                    '2': id_ret_iva,
+                    '4': id_ret_suss
+                };
+              
+                var filtros = [
+                    ["custrecord_l54_param_ret_tipo_ret", "anyof", ["1", "2", "4"]]
+                ];
+
+                if (subsidiaria) {
+                    filtros = [
+                        ["custrecord_l54_param_ret_subsidiaria", "anyof", subsidiaria],
+                        "AND"
+                    ].concat(filtros);
+                }
+                var saveSearch = search.create({
+                type: "customrecord_l54_param_ret",
+                filters: filtros,
+                columns:
+                [
+                    search.createColumn({name: "internalid", label: "ID interno"}),
+                    search.createColumn({name: "custrecord_l54_ret_cta_cuenta", join: 'custrecord_l54_ret_cta_param', label: "Cuenta de Retención"}),
+                    search.createColumn({name: "custrecord_l54_param_ret_tipo_ret", label: "Tipo de retención"}),
+                    search.createColumn({name: "custrecord_l54_ret_cta_subsid", join: 'custrecord_l54_ret_cta_param', label: "Subsidiaria Subrecord"}),
+                ]
+                });
+                var resultSearch = saveSearch.run();
+                var completeResultSet = null;
+                var resultIndex = 0;
+                var resultStep = 1000; // Number of records returned in one step (maximum is 1000)
+                var resultado; // temporary variable used to store the result set
+
+                do {
+                    // fetch one result set
+                    resultado = resultSearch.getRange({
+                        start: resultIndex,
+                        end: resultIndex + resultStep
+                    });
+
+                    if (!utilidades.isEmpty(resultado) && resultado.length > 0) {
+                        if (resultIndex == 0)
+                            completeResultSet = resultado;
+                        else
+                            completeResultSet = completeResultSet.concat(resultado);
+                    }
+                    //increase pointer
+                    resultIndex = resultIndex + resultStep;
+
+                    // once no records are returned we already got all of them
+                } while (!utilidades.isEmpty(resultado) && resultado.length > 0);
+                for(var i=0;i<completeResultSet.length;i++){
+                    var parametrizacionId = completeResultSet[i].getValue({ name: resultSearch.columns[0]});
+                    var retencionCuenta = completeResultSet[i].getValue({ name: resultSearch.columns[1]});
+                    var retencionTipo = completeResultSet[i].getValue({ name: resultSearch.columns[2]});
+                    var subsidiariaSub = completeResultSet[i].getValue({ name: resultSearch.columns[3]});
+
+                    //Inicializa si no existe
+                    if (!retencionCuentasAux[parametrizacionId]) {
+                        retencionCuentasAux[parametrizacionId] = {};
+                    }
+                    const current = retencionCuentasAux[parametrizacionId];
+                    if (!utilidades.isEmpty(retencionCuenta) && subsidiaria === subsidiariaSub && !current.acc) {
+                        current.acc = retencionCuenta;
+                    }
+                    current.default = DEFAULT_CUENTAS[retencionTipo];
+
+                }
+                for (const param in retencionCuentasAux) {
+                    retencionCuentas[param] = retencionCuentasAux[param].acc || retencionCuentasAux[param].default;
+                }
+                log.debug('return obtenerRetCuentas',JSON.stringify(retencionCuentas))
+                return retencionCuentas;
+            }catch(error){
+                log.error('obtenerRetCuentas',"Error:"+error.message)
+                return {}
+            }
         }
 
         function redondeo2decimales(numero) {

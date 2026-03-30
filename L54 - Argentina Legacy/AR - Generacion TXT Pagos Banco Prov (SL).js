@@ -1,5 +1,5 @@
 /**
- *@NApiVersion 2.x
+ *@NApiVersion 2.1
  *@NScriptType Suitelet
  *@NAmdConfig /SuiteScripts/configuration.json
  *@NModuleScope Public
@@ -351,6 +351,13 @@ define(['N/record', 'N/search', 'N/runtime', 'N/email', 'N/error', 'N/file', 'N/
                     displayType: serverWidget.FieldDisplayType.DISABLED
                 });
 
+                sublistPagos.addField({
+                    id: 'transferencia',
+                    label: 'id Transferencia',
+                    type: serverWidget.FieldType.TEXTAREA
+                }).updateDisplayType({
+                    displayType: serverWidget.FieldDisplayType.HIDDEN
+                });
 
                 sublistPagos.addMarkAllButtons();
 
@@ -402,6 +409,18 @@ define(['N/record', 'N/search', 'N/runtime', 'N/email', 'N/error', 'N/file', 'N/
                             var idBanco = context.request.parameters.custpage_bancocliente;
                             var infoPanel = consultarPanel(idSubsidiaria,idBanco);
                             log.debug(proceso, 'infoPanel: ' + JSON.stringify(infoPanel));
+
+                            if (!infoPanel || infoPanel.length === 0) {
+                                var fldError = form.addField({
+                                    id: 'custpage_error_msg',
+                                    type: serverWidget.FieldType.INLINEHTML,
+                                    label: ' '
+                                });
+                                fldError.defaultValue = '<div style="color:red;font-weight:bold;">No se encontraron datos configurados para la subsidiaria seleccionada y banco indicado. Revise el record AR - Banco Pago File - Panel Config.</div>';
+                                context.response.writePage(form);
+                                return;
+                            }
+
                             var pagos = busquedaPagos(mostrarIncluidos, idSubsidiaria, fechaDesdeConsulta, fechaHastaConsulta, cuentaBancaria, idMoneda, infoPanel);
 
                             var instCalculoRet = infoPanel[0].panelInstCalcRet;
@@ -508,13 +527,11 @@ define(['N/record', 'N/search', 'N/runtime', 'N/email', 'N/error', 'N/file', 'N/
                     filtroCuentaBancaria.values = cuentaBancaria;
                     filtrosPagos.push(filtroCuentaBancaria);
 
-                    if (!utilities.isEmpty(infoPanel) && infoPanel.length != 0 && !infoPanel[0].incluirPagosM) {
-                        var customFilter1 = new Object();
-                        customFilter1.name = 'custbody_3k_forma_pago_local';
-                        customFilter1.operator = 'NONEOF'
-                        customFilter1.values = '1';
-                        filtrosPagos.push(customFilter1);
-                    }
+                    var customFilter1 = new Object();
+                    customFilter1.name = 'custbody_3k_forma_pago_local';
+                    customFilter1.operator = 'NONEOF'
+                    customFilter1.values = '1';
+                    filtrosPagos.push(customFilter1);
                     
                     if (!utilities.isEmpty(infoPanel) && infoPanel.length != 0 && !infoPanel[0].incluirAnulados) {
                         var customFilter2 = new Object();
@@ -555,9 +572,26 @@ define(['N/record', 'N/search', 'N/runtime', 'N/email', 'N/error', 'N/file', 'N/
                         }
                     }
 
-                    log.debug('busquedaPagos', 'arrayPagos: ' + JSON.stringify(arrayPagos));
+                    if (!utilities.isEmpty(infoPanel) && infoPanel.length != 0 && infoPanel[0].incluirPagosM) {
+                        let arrTransferencias = getTransferencias(mostrarIncluidos, idSubsidiaria, fechaDesdeConsulta, fechaHastaConsulta, cuentaBancaria, idMoneda, infoPanel);
+                        log.debug("arrTransferencias", JSON.stringify(arrTransferencias))
+                        arrTransferencias.forEach(function (objPagos) {
+                            var linkRegistro = url.resolveRecord({
+                                recordType: 'vendorpayment',
+                                recordId: objPagos.pagoID,
+                                isEditMode: false
+                            });
+                            objPagos.pagoLink = esquema + host + linkRegistro;
+                        });
+                        arrayPagos = arrayPagos.concat(arrTransferencias);
+                    }
 
-                    respuesta.result = arrayPagos;
+                    let arrayPagosF = arrayPagos.sort((a, b) => 
+                                        a.pagoNroDoc.localeCompare(b.pagoNroDoc, 'es', { numeric: true })
+                                    );
+                    log.debug('busquedaPagos', 'arrayPagos: ' + JSON.stringify(arrayPagosF));
+
+                    respuesta.result = arrayPagosF;
                 } else {
                     respuesta.error = true;
                     respuesta.mensaje = "Debe indicar la Subsidiaria y la Moneda";
@@ -571,6 +605,103 @@ define(['N/record', 'N/search', 'N/runtime', 'N/email', 'N/error', 'N/file', 'N/
 
             log.audit('busquedaPagos', 'FIN Consulta Pagos');
             return respuesta;
+        }
+
+        function getTransferencias (mostrarIncluidos, idSubsidiaria, fechaDesdeConsulta, fechaHastaConsulta, cuentaBancaria, idMoneda, infoPanel) {
+            
+            let filters = [["custrecord_3k_cobranza_trn_payment_id.subsidiary", "is", idSubsidiaria],
+                        "AND",
+                        ["custrecord_3k_cobranza_trn_payment_id.currency", "is", idMoneda],
+                        "AND",
+                        ["custrecord_3k_cobranza_trn_payment_id.trandate", "ONORAFTER", fechaDesdeConsulta],
+                        "AND",
+                        ["custrecord_3k_cobranza_trn_payment_id.trandate", "ONORBEFORE", fechaHastaConsulta],
+                        "AND",
+                        ["custrecord_3k_cobranza_trn_payment_id.custbody_l54_excluir_gen_arc_bank_arg", "is", 'F'],
+                        "AND",
+                        ["custrecord_3k_cobranza_trn_account.custrecord_l54_cuenta_txt_pagos", "is", cuentaBancaria],
+                        "AND",
+                        ["custrecord_3k_cobranza_trn_payment_id.type","anyof","VendPymt"],
+                        "AND", 
+                        ["custrecord_3k_cobranza_trn_payment_id.mainline","is","T"]
+                    ];
+
+            if (!utilities.isEmpty(infoPanel) && infoPanel.length != 0 && !infoPanel[0].incluirAnulados) {
+                filters.push("AND");
+                filters.push(["custrecord_3k_cobranza_trn_payment_id.voided", "is", "F"]);
+            }
+
+            if (!mostrarIncluidos) {
+                filters.push("AND");
+                filters.push(["custrecord_3k_cobranza_trn_include", "is", "F"]);
+            }
+            let columns = [
+                { name: 'formulatext',formula:'NS_CONCAT({internalid})', summary: 'MAX', alias: 'idTransferencia' }, 
+                { name: 'internalid', join: 'custrecord_3k_cobranza_trn_payment_id', summary: 'MAX', alias: 'pagoID' },
+                { name: 'tranid', join: 'custrecord_3k_cobranza_trn_payment_id', summary: 'GROUP', alias: 'pagoNroDoc' },
+                { name: 'trandate', join: 'custrecord_3k_cobranza_trn_payment_id', summary: 'GROUP', alias: 'pagoFechaPago' },
+                { name: 'entity', join: 'custrecord_3k_cobranza_trn_payment_id', summary: 'GROUP', alias: 'pagoProveedor' },
+                { name: 'custrecord_3k_cobranza_trn_amount', summary: 'SUM', alias: 'pagoImporte' },
+                { name: 'custrecord_3k_cobranza_trn_currency', summary: 'GROUP', alias: 'pagoMoneda' },
+                { name: 'custrecord_3k_cobranza_trn_tc', summary: 'GROUP', alias: 'pagoTipoCambio'},
+                { name: 'custrecord_3k_cobranza_trn_include', summary: 'GROUP', alias: 'pagoIncluido' },
+                { name: 'formulanumeric', formula: "SUBSTR(NVL((ABS({custrecord_3k_cobranza_trn_payment_id.custbody_l54_importe_total_retencion})),0), 1,11)", summary: 'GROUP', alias: 'pagoRetenciones' },
+                { name: 'transactionnumber', join: 'custrecord_3k_cobranza_trn_payment_id', summary: 'GROUP', alias: 'nrotransaccion' }];
+            
+            let array = getSearchCreated("customrecord_3k_cobranza_transferencias", filters, columns)
+
+            return array;
+        }
+
+        function getSearchCreated(type, filters = [], columns = []) {
+            const arrResult = [];
+            try {
+                // Crear la búsqueda personalizada
+                const customSearch = search.create({
+                    type,
+                    filters,
+                    columns: columns.map(c =>
+                        typeof c === 'object'
+                            ? search.createColumn(c)
+                            : search.createColumn({ 
+                                name: c,
+                                // Aplicar ordenamiento si está especificado
+                                sort: c.sort ? search.Sort[c.sort] : undefined 
+                            })
+                    )
+                });
+
+                // Ejecutar la búsqueda y procesar cada resultado
+                customSearch.run().each(result => {
+                    const row = {};
+                    columns.forEach((c, i) => {
+                        // Determinar el nombre de la columna (alias o nombre original)
+                        const name = typeof c === 'object' && c.alias ? c.alias : c.name || c;
+                        
+                        // Crear objeto de columna para getValue/getText
+                        const colObj = {
+                            name: c.name || c,
+                            join: c.join,
+                            summary: c.summary,
+                            formula: c.formula
+                        };
+
+                        // Decidir si usar getValue (valor interno) o getText (texto mostrable)
+                        if (typeof c === 'object' && c.asText) {
+                            row[name || `col_${i}`] = result.getText(colObj);
+                        } else {
+                            row[name || `col_${i}`] = result.getValue(colObj);
+                        }
+                    });
+                    arrResult.push(row);
+                    return true; // Continuar con el siguiente resultado
+                });
+                return arrResult;
+
+            } catch (e) {
+                log.error('getSearchCreated ERROR', e);
+                throw new Error(`Error in getSearchCreated: ${e.message}`);
+            }
         }
 
         function listarPagos(sublistPagos, pagos, mostrarIncluidos, instCalculoRet, aux) {
@@ -699,6 +830,14 @@ define(['N/record', 'N/search', 'N/runtime', 'N/email', 'N/error', 'N/file', 'N/
                                 });
                             }
 
+                            if (!utilities.isEmpty(pagos[i].idTransferencia)) {
+                                sublistPagos.setSublistValue({
+                                    id: 'transferencia',
+                                    line: numLinea,
+                                    value: pagos[i].idTransferencia
+                                });
+                            }
+
                             if (!utilities.isEmpty(pagos[i].pagoNroDoc) && !utilities.isEmpty(pagos[i].pagoLink)) {
 
                                 var valor = '<a href="' + pagos[i].pagoLink + '"> ' + pagos[i].pagoNroDoc + ' </a>';
@@ -770,16 +909,21 @@ define(['N/record', 'N/search', 'N/runtime', 'N/email', 'N/error', 'N/file', 'N/
                     if (!utilities.isEmpty(sublistaPagos) && sublistaPagos.length > 0 && !respuesta.error) {
 
                         var pagosPorProcesar = [];
+                        var transferencias = [];
 
                         for (var i = 0; respuesta.error == false && i < sublistaPagos.length; i++) {
                             if (!utilities.isEmpty(sublistaPagos[i])) {
                                 var columnas = sublistaPagos[i].split(delimiterCampos);
-
                                 if (!utilities.isEmpty(columnas)) {
                                     if (columnas[0] == 'T') { //CheckBox Procesar
                                         if (!utilities.isEmpty(columnas[1])) {
                                             var idPago = parseInt(columnas[1]);
                                             pagosPorProcesar.push(idPago);
+                                            
+                                            var idTransferencia =columnas[11];
+                                            log.debug("idTransferencia", idTransferencia)
+                                            idTransferencia = idTransferencia.split(",")
+                                            transferencias = transferencias.concat(idTransferencia);
                                         }
                                     }
                                 }
@@ -787,10 +931,10 @@ define(['N/record', 'N/search', 'N/runtime', 'N/email', 'N/error', 'N/file', 'N/
                         }
 
                         var idUsuario = runtime.getCurrentUser().id;
-
+                        log.debug("idTransferencia", idTransferencia)
                         if (pagosPorProcesar.length > 0 && !respuesta.error) {
                             //var idScriptMapRed = "";
-                            var objScriptMR = encontrarScriptMP(JSON.stringify(pagosPorProcesar), idUsuario, idSubsidiaria, fechaCabecera, datoBancario, moneda, bancoCliente);
+                            var objScriptMR = encontrarScriptMP(JSON.stringify(pagosPorProcesar), idUsuario, idSubsidiaria, fechaCabecera, datoBancario, moneda, bancoCliente, JSON.stringify(transferencias));
                             
                             if(!utilities.isEmpty(objScriptMR)){
                                 //var objParametros = {};
@@ -829,7 +973,7 @@ define(['N/record', 'N/search', 'N/runtime', 'N/email', 'N/error', 'N/file', 'N/
             return respuesta;
         }
 
-        function encontrarScriptMP(pagosPorProcesar, idUsuario, idSubsidiaria, fechaCabecera, datoBancario, moneda, bancoCliente){
+        function encontrarScriptMP(pagosPorProcesar, idUsuario, idSubsidiaria, fechaCabecera, datoBancario, moneda, bancoCliente, TransferenciasPorProcesar){
             var objScriptMP = new Object();
             var objParametros = {};
             var currScript = runtime.getCurrentScript();
@@ -840,6 +984,7 @@ define(['N/record', 'N/search', 'N/runtime', 'N/email', 'N/error', 'N/file', 'N/
                 log.debug("seleccionarIdMapRed","Banco Galicia Selecionado");
                 objScriptMP.idScriptMapRed = 'customscript_l54_txt_galicia_mr';
                 objParametros.custscript_l54_txt_galicia_mr_pagos = pagosPorProcesar;
+                objParametros.custscript_l54_txt_galicia_mr_trans = TransferenciasPorProcesar;
                 objParametros.custscript_l54_txt_galicia_mr_userd = idUsuario;
                 objParametros.custscript_l54_txt_galicia_mr_subs = idSubsidiaria;
                 objParametros.custscript_l54_txt_galicia_mr_fecha = fechaCabecera;
@@ -855,6 +1000,7 @@ define(['N/record', 'N/search', 'N/runtime', 'N/email', 'N/error', 'N/file', 'N/
                 });
                 objScriptMP.idScriptMapRed = 'customscript_l54_txt_industrial_mr';
                 objParametros.custscript_l54_txt_industrial_mr_pagos = pagosPorProcesar;
+                objParametros.custscript_l54_txt_industrial_mr_trans = TransferenciasPorProcesar;
                 objParametros.custscript_l54_txt_industrial_mr_userd = idUsuario;
                 objParametros.custscript_l54_txt_industrial_mr_subs = idSubsidiaria;
                 objParametros.custscript_l54_txt_industrial_mr_fecha = fechaCabecera;
@@ -921,20 +1067,20 @@ define(['N/record', 'N/search', 'N/runtime', 'N/email', 'N/error', 'N/file', 'N/
                 log.debug(proceso, 'panelConfigResultSet.length: ' + panelConfigResultSet.length);
                 log.debug(proceso, 'panelConfigResultSet ' + JSON.stringify(panelConfigResultSet));
 
-                if (panelConfigResultSet.length == 1) {
-                    for (var k = 0; k < panelConfigResultSet.length; k++) {
-                        var objPanel = {};
-                        objPanel.panelNroSecuencia = panelConfigResultSet[k].getValue({ name: panelConfigResultSearch.columns[9] });
-                        objPanel.panelInstCalcRet = panelConfigResultSet[k].getValue({ name: panelConfigResultSearch.columns[10] });
-                        objPanel.incluirAnulados = panelConfigResultSet[k].getValue({ name: panelConfigResultSearch.columns[13] });
-                        objPanel.incluirPagosM = panelConfigResultSet[k].getValue({ name: panelConfigResultSearch.columns[14] });
-                        arrayPanel.push(objPanel);
-                    }
+                
+                for (var k = 0; k < panelConfigResultSet.length; k++) {
+                    var objPanel = {};
+                    objPanel.panelNroSecuencia = panelConfigResultSet[k].getValue({ name: panelConfigResultSearch.columns[9] });
+                    objPanel.panelInstCalcRet = panelConfigResultSet[k].getValue({ name: panelConfigResultSearch.columns[10] });
+                    objPanel.incluirAnulados = panelConfigResultSet[k].getValue({ name: panelConfigResultSearch.columns[13] });
+                    objPanel.incluirPagosM = panelConfigResultSet[k].getValue({ name: panelConfigResultSearch.columns[14] });
+                    arrayPanel.push(objPanel);
                 }
-            }
+            
             //Fin - Consulta "AR - Banco Galicia File - Panel Config.
             return arrayPanel;
         }
+    }
 
         return {
             onRequest: onRequest

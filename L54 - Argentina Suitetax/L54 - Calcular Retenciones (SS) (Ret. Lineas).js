@@ -4,9 +4,9 @@
  * @NScriptType UserEventScript
  * @NModuleScope Public
  */
-define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/serverWidget", "N/file", "N/url", "N/https", "N/runtime", "N/config"],
+define(["N/record", "N/search", "N/format", "L54/utilidades", "N/ui/serverWidget", "N/file", "N/url", "N/https", "N/runtime", "N/config"],
     /* global define log */
-    function (record, error, search, format, utilidades, serverWidget, file, url, https, runtime, config) {
+    function (record, search, format, utilidades, serverWidget, file, url, https, runtime, config) {
         // debe estar primero, para que se ejecute, y genere la funcion que retorna y es utilizada
         const normalize = (function () {
             const from = "ÃÀÁÄÂÈÉËÊÌÍÏÎÒÓÖÔÙÚÜÛãàáäâèéëêìíïîòóöôùúüûÑñÇç°º",
@@ -345,7 +345,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                     var formVendorPayment = scriptContext.form;
                     const objRecord = scriptContext.newRecord;
                     const recId = objRecord.id;
-                    const recType = objRecord.type;
+                    
                     let arrayRetenciones = new Array();
                     arrayRetenciones = loadRetenciones(recId);
 
@@ -633,10 +633,10 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
 
                 if (scriptContext.type == "create") {
                     var objRecord = scriptContext.newRecord;
-                    const recId = objRecord.id;
+                    
                     let calRetAutomaticamente = false;
                     //TIPO DE TRANSACCION STRING
-                    const tipoTransStr = objRecord.type;
+                    
                     let subsidiaria = null;
                     const esOneWorld = utilidades.l54esOneworld();
 
@@ -1692,7 +1692,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                     log.debug("L54 - Calcular Retenciones (SS)", "BEFORESUBMIT DELETE - JOURNALENTRY ASOCIADO: " + jeAsociado);
                     if (!utilidades.isEmpty(jeAsociado)) {
                         try {
-                            const jeDelete = record.delete({
+                            record.delete({
                                 type: record.Type.JOURNAL_ENTRY,
                                 id: jeAsociado
                             });
@@ -1732,7 +1732,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                 recordRetencion.setValue({ fieldId: "custrecord_l54_ret_eliminado", value: true });
                                 recordRetencion.setValue({ fieldId: "custrecord_l54_ret_ref_pago_eliminado", value: nombrePagoProveedor });
 
-                                var idRR = recordRetencion.save({
+                              recordRetencion.save({
                                     enableSourcing: true,
                                     ignoreMandatoryFields: false
                                 });
@@ -1968,6 +1968,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                 }
             }
             //IVA TOTAL
+            var objRecord = scriptContext.newRecord;
             let amountNeto = objRecord.getValue({
                 fieldId: "custbody_l54_importe_neto_a_abonar"
             });
@@ -2089,8 +2090,8 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                 isDynamic: true,
                             });
 
-                            const recVoided = recordT.getValue({ fieldId: "voided" });
-                            const recStatus = recordT.getValue({ fieldId: "status" });
+                         
+                           
                             var codigo_op = recordT.getValue({ fieldId: "custbody_l54_numero_localizado" });
                             var entity = recordT.getValue({ fieldId: "entity" });
                             var trandate = recordT.getValue({ fieldId: "trandate" });
@@ -2110,15 +2111,15 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
 
                             //DEFINO IDENTIFICADORES PARA LAS CUENTAS CONTABLES
                             var id_account = recordT.getValue({ fieldId: "account" }); // cuenta contable original del pago
-                            const objDatosImpositivos = consultaDatosImpositivos(subsidiaria);
+                            var objDatosImpositivos = consultaDatosImpositivos(subsidiaria);
                             log.debug("L54 - Calcular Retenciones (SS)", "AFTERSUBMIT - PROCESAVENDORPAYMENT - DATOS IMPOSITIVOS INFO: " + JSON.stringify(objDatosImpositivos) + " - ES PAGOMASIVO?: " + esPagoMasivo + " - CODIGO_OP (NUM LOCALIZADO): " + codigo_op);
                             var id_ret_ganancias = objDatosImpositivos[0].idCCRetGAN; // cuenta contable ganancias
                             var id_ret_suss = objDatosImpositivos[0].idCCRetSUSS; // cuenta contable SUSS
                             var id_ret_iva = objDatosImpositivos[0].idCCRetIVA; // cuenta contable IVA
-                            const idsRetGanancia = recordT.getValue({ fieldId: "custbody_l54_id_ret_ganancias" });
-                            const idsRetIVA = recordT.getValue({ fieldId: "custbody_l54_id_ret_iva" });
-                            const idsRetIIBB = recordT.getValue({ fieldId: "custbody_l54_id_ret_iibb" });
-                            const idsRetSUSS = recordT.getValue({ fieldId: "custbody_l54_id_ret_suss" });
+          
+              
+                      
+                            
                             cal_ret_auto = objDatosImpositivos[0].calRetAutomaticamente;
                             idFolderRetencion = objDatosImpositivos[0].folderIdRetenciones;
                             registroCargado = true;
@@ -2126,7 +2127,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
 
                             /** Modificación 16-01 Clearing Account */
                             var ctaBancoAuxiliar = recordT.getValue('custbody_l54_cuenta_banco');
-                            var currency = recordT.getValue({ fieldId: "currency" });
+                            
                             var paramFormaPago = runtime.getCurrentScript().getParameter({ name: "custscript_l54_calc_ret_ss_lineas_formpm" });
                             var formaPago= recordT.getValue({ fieldId: "custbody_3k_forma_pago_local" });
                             var cantLinRet = recordT.getLineCount({ sublistId: 'recmachcustrecord_l54_ret_ref_pago_prov' });
@@ -2924,11 +2925,11 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                                     folder: idFolderRetencion
                                 });
 
-                                let subsidiariaPDF = null;
-                                const esOneWorldPDF = utilidades.l54esOneworld();
-                                if (esOneWorldPDF) {
-                                    subsidiariaPDF = recordT.getValue({ fieldId: "subsidiary" });
-                                }
+                                // let subsidiariaPDF = null;
+                                // const esOneWorldPDF = utilidades.l54esOneworld();
+                                // if (esOneWorldPDF) {
+                                //     subsidiariaPDF = recordT.getValue({ fieldId: "subsidiary" });
+                                // }
 
                                 var idFile = archivo.save();
 
@@ -2946,7 +2947,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                             //SI SE CANCELARON TODAS LAS RETENCIONES , BORRO EL DIARIO O DEBERIA PONER LOS IMPORTES EN 0
                             if (!utilidades.isEmpty(idJournalPagoProveedor)) {
                                 try {
-                                    const deleteJE = record.delete({
+                                    record.delete({
                                         type: record.Type.JOURNAL_ENTRY,
                                         id: idJournalPagoProveedor,
                                     });
@@ -3035,7 +3036,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                     values: cuentaBanco
                 });
               
-                var ssDatosImp = search.create({
+                search.create({
                     type: 'customrecord_l54_panel_config_ctas_cl',
                     filters: filtros,
                     columns: ['custrecord_l54_config_ctas_cl_debito']
@@ -3534,7 +3535,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
             if (!utilidades.isEmpty(tipoTransId) && !utilidades.isEmpty(boca) && !utilidades.isEmpty(letra)) {
 
                 let numeradorElectronico = false;
-                let tipoMiddleware = 1;
+               
                 let tipoTransaccionAFIP = "";
                 var idInternoNumerador = "";
 
@@ -3620,7 +3621,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                         var numeradorLong = completeResultSet[0].getValue({ name: resultSearch.columns[3] });
                         var numeradorPrefijo = completeResultSet[0].getValue({ name: resultSearch.columns[4] });
                         numeradorElectronico = completeResultSet[0].getValue({ name: resultSearch.columns[5] });
-                        tipoMiddleware = completeResultSet[0].getValue({ name: resultSearch.columns[6] });
+                        // tipoMiddleware = completeResultSet[0].getValue({ name: resultSearch.columns[6] });
                         tipoTransaccionAFIP = completeResultSet[0].getValue({ name: resultSearch.columns[7] });
                         idInternoNumerador = completeResultSet[0].getValue({ name: resultSearch.columns[8] });
                         var recId = completeResultSet[0].getValue({ name: resultSearch.columns[8] });
@@ -4061,7 +4062,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
         function getBocaPreferidaParaTrans(tipoTransId, subsidiaria, categoriaNumerador) {
             log.audit("L54 - Calculo Retenciones", "INICIO - getBocaPreferidaParaTrans");
             log.debug("L54 - Calculo Retenciones", "Parámetros - tipoTransId: " + tipoTransId + "- subsidiaria: " + subsidiaria + " - categoriaNumerador: " + categoriaNumerador);
-            const i = 0;
+            
 
             if (utilidades.isEmpty(tipoTransId))
                 return 1;
@@ -4198,8 +4199,7 @@ define(["N/record", "N/error", "N/search", "N/format", "L54/utilidades", "N/ui/s
                 ce,
                 de,
                 un,
-                hlp,
-                decimal;
+                hlp;
 
             if (isNaN(n)) {
 

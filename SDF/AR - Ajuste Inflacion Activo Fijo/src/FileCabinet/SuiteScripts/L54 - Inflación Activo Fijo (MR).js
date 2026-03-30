@@ -438,6 +438,10 @@ define(['N/record', 'N/runtime', 'N/email', 'N/error', 'LIB - Search', 'L54/util
                 });
             }
 
+            assetsExcludes = (assetsExcludes || []).filter(function (v) {
+                return v && v.trim() !== '';
+            });
+
             if (!utilities.isEmpty(assetsExcludes) && assetsExcludes.length > 0){
                 
                 filtros.push({

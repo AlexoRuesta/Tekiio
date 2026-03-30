@@ -5,7 +5,7 @@
  *@NModuleScope Public
 */
 
-define(["N/log", "N/url", "N/file", "N/encode", "N/runtime", "N/ui/serverWidget", "N/redirect", "N/task", "N/search", "LIB - Search", "LIB - Form", "L54/utilidades"], function (log, url, file, encode, runtime, serverWidget, redirect, task, search, libSearch, libForm, utilities) {
+define(["N/log", "N/url", "N/file", "N/encode", "N/runtime", "N/ui/serverWidget", "N/redirect", "N/task", "LIB - Search", "LIB - Form", "L54/utilidades"], function (log, url, file, encode, runtime, serverWidget, redirect, task, libSearch, libForm, utilities) {
     
     let { InitSearch } = libSearch;
         InitSearch = new InitSearch();
@@ -44,9 +44,9 @@ define(["N/log", "N/url", "N/file", "N/encode", "N/runtime", "N/ui/serverWidget"
                 let dateInit = userInterface.addField("custpage_period_init", serverWidget.FieldType.SELECT, "Periodo Desde: ", conteinerID_1, "accountingperiod");
                 let dateEnd = userInterface.addField("custpage_period_end", serverWidget.FieldType.SELECT, "Periodo Hasta: ", conteinerID_1, "accountingperiod");
                     
-                subsidiary.setMandatoryValue(true);
-                dateInit.setMandatoryValue(true);
-                dateEnd.setMandatoryValue(true);
+                subsidiary.setMandatory(true);
+                dateInit.setMandatory(true);
+                dateEnd.setMandatory(true);
 
                 var suiteletUrl = url.resolveScript({
                     scriptId: "customscript_l54_inflation_asset_sl",
@@ -56,9 +56,18 @@ define(["N/log", "N/url", "N/file", "N/encode", "N/runtime", "N/ui/serverWidget"
                     }
                 });
 
+                var suiteletProyectado = url.resolveScript({
+                    scriptId: "customscript_l54_inflation_asset_sl",
+                    deploymentId: "customdeploy_l54_inflation_asset_sl",
+                    params: { 
+                        suitelet: 'proyectado'
+                    }
+                });
+
                 log.debug("suiteletUrl", suiteletUrl)
                 userInterface.addSubmitButton("Generar Ajuste por Inflación");
                 userInterface.addButton("custpage_download_excel", "Generar Archivo",  "downloadExcel('" + suiteletUrl + "')");
+                userInterface.addButton("custpage_proyectado", "Generar Proyectado",  "proyectado('" + suiteletProyectado + "')");
 
                 context.response.writePage(userInterface.FORM);
             } else{
@@ -104,14 +113,70 @@ define(["N/log", "N/url", "N/file", "N/encode", "N/runtime", "N/ui/serverWidget"
 
     const report = () => {}
 
+    report.proyectado = function (context){ 
+        let objConfiguration = getConfiguration(context.request.parameters)
+
+        let rangePeriod = getRangePeriod(context.request.parameters)
+        log.debug("rangePeriod",JSON.stringify(rangePeriod));
+
+        let indexPeriods = getIndex(rangePeriod);
+        log.debug("indexPeriods",JSON.stringify(indexPeriods));
+        
+        // let requiredFields = getRequiredFields(context.request.parameters);
+        // log.debug("requiredFields",JSON.stringify(requiredFields));
+        
+        let index = parseFloat(parseFloat(indexPeriods[indexPeriods.length - 1].custrecord_l54_axi_indice_num, 10) / parseFloat(indexPeriods[0].custrecord_l54_axi_indice_num, 10), 10);
+
+        // let customDate = new Date();
+        // let customDateParse = format.parse({ value: customDate, type: format.Type.DATE });
+        let user = runtime.getCurrentUser().id;
+
+        let jsonResult = {
+            configuration: objConfiguration,
+            indexPeriods: indexPeriods,
+            //requiredFields: requiredFields,
+            index: index,
+            user: user,
+            memo: "Ajuste por Inflación de " + indexPeriods[1].periodname + " a " + indexPeriods[indexPeriods.length - 1].periodname
+        }
+
+        submitMapReduceTaskProyectado(jsonResult, context.request.parameters,"customscript_l54_inflation_asset_p_mr", "customdeploy_l54_inflation_asset_p_mr");
+        redirect.toSuitelet({
+            scriptId: "customscript_l54_inflation_asset_sl",
+            deploymentId: "customdeploy_l54_inflation_asset_sl",
+            // parameters: {
+            //     "suitelet": null
+            // }
+        });
+    }
+
     report.excel = function (context){
         let history = {};
         let objConfiguration = getConfiguration(context.request.parameters);
 
         const filtros = buildFilters(context.request.parameters, objConfiguration);
         let filters = filtros.map(n => InitSearch.getFilter(n.name, n.join, n.operator, n.values, n.formula));
+
+        let alias = [
+            'col_0',
+            'col_1',
+            'col_2',
+            'col_3',
+            'col_4',
+            'col_5',
+            'col_6',
+            'col_7',
+            'col_8',
+            'col_9',
+            'col_10',
+            'col_11',
+            'col_12',
+            'col_13',
+            'col_14',
+
+        ];
                 
-        let savedSearch = InitSearch.getResultSearchObj("customsearch_l54_fam_altdepreciation", filters, 1);
+        let savedSearch = InitSearch.getResultSearchObj("customsearch_l54_fam_altdepreciation", filters, 1, alias);
         log.debug("savedSearch", JSON.stringify(savedSearch));
         
         if(!(Object.keys(savedSearch).length === 0)){
@@ -131,7 +196,23 @@ define(["N/log", "N/url", "N/file", "N/encode", "N/runtime", "N/ui/serverWidget"
                 InitSearch.getFilter("custrecord_l54_audit_inflation_date_ini", null, "ANYOF", periods, null)
             ];
 
-            history = InitSearch.getResultSearchObj("customsearch_l54_audit_inflation", filters, 0);
+            let alias2 = [
+                'col_0',
+                'col_1',
+                'col_2',
+                'col_3',
+                'col_4',
+                'col_5',
+                'col_6',
+                'col_7',
+                'col_8',
+                'col_9',
+                'col_10',
+                'col_11',
+                'col_12'
+
+            ];
+            history = InitSearch.getResultSearchObj("customsearch_l54_audit_inflation", filters, 0, alias2);
             log.debug("history", JSON.stringify(history));
         }
         
@@ -297,39 +378,6 @@ define(["N/log", "N/url", "N/file", "N/encode", "N/runtime", "N/ui/serverWidget"
         return uniqueIndexPeriods;
     }
 
-    const getRequiredFields = (parameters) => {
-        let filters = [["custrecord_tek_colc_parent.custrecord_tek_col_tipo_comprobante", "anyof", 1],
-                        "AND",
-                        ["custrecord_tek_colc_parent.custrecord_tek_col_subsidiaria", "anyof", parameters.custpage_subsidiary],
-                            
-                    ];
-
-        let columns = [
-            search.createColumn({
-                name: "custrecord_tek_colc_id_campo"
-              }),
-              search.createColumn({
-                name: "custrecord_tek_colc_valor"
-              }),
-              search.createColumn({
-                name: "custrecord_tek_col_tipo_llenado",
-                join: "custrecord_tek_colc_parent",
-              }),
-              search.createColumn({
-                name: "custrecord_tek_col_primer_valor_lista",
-                join: "custrecord_tek_colc_parent",
-              }),
-              search.createColumn({
-                name: "custrecord_tek_col_llenado_valor_defecto",
-                join: "custrecord_tek_colc_parent",
-              })
-        ];
-        
-        let array = InitSearch.getSearchCreated("customrecord_tek_conf_oblig_linea_fields", filters, columns)
-
-        return array;
-    }
-
     const buildFilters = (parameters, configuration) => {
         let filtros = [];
         if (!utilities.isEmpty(parameters.custpage_subsidiary)){
@@ -341,10 +389,11 @@ define(["N/log", "N/url", "N/file", "N/encode", "N/runtime", "N/ui/serverWidget"
         }
         
         if (!utilities.isEmpty(parameters.custpage_asset_type)){
+            let parm = parameters.custpage_asset_type.split(',');
             filtros.push({
                 name: "custrecord_altdepr_assettype",
                 operator: "ANYOF",
-                values: parameters.custpage_asset_type
+                values: parm
             });
         }
         
@@ -426,6 +475,24 @@ define(["N/log", "N/url", "N/file", "N/encode", "N/runtime", "N/ui/serverWidget"
             custscript_l54_inflation_asset_mr_sub: parameters.custpage_subsidiary,
             custscript_l54_inflation_asset_mr_type: parameters.custpage_asset_type,
             custscript_l54_inflation_asset_mr_input: JSON.stringify(input)
+        }
+
+        log.debug("params:", JSON.stringify(params));
+
+        let scriptTask = task.create({
+            taskType: task.TaskType.MAP_REDUCE,
+            scriptId: script,
+            deploymentId: deploy,
+            params
+        });
+        let scriptTaskId = scriptTask.submit();
+    }
+
+    const submitMapReduceTaskProyectado = (input, parameters, script, deploy) => {
+        let params = {
+            custscript_l54_inflation_asset_p_mr_sub: parameters.custpage_subsidiary,
+            custscript_l54_inflation_asset_p_mr_type: parameters.custpage_asset_type,
+            custscript_l54_inflation_asset_p_mr_inp: JSON.stringify(input)
         }
 
         log.debug("params:", JSON.stringify(params));

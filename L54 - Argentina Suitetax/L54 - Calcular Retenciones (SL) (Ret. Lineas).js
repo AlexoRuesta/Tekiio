@@ -3,12 +3,14 @@
  *@NScriptType Suitelet
  *@NAmdConfig /SuiteScripts/configuration.json
  */
- define(['N/record', 'N/file', 'N/format', 'L54/utilidades', 'N/search', 'N/runtime', 'N/config'],
-    function (record, file, format, utilidades, search, runtime, config) {
+ define(['N/format', 'L54/utilidades', 'N/search', 'N/runtime'],
+    function (format, utilidades, search, runtime) {
 
         var proceso = 'onRequest';
         var tipoContSUSS;
         var tipoContGAN;
+        var padronEspecial = new Array();
+        var jurisdiccionEspecial = new Array();
         /**
          * Definition of the Suitelet script trigger point.
          *
@@ -65,6 +67,8 @@
                     respuestaRetenciones.importe_percepciones = 0.0;
                     respuestaRetenciones.detalleAcumulados = [];
                     respuestaRetenciones.version_calc_ret = '';
+                    respuestaRetenciones.esNoInscriptoIVA = false;
+                    respuestaRetenciones.esNoInscriptoGAN = false;
                     var mensajeJurisdiccionesNotValid = "";
 
                     var informacionPago = context.request.parameters;
@@ -91,8 +95,7 @@
 
                     if (!isEmpty(informacionPago)) {
                         var errorGeneral    = false,
-                            calcularRetIIBB = false,
-                            linea           = 1;
+                            calcularRetIIBB = false
 
                         var validacionCalculoRet = validarCalculosRetenciones(informacionPago); // Valida los parametros.
 
@@ -109,7 +112,9 @@
                                 imp_retencion_iva       = 0.0,
                                 imp_retencion_iibb      = 0.0,
                                 importeIVAPago          = 0.0,
-                                importePercepcionesPago = 0.0;
+                                importePercepcionesPago = 0.0,
+                                porcentajeExclusion     = 1,
+                                aplicaPorcentaje        = false;
 
                             // Obtengo Informacion del Pago
                             var entity              = informacionPago.entity,
@@ -117,7 +122,6 @@
                                 tasa_cambio_pago    = informacionPago.tipoCambio,
                                 total               = informacionPago.importeTotal,
                                 trandate            = informacionPago.trandate,
-                                moneda              = informacionPago.moneda,
                                 subsidiariaPago     = informacionPago.subsidiaria,
                                 tipoContribuyenteIVA= informacionPago.tipoContribuyente,
                                 datosImpositivos    = validacionCalculoRet.datosImpositivos;
@@ -137,6 +141,13 @@
                                     estadoExentoIVA         = resultadoDatosImp[0].exentoIVA,
                                     estadoExentoIIBB        = resultadoDatosImp[0].exentoIIBB,
                                     esONG                   = resultadoDatosImp[0].esONG,
+                                    contribuyenteIVA        = resultadoDatosImp[0].contribuyenteIVANoInscrito,
+                                    parametrizacionIVA      = resultadoDatosImp[0].parametrizacionIVANoInscrito,
+                                    nombreParamIVA          = resultadoDatosImp[0].nombreParamIVANoInscrito,
+                                    contribuyenteGAN        = resultadoDatosImp[0].contribuyenteGANNoInscrito,
+                                    parametrizacionGAN      = resultadoDatosImp[0].parametrizacionGANNoInscrito,
+                                    nombreParamGAN          = resultadoDatosImp[0].nombreParamGANNoInscrito,
+                                    calcularSobreIVANoInscrito= resultadoDatosImp[0].calcularSobreIVANoInscrito,
                                     jurisdiccionEmpresa     = resultadoDatosImp[0].jurisdiccionEmpresa;
 
                                 respuestaRetenciones.esAgenteRetencionGan   = esAgenteRetencionGan;
@@ -227,6 +238,8 @@
                                                 var objInscriptoRegimen = getProveedorInscriptoRegimen(entity, estadoExentoGan, estadoExentoSUSS, estadoExentoIVA, trandate);
 
                                                 var estaInscriptoRegimenGan = objInscriptoRegimen.inscripto_regimen_gan;
+                                                porcentajeExclusion = normalizeValue(objInscriptoRegimen.porcentajeExclusion);
+                                                aplicaPorcentaje = objInscriptoRegimen.aplicaPorcentaje;
                                                 respuestaRetenciones.estaInscriptoRegimenGan = estaInscriptoRegimenGan;
                                                 if (objInscriptoRegimen.warning_gan == true) {
                                                     respuestaRetenciones.warning = true;
@@ -254,6 +267,8 @@
                                                 if (estaInscriptoRegimenIIBB == true) {
                                                     calcularRetIIBB = true;
                                                 }
+
+                                                respuestaRetenciones.esNoInscriptoIVA = respuestaRetenciones.esNoInscriptoGAN = objInscriptoRegimen.contribuyenteIVA == contribuyenteIVA ? true : false;
 
                                                 // Obtener Codigo de Retencion M
                                                 var codigoRetMGananciasConfigurado  = false,
@@ -313,7 +328,6 @@
 
                                                 //FDS2 se saco afuera del for la definicion de la variable (porque se estaba poniendo en cero con cada ciclo)
                                                 var importe_neto_factura_proveedor_a_pagar_total = 0.0;
-                                                var importe_neto_factura_proveedor_a_pagar_total_ret_iibb = 0.0;
                                                 var importe_bruto_total_facturas_aliados = 0.0;
                                                 var importe_bruto_total_facturas_iibb = 0.0;
                                                 var arrayFacturasJurisdiccionEntrega = [];
@@ -322,6 +336,7 @@
                                                 let importeNetoPagado = 0.0;
                                                 let importeBrutoPagado = 0.0;
                                                 var cantidadFacturasM = 0;
+                                                var montoEmbargoBruto = 0;
 
                                                 var pagoTotalFacturasM = true;
                                                 var datoCuenta = !isEmpty(subsidiariaPago) ? 'subsidiaria' : 'cuenta';
@@ -364,19 +379,17 @@
                                                     var nombre_retencion_suss = '';
                                                     var codigo_retencion_iva = '';
                                                     var nombre_retencion_iva = '';
-                                                    var considerarPagosAntGAN = true;
                                                     var coeficiente = 0.0;
                                                     var coeficiente_iibb = 0.0;
-                                                    var coeficiente_calculo_padron_cordoba = 0.0;
                                                     importe_bruto_factura_proveedor = 0.00;
                                                     var importe_neto_linea_factura_proveedor_a_pagar = 0.0;
                                                     var importe_neto_linea_factura_proveedor_a_pagar_aux = 0.0;
-                                                    let jurisdiccionUtilizacion = '';
+
 
                                                     if (!utilidades.isEmpty(objCodigos)) {
-                                                        if (!isEmpty(objCodigos.codigoRetGanancias)) {
-                                                            codigo_retencion_ganancias = objCodigos.codigoRetGanancias;
-                                                            nombre_retencion_ganancias = objCodigos.nombreRetGanancias;
+                                                        if (!isEmpty(objCodigos.codigoRetGanancias) || respuestaRetenciones.esNoInscriptoIVA) {
+                                                            codigo_retencion_ganancias = respuestaRetenciones.esNoInscriptoGAN? parametrizacionGAN : objCodigos.codigoRetGanancias;
+                                                            nombre_retencion_ganancias = respuestaRetenciones.esNoInscriptoGAN ? nombreParamGAN : objCodigos.nombreRetGanancias;
                                                             if (!isEmpty(objCodigos.esFacturaM) && (objCodigos.esFacturaM == 'T' || objCodigos.esFacturaM == true)) {
                                                                 esFacturaM = true;
                                                                 cantidadFacturasM++;
@@ -386,9 +399,9 @@
                                                             codigo_retencion_suss = objCodigos.codigoRetSUSS;
                                                             nombre_retencion_suss = objCodigos.nombreRetSUSS;
                                                         }
-                                                        if (!isEmpty(objCodigos.codigoRetIVA)) {
-                                                            codigo_retencion_iva = objCodigos.codigoRetIVA;
-                                                            nombre_retencion_iva = objCodigos.nombreRetIVA;
+                                                        if (!isEmpty(objCodigos.codigoRetIVA) || respuestaRetenciones.esNoInscriptoIVA) {
+                                                            codigo_retencion_iva = respuestaRetenciones.esNoInscriptoIVA ? parametrizacionIVA : objCodigos.codigoRetIVA;
+                                                            nombre_retencion_iva = respuestaRetenciones.esNoInscriptoIVA ? nombreParamIVA : objCodigos.nombreRetIVA;
                                                             if (!isEmpty(objCodigos.esFacturaM) && (objCodigos.esFacturaM == 'T' || objCodigos.esFacturaM == true)) {
                                                                 esFacturaM = true;
                                                                 cantidadFacturasM++;
@@ -396,12 +409,16 @@
                                                             if (!isEmpty(objCodigos.calcularSobreIVA) && (objCodigos.calcularSobreIVA == 'T' || objCodigos.calcularSobreIVA == true)) {
                                                                 calcularSobreIVA = true;
                                                             }
+                                                            
+                                                            calcularSobreIVA = respuestaRetenciones.esNoInscriptoIVA ? calcularSobreIVANoInscrito : calcularSobreIVA;
                                                         }
                                                         importe_bruto_factura_proveedor = parseFloat(objCodigos.importeTotal, 10);
                                                     }
 
                                                     // obtengo el importe pagado realmente de la factura para sacar su porcentaje sobre el total
                                                     importe_bruto_factura_proveedor_a_pagar = parseFloat(billsPagadas[i - 1].amount, 10);
+                                                    
+                                                    montoEmbargoBruto =  parseFloat(parseFloat(montoEmbargoBruto, 10) + parseFloat(billsPagadas[i - 1].amount, 10), 10)
                                                     
                                                     importe_total_factura_final = importe_bruto_factura_proveedor_a_pagar;
 
@@ -603,7 +620,7 @@
                                                         if (!isEmpty(codigo_retencion_ganancias)) {
 
                                                             var resultGanRetManual = paramRetenciones.filter(function (obj) {
-                                                                return (obj.codigo == codigo_retencion_ganancias && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                return ((respuestaRetenciones.esNoInscriptoGAN && obj.codigo == codigo_retencion_ganancias) || (obj.codigo == codigo_retencion_ganancias && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                             });
 
                                                             if (!isEmpty(resultGanRetManual) && resultGanRetManual.length > 0) {
@@ -663,12 +680,13 @@
                                                             if ((utilidades.isEmpty(lineNumber) && !esRetencionPorLinea) || (!utilidades.isEmpty(lineNumber) && validateSobreIva && esRetencionPorLinea)) {
 
                                                                 var resultIVARetManual = paramRetenciones.filter(function (obj) {
-                                                                    return (obj.codigo == codigo_retencion_iva && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                    return ((respuestaRetenciones.esNoInscriptoIVA && obj.codigo == codigo_retencion_iva) || (obj.codigo == codigo_retencion_iva && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                                 });
 
                                                                 if (!isEmpty(resultIVARetManual) && resultIVARetManual.length > 0) {
                                                                     var esRetManual = false;
                                                                     esRetManual = resultIVARetManual[0].esRetManual;
+                                                                    // calcularSobreIVA = respuestaRetenciones.esNoInscriptoIVA ? resultIVARetManual[0].sobreIVA : calcularSobreIVA;
 
                                                                     log.debug("Montos para IVA", importeIVAPagoParcial + "->> " + importe_neto_factura_proveedor_a_pagar)
                                                                     /** Modificación IVA Importe Total */
@@ -871,7 +889,7 @@
 
 
                                                             // Obtengo los Codigos de Retencion de Cada Jurisdiccion
-                                                            codigosRetencionIIBB = obtenerCodigosRetencionIIBB(entity, subsidiariaPago, objJurisdUnificado, jurisdiccionesAgenteRetencion.idConfGeneral, importeNetoPagado, resultsNetosJurisdiccion, arrayFacturasJurisdiccionEntregaUnificado, existeFacturaSinJurisdiccionEntrega, tipoContribuyenteIVA, importeBrutoPagado, jurisdiccionCordoba, importe_bruto_total_facturas_aliados, importeBrutoPago, paramNoAplicaProvincia,id_posting_period);
+                                                            codigosRetencionIIBB = obtenerCodigosRetencionIIBB(entity, subsidiariaPago, objJurisdUnificado, jurisdiccionesAgenteRetencion.idConfGeneral, importeNetoPagado, resultsNetosJurisdiccion, arrayFacturasJurisdiccionEntregaUnificado, existeFacturaSinJurisdiccionEntrega, tipoContribuyenteIVA, importeBrutoPagado, jurisdiccionCordoba, importe_bruto_total_facturas_aliados, importeBrutoPago, paramNoAplicaProvincia,id_posting_period, respuestaRetenciones.esNoInscriptoIVA);
 
                                                             if (!isEmpty(codigosRetencionIIBB) && !isEmpty(codigosRetencionIIBB.warning)) {
                                                                 respuestaRetenciones.warning = true;
@@ -910,7 +928,7 @@
                                                                 // INICIO - Extraccion de código de retenciones de ganancias
                                                                 for (var i = 0; i < retencion_ganancias.length; i++) {
                                                                     var resultGananciaMonotributo = paramRetenciones.filter(function (obj) {
-                                                                        return (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                        return ((respuestaRetenciones.esNoInscriptoGAN && obj.codigo == retencion_ganancias[i].codigo) || (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                                     });
 
                                                                     var esGanMonotributo = false;
@@ -1007,10 +1025,6 @@
                                                         
                                                                 // JSALAZAR: 09/12/19 - INICIO - MANEJO DE IMPORTES Y MEJORAS PERFOMANCE RET. GANANCIAS
                                                                 if (!isEmpty(retencion_ganancias) && retencion_ganancias.length > 0) {
-                                                        
-                                                                    var arrayIdFacturasPagadas = [];
-                                                                    var arrayIdFacturasPagadasMonotributos = [];
-                                                                    var impBrutoPagosPasadosTotales = 0.0;
                                                                     var impPagosPasadosTotal = 0.0;
                                                                     var arrayCodRetGanancias = [];
                                                                     var arrayCodRetGananciasMonotributos = [];
@@ -1020,7 +1034,7 @@
                                                                     for (var i = 0; i < retencion_ganancias.length; i++) {
                                                         
                                                                         var resultGananciaMonotributo = paramRetenciones.filter(function (obj) {
-                                                                            return (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                            return ((respuestaRetenciones.esNoInscriptoGAN && obj.codigo == retencion_ganancias[i].codigo) || (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                                         });
                                                         
                                                                         var esGanMonotributo = false;
@@ -1038,7 +1052,7 @@
                                                                     var subListAcumulados = [];
                                                         
                                                                     if (!utilidades.isEmpty(arrayCodRetGanancias) && arrayCodRetGanancias.length > 0) {
-                                                                        subListAcumulados = obtenerAcumSinJurisdicciones(entity, id_posting_period, subsidiariaPago, arrayCodRetGanancias); // alex
+                                                                        subListAcumulados = obtenerAcumSinJurisdicciones(entity, id_posting_period, subsidiariaPago, arrayCodRetGanancias); 
                                                                     }
                                                                     if (!utilidades.isEmpty(arrayCodRetGananciasMonotributos) && arrayCodRetGananciasMonotributos.length > 0){
                                                                         var subListAcumuladosAux = obtenerAcumSinJurisdicciones(entity, id_posting_period, subsidiariaPago, arrayCodRetGananciasMonotributos);
@@ -1083,7 +1097,7 @@
                                                                             }
                                                                             
                                                                             var resultMinNoImponible = paramRetenciones.filter(function (obj) {
-                                                                                return (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                                return ((respuestaRetenciones.esNoInscriptoGAN && obj.codigo == retencion_ganancias[i].codigo) || (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                                             });
                                                         
                                                                             log.debug('L54 - Calculo Retenciones', 'LINE 1235 - CALCULARETENCIONES - Retenciones Gan M - resultMinNoImponible: ' + JSON.stringify(resultMinNoImponible) + ' ** TIEMPO' + new Date());
@@ -1108,6 +1122,7 @@
                                                                             log.debug('L54 - Calculo Retenciones', 'CALCULARETENCIONES - LINE 1445 - retencion_ganancias[i].importe_factura_pagar: ' + retencion_ganancias[i].importe_factura_pagar + ' - impPagosPasadosTotal: ' + impPagosPasadosTotal + ' - minimoNoImponible: ' + minimoNoImponible + ' - ** TIEMPO' + new Date());
                                                         
                                                                             retencion_ganancias[i].base_calculo_retencion = parseFloat(retencion_ganancias[i].importe_factura_pagar, 10) + parseFloat(impPagosPasadosTotal, 10) - parseFloat(minimoNoImponible, 10);
+                                                                            if (aplicaPorcentaje) retencion_ganancias[i].base_calculo_retencion = retencion_ganancias[i].base_calculo_retencion * porcentajeExclusion;
                                                                             log.debug('L54 - Calculo Retenciones', 'LINE 1259 - CALCULARETENCIONES - retencion_ganancias[i].base_calculo_retencion: ' + retencion_ganancias[i].base_calculo_retencion + ' ** TIEMPO' + new Date());
                                                                             log.debug('L54 - Calculo Retenciones', 'LINE 1260 - CALCULARETENCIONES - Valores - Pagos Pasados: ' + impPagosPasadosTotal + ', Importe Factura: ' + retencion_ganancias[i].importe_factura_pagar + ', Tipo Cambio: ' + tasa_cambio_pago + ', Importe Retenido Anterior : ' + retencion_ganancias[i].imp_retenido_anterior + ' ** TIEMPO' + new Date());
                                                         
@@ -1151,7 +1166,7 @@
                                                                         if (!isEmpty(retencion_ganancias[i].codigo)) {
                                                         
                                                                             var resultGananciaMonotributo = paramRetenciones.filter(function (obj) {
-                                                                                return (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                                return ((respuestaRetenciones.esNoInscriptoGAN && obj.codigo == retencion_ganancias[i].codigo) || (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                                             });
                                                         
                                                                             log.debug('L54 - Calculo Retenciones', 'LINE 1046 - CALCULARETENCIONES - resultGananciaMonotributo: ' + JSON.stringify(resultGananciaMonotributo) + ' ** TIEMPO' + new Date());
@@ -1192,7 +1207,7 @@
                                                         
                                                                                 
                                                                                 var resultMinNoImponible = paramRetenciones.filter(function (obj) {
-                                                                                    return (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                                    return ((respuestaRetenciones.esNoInscriptoGAN && obj.codigo == retencion_ganancias[i].codigo) || (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                                                 });
                                                         
                                                                                 log.debug('L54 - Calculo Retenciones', 'LINE 1126 - CALCULARETENCIONES - resultMinNoImponible: ' + JSON.stringify(resultMinNoImponible));
@@ -1217,6 +1232,7 @@
                                                                                 log.debug('L54 - Calculo Retenciones', 'CALCULARETENCIONES - LINE 1690 - retencion_ganancias[i].importe_factura_pagar: ' + retencion_ganancias[i].importe_factura_pagar + ' - impPagosPasadosTotal: ' + impPagosPasadosTotal + ' - minimoNoImponible: ' + minimoNoImponible + ' - ** TIEMPO' + new Date());
                                                         
                                                                                 retencion_ganancias[i].base_calculo_retencion = parseFloat(retencion_ganancias[i].importe_factura_pagar, 10) + parseFloat(impPagosPasadosTotal, 10) - parseFloat(minimoNoImponible, 10);
+                                                                                if (aplicaPorcentaje) retencion_ganancias[i].base_calculo_retencion = retencion_ganancias[i].base_calculo_retencion * porcentajeExclusion;
                                                                                 log.debug('L54 - Calculo Retenciones', 'LINE 1150 - CALCULARETENCIONES - retencion_ganancias[i].base_calculo_retencion: ' + retencion_ganancias[i].base_calculo_retencion + ' ** TIEMPO' + new Date());
                                                                                 log.debug('L54 - Calculo Retenciones', 'LINE 1151 - CALCULARETENCIONES:' +' - Importe Factura: ' + retencion_ganancias[i].importe_factura_pagar + ' - Tipo Cambio: ' + tasa_cambio_pago + ' Importe Retenido Anterior : ' + retencion_ganancias[i].imp_retenido_anterior + ' - impPagosPasadosTotal: ' + impPagosPasadosTotal + ' - ** TIEMPO' + new Date());
                                                         
@@ -1247,6 +1263,7 @@
                                                                                     var esAnualizada = false;
                                                                                     retencion_ganancias[i].imp_retenido_anterior = 0.0;
                                                                                     retencion_ganancias[i].base_calculo_retencion = parseFloat(1.5, 10);
+                                                                                    if (aplicaPorcentaje)  retencion_ganancias[i].base_calculo_retencion = retencion_ganancias[i].base_calculo_retencion * porcentajeExclusion;
                                                                                     retencion_ganancias[i].base_calculo_retencion_impresion = parseFloat(1.5, 10);
                                                                                     log.debug('L54 - Calculo Retenciones', 'LINE 1198 - CALCULARETENCIONES - retencion_ganancias[i].base_calculo_retencion: ' + retencion_ganancias[i].base_calculo_retencion + ' ** TIEMPO' + new Date());
                                                                                     log.debug('L54 - Calculo Retenciones', 'LINE 1199 - CALCULARETENCIONES - retencion_ganancias[i].base_calculo_retencion_impresion: ' + retencion_ganancias[i].base_calculo_retencion_impresion + ' ** TIEMPO' + new Date());
@@ -1287,7 +1304,7 @@
                                                         
                                                                                     
                                                                                     var resultMinNoImponible = paramRetenciones.filter(function (obj) {
-                                                                                        return (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                                        return ((respuestaRetenciones.esNoInscriptoGAN && obj.codigo == retencion_ganancias[i].codigo) || (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                                                     });
                                                         
                                                                                     log.debug('L54 - Calculo Retenciones', 'CALCULARETENCIONES  - resultMinNoImponible: ' + JSON.stringify(resultMinNoImponible) + ' ** TIEMPO' + new Date());
@@ -1311,6 +1328,7 @@
                                                                                     log.debug('L54 - Calculo Retenciones', 'CALCULARETENCIONES - LINE 1934 - retencion_ganancias[i].importe_factura_pagar: ' + retencion_ganancias[i].importe_factura_pagar + ' - impPagosPasadosTotal: ' + impPagosPasadosTotal + ' - minimoNoImponible: ' + minimoNoImponible + ' - ** TIEMPO' + new Date());
                                                         
                                                                                     retencion_ganancias[i].base_calculo_retencion = parseFloat(retencion_ganancias[i].importe_factura_pagar, 10) + parseFloat(impPagosPasadosTotal, 10) - parseFloat(minimoNoImponible, 10);
+                                                                                    if (aplicaPorcentaje)  retencion_ganancias[i].base_calculo_retencion = retencion_ganancias[i].base_calculo_retencion * porcentajeExclusion;
                                                                                     log.debug('L54 - Calculo Retenciones', 'LINE 1729 - CALCULARETENCIONES - retencion_ganancias[i].base_calculo_retencion: ' + retencion_ganancias[i].base_calculo_retencion + ' ** TIEMPO' + new Date());
                                                                                     log.debug('L54 - Calculo Retenciones', 'LINE 1730 - CALCULARETENCIONES'+ ' - Importe Factura: ' + retencion_ganancias[i].importe_factura_pagar + ' - Tipo Cambio: ' + tasa_cambio_pago + ' Importe Retenido Anterior : ' + retencion_ganancias[i].imp_retenido_anterior + ' - impPagosPasadosTotal: ' + impPagosPasadosTotal + ' - ** TIEMPO' + new Date());
                                                         
@@ -1344,10 +1362,13 @@
                                                                             }
                                                                         }
                                                                     }
-                                                                    respuestaRetenciones.detalleAcumulados.push(extraerAcumuladoPorJurisdiccion(retencion_ganancias[i], entity, subsidiariaPago, id_posting_period, tasa_cambio_pago));
+                                                                    if(porcentajeExclusion != 0){
+                                                                        respuestaRetenciones.detalleAcumulados.push(extraerAcumuladoPorJurisdiccion(retencion_ganancias[i], entity, subsidiariaPago, id_posting_period, tasa_cambio_pago));
+                                                                    }
+
                                                                     log.audit("Governance Monitoring", "LINE 1782 - Remaining Usage = " + script.getRemainingUsage() + ' --- time: ' + new Date());
                                                                 }
-                                                        
+                                                                
                                                                 if (errorConfCodRetMGanancias == true) {
                                                                     respuestaRetenciones.warning = true;
                                                                     respuestaRetenciones.mensajeWarning.push("No se calculará la Retencion de Ganancias de Factura M debido a que no se encuentra configurada la Retencion");
@@ -1372,10 +1393,6 @@
                                                         
                                                                 // JSALAZAR: 09/12/19 - INICIO - MANEJO DE IMPORTES Y MEJORAS PERFOMANCE RET. SUSS
                                                                 if (!isEmpty(retencion_suss) && retencion_suss.length > 0) {
-                                                        
-                                                                    var arrayIdFacturasPagadasMonotributos = [];
-                                                                    var arrayIdFacturasPagadas = [];
-                                                                    var impBrutoPagosPasadosTotales = 0.0;
                                                                     var impPagosPasadosTotal = 0.0;
                                                                     var arrayCodRetSUSS = [];
                                                                     var arrayCodRetSUSSMonotributos = [];
@@ -1404,13 +1421,13 @@
                                                                     var subListAcumulados = [];
                                                         
                                                                     if (!utilidades.isEmpty(arrayCodRetSUSS) && arrayCodRetSUSS.length > 0) {
-                                                                        subListAcumulados = obtenerAcumSinJurisdicciones(entity, id_posting_period, subsidiariaPago, arrayCodRetSUSS); // alex
+                                                                        subListAcumulados = obtenerAcumSinJurisdicciones(entity, id_posting_period, subsidiariaPago, arrayCodRetSUSS);
                                                                     }
                                                         
                                                                     log.audit("Governance Monitoring", "LINE 1933 - Remaining Usage = " + script.getRemainingUsage() + ' --- time: ' + new Date());
                                                         
                                                                     if (!utilidades.isEmpty(arrayCodRetSUSSMonotributos) && arrayCodRetSUSSMonotributos.length > 0) {
-                                                                        var subListAcumuladosAux = obtenerAcumSinJurisdicciones(entity, id_posting_period, subsidiariaPago, arrayCodRetSUSSMonotributos); // alex
+                                                                        var subListAcumuladosAux = obtenerAcumSinJurisdicciones(entity, id_posting_period, subsidiariaPago, arrayCodRetSUSSMonotributos);
                                                                         if(subListAcumuladosAux.length != 0){
                                                                             subListAcumulados = subListAcumulados.concat(subListAcumuladosAux);
                                                                         }
@@ -1456,7 +1473,7 @@
                                                         
                                                                             log.debug('L54 - Calculo Retenciones', 'CALCULARETENCIONES - Retenciones SUSS Monotributo - retencion_suss[i].imp_retenido_anterior: ' + retencion_suss[i].imp_retenido_anterior + ' ** TIEMPO' + new Date());
                                                         
-                                                                            var impBrutoPagosPasadosTotales = 0.0;
+                                                                            
                                                                             var impPagosPasadosTotal = 0.0;
                                                         
                                                                             for (let l = 0; l < subListAcumulados.length; l++) {
@@ -1688,7 +1705,7 @@
                                                                                                                                                     
                                                         
                                                                             var resultMinNoImponible = paramRetenciones.filter(function (obj) {
-                                                                                return (obj.codigo == retencion_iva[i].codigo && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                                return ((respuestaRetenciones.esNoInscriptoIVA && obj.codigo == retencion_iva[i].codigo) || (obj.codigo == retencion_iva[i].codigo && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                                             });
                                                         
                                                                             log.debug('L54 - Calculo Retenciones', 'CALCULARETENCIONES - Retenciones IVA M - resultMinNoImponible: ' + JSON.stringify(resultMinNoImponible) + ' ** TIEMPO' + new Date());
@@ -1757,7 +1774,7 @@
                                                                             retencion_iva[i].imp_retenido_anterior = 0.0;
                                                         
                                                                             var resultMinNoImponible = paramRetenciones.filter(function (obj) {
-                                                                                return (obj.codigo == retencion_iva[i].codigo && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                                return ((respuestaRetenciones.esNoInscriptoIVA && obj.codigo == retencion_iva[i].codigo) || (obj.codigo == retencion_iva[i].codigo && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                                             });
                                                         
                                                                             log.debug('L54 - Calculo Retenciones', 'CALCULARETENCIONES - resultMinNoImponible: ' + JSON.stringify(resultMinNoImponible) + ' ** TIEMPO' + new Date());
@@ -1822,7 +1839,7 @@
                                                                                 retencion_iva[i].imp_retenido_anterior = 0.0;
                                                         
                                                                                 var resultMinNoImponible = paramRetenciones.filter(function (obj) {
-                                                                                    return (obj.codigo == retencion_iva[i].codigo && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                                    return ((respuestaRetenciones.esNoInscriptoIVA && obj.codigo == retencion_iva[i].codigo) || (obj.codigo == retencion_iva[i].codigo && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                                                 });
                                                         
                                                                                 log.debug('L54 - Calculo Retenciones', 'CALCULARETENCIONES - resultMinNoImponible: ' + JSON.stringify(resultMinNoImponible) + ' ** TIEMPO' + new Date());
@@ -2182,6 +2199,17 @@
                                                                                 codigosRetencionIIBB.infoRet[i].base_calculo_retencion = parseFloat(codigosRetencionIIBB.infoRet[i].importe_factura_pagar, 10);
                                                                                 codigosRetencionIIBB.infoRet[i].base_calculo_retencion_impresion = parseFloat(codigosRetencionIIBB.infoRet[i].base_calculo_retencion, 10);
 
+                                                                                if (isEmpty(codigosRetencionIIBB.infoRet[i].coeficienteBaseImponible) || isNaN(codigosRetencionIIBB.infoRet[i].coeficienteBaseImponible) || codigosRetencionIIBB.infoRet[i].coeficienteBaseImponible == 0.00) {
+                                                                                    codigosRetencionIIBB.infoRet[i].coeficienteBaseImponible = 1;
+                                                                                }
+
+                                                                                var decimalesImporte = countDecimales(parseFloat(codigosRetencionIIBB.infoRet[i].base_calculo_retencion, 10));
+                                                                                var decimalesCoeficienteBaseImponible = countDecimales(parseFloat(codigosRetencionIIBB.infoRet[i].coeficienteBaseImponible, 10));
+                                                                                var decimalesImporteCoeficienteTotal = decimalesImporte + decimalesCoeficienteBaseImponible;
+
+                                                                                codigosRetencionIIBB.infoRet[i].base_calculo_retencion = Math.abs(parseFloat(numberTruncTwoDec(parseFloat(convertToInteger(parseFloat(codigosRetencionIIBB.infoRet[i].base_calculo_retencion, 10)), 10) * parseFloat(convertToInteger(parseFloat(codigosRetencionIIBB.infoRet[i].coeficienteBaseImponible, 10)), 10) / (Math.pow(10, decimalesImporteCoeficienteTotal))), 10));
+                                                                                codigosRetencionIIBB.infoRet[i].base_calculo_retencion_impresion = parseFloat(codigosRetencionIIBB.infoRet[i].base_calculo_retencion, 10);
+
                                                                                 var objRetencionIIBB = getRetencion(entity, 'iibb', codigosRetencionIIBB.infoRet[i].codigo, codigosRetencionIIBB.infoRet[i].base_calculo_retencion, id_posting_period, 0, tasa_cambio_pago, codigosRetencionIIBB.infoRet[i].porcentajeRetencion, true, '', 0, arrayDetallesRetencionIIBB, codigosRetencionIIBB.infoRet[i].baseCalcAcumulada, existeRetJurisdiccionActual);
                                                                                 //var objRetencionIIBB = getRetencion(entity, 'iibb', codigosRetencionIIBB.infoRet[i].codigo, codigosRetencionIIBB.infoRet[i].base_calculo_retencion, id_posting_period, 0, tasa_cambio_pago, porcentajeFinal, true, '', 0);
                                                                                 log.debug('L54 - Calculo Retenciones', 'CALCULARETENCIONES - objRetencionIIBB: ' + JSON.stringify(objRetencionIIBB) + ' ** TIEMPO' + new Date());
@@ -2245,7 +2273,7 @@
                                                                         var objGanancias = new Object();
 
                                                                         var resultInfRetencion = paramRetenciones.filter(function (obj) {
-                                                                            return (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                            return ((respuestaRetenciones.esNoInscriptoGAN && obj.codigo == retencion_ganancias[i].codigo) || (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                                         });
 
                                                                         log.debug('L54 - Calculo Retenciones', 'CALCULARETENCIONES - resultInfRetencion: ' + JSON.stringify(resultInfRetencion) + ' ** TIEMPO' + new Date());
@@ -2266,7 +2294,7 @@
                                                                             objGanancias.tipo_ret = retencion_ganancias[i].codigo;
                                                                             objGanancias.jurisdiccion = '';
                                                                             //objGanancias.condicion = condicion_ganancias;
-                                                                            objGanancias.condicion = condicionesRetencion.codRetGAN;
+                                                                            objGanancias.condicion = respuestaRetenciones.esNoInscriptoIVA ? contribuyenteGAN : condicionesRetencion.codRetGAN;
                                                                             objGanancias.neto_bill = parseFloat(numberTruncTwoDec(parseFloat(importe_neto_factura_proveedor_a_pagar_total, 10) / parseFloat(tasa_cambio_pago, 10)), 10);
                                                                             objGanancias.base_calculo = parseFloat(numberTruncTwoDec(parseFloat(retencion_ganancias[i].base_calculo_retencion, 10) / parseFloat(tasa_cambio_pago, 10)), 10);
                                                                             objGanancias.base_calculo_imp = parseFloat(numberTruncTwoDec(parseFloat(retencion_ganancias[i].base_calculo_retencion_impresion, 10) / parseFloat(tasa_cambio_pago, 10)), 10);
@@ -2460,7 +2488,7 @@
                                                                         var objIVA = new Object();
 
                                                                         var resultInfRetencion = paramRetenciones.filter(function (obj) {
-                                                                            return (obj.codigo == retencion_iva[i].codigo && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                            return ((respuestaRetenciones.esNoInscriptoIVA && obj.codigo == retencion_iva[i].codigo) || (obj.codigo == retencion_iva[i].codigo && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                                         });
 
                                                                         log.debug('L54 - Calculo Retenciones', 'CALCULARETENCIONES - resultInfRetencion: ' + JSON.stringify(resultInfRetencion) + ' ** TIEMPO' + new Date());
@@ -2810,8 +2838,137 @@
             var responseSuitelet = context.response;
             var informacionRespuestaJSON = [];
             informacionRespuestaJSON.push(respuestaRetencionesJSON);
+            /**EMBARGOS ARBA*/
+            // obtenerCodigosRetencionPadronesIIBB(entity, subsidiariaPago)
+            
+            var embargoArba = script.getParameter('custscript_l54_calc_ret_sl_lineas_arba_e');
+
+            const padronEmbargo = padronEspecial.find(({ tipoPadron, periodo }) => tipoPadron === embargoArba && periodo == id_posting_period);
+
+            if(informacionRespuestaJSON[0].esAgenteRetencionIIBB && informacionRespuestaJSON[0].estaInscriptoRegimenIIBB && !isEmpty(padronEmbargo) && jurisdiccionEspecial.jurisdicciones.some(j => j.jurisdiccion === padronEmbargo.jurisdiccion)) {
+                var informacionRespuestaJSON = reconstruirRespuesta(padronEmbargo, informacionRespuestaJSON, subsidiariaPago, tasa_cambio_pago, montoEmbargoBruto);
+            }
+
             log.debug(proceso, 'informacionRespuestaJSON: ' + JSON.stringify(informacionRespuestaJSON));
             responseSuitelet.write({ output: JSON.stringify(informacionRespuestaJSON) });
+        }
+
+        function reconstruirRespuesta(padronEmbargo, informacionRespuestaJSON, subsidiariaPago, tasa_cambio_pago, montoEmbargoBruto) {
+            let retenciones = Object.assign({}, informacionRespuestaJSON[0]),
+                respuestaFinal =[]
+                montoMonedaLocal = padronEmbargo.montosEmbargos;
+
+            if(parseFloat(tasa_cambio_pago, 10) > 1){
+                padronEmbargo.montosEmbargos = parseFloat(parseFloat(padronEmbargo.montosEmbargos, 10)/parseFloat(tasa_cambio_pago, 10), 10);
+                padronEmbargo.montosEmbargos = Number(padronEmbargo.montosEmbargos.toFixed(2));
+                
+            }
+            montoEmbargoBruto = Number(montoEmbargoBruto.toFixed(2));
+                
+            log.debug("montoEmbargoBruto", montoEmbargoBruto)
+            if(parseFloat(montoEmbargoBruto, 10) >= parseFloat(padronEmbargo.montosEmbargos, 10)){
+                
+                var customrecord_l54_retencionSearchObj = search.create({
+                    type: "customrecord_l54_retencion",
+                    filters:
+                    [
+                        ["custrecord_l54_ret_anulado","is","F"], 
+                        "AND", 
+                        ["custrecord_l54_ret_cod_retencion","anyof", padronEmbargo.codigo], 
+                        "AND", 
+                        ["custrecord_l54_ret_jurisdiccion","anyof", padronEmbargo.jurisdiccion],
+                        "AND", 
+                        ["custrecord_l54_ret_subsidiaria","anyof", subsidiariaPago], 
+                        "AND", 
+                        ["custrecord_l54_ret_periodo","anyof", padronEmbargo.periodo],
+                        "AND", 
+                        ["custrecord_l54_ret_ref_proveedor","anyof", padronEmbargo.idProveedor]
+                    ],
+                    columns:
+                    [
+                        search.createColumn({name: "internalid", label: "Internal ID"})
+                    ]
+                });
+
+                var resultSet = customrecord_l54_retencionSearchObj.run();
+
+                var searchResult = resultSet.getRange({
+                    start: 0,
+                    end: 1
+                });
+                
+                if (searchResult.length == 0){
+                    var nuevosMontos = {
+                        imp_retencion_iibb: retenciones.imp_retencion_iibb,
+                        importe_neto_a_abonar: retenciones.importe_neto_a_abonar,
+                        neto_bill_aplicados: montoEmbargoBruto,
+                        importe_total_retencion: retenciones.importe_total_retencion,
+                        retencion: []
+                    }
+
+                    let inscripcionName = search.lookupFields({
+                            type: "customrecord_l54_tipo_contribuyente_iibb",
+                            id: padronEmbargo.estadoInscripcionPadron,
+                            columns: ['name']
+                        });
+                    nuevosMontos.retencion.push(
+                        {
+                            retencion: "3",
+                            tipo_ret: padronEmbargo.codigo,
+                            jurisdiccion: padronEmbargo.jurisdiccion,
+                            condicion: inscripcionName.name,
+                            neto_bill: montoEmbargoBruto,
+                            base_calculo: montoEmbargoBruto,
+                            base_calculo_imp: montoEmbargoBruto,
+                            imp_retencion: padronEmbargo.montosEmbargos,
+                            monto_suj_ret_moneda_local: montoMonedaLocal,
+                            diferenciaRedondeo: 0,
+                            base_calculo_original: montoEmbargoBruto,
+                            imp_retencion_original: padronEmbargo.montosEmbargos,
+                            condicionID: padronEmbargo.estadoInscripcionPadron,
+                            alicuota: 100,
+                            certExencion: "",
+                            tipoExencion: "",
+                            fcaducidadExencion: "",
+                            numerador_cod: "num_ret_iibb"
+                        }
+                
+                    )
+
+                    var retesEliminados = retenciones.retencion_iibb.filter(item => item.jurisdiccion == padronEmbargo.jurisdiccion);
+                    var retesConservadas = retenciones.retencion_iibb.filter(item => item.jurisdiccion !== padronEmbargo.jurisdiccion);
+                    log.debug("retesEliminados ", JSON.stringify(retesEliminados))
+                    log.debug("retesConservadas ", JSON.stringify(retesConservadas))
+
+                    retesEliminados.forEach(ret => {
+                        nuevosMontos.imp_retencion_iibb = (parseFloat(nuevosMontos.imp_retencion_iibb, 10)- parseFloat(ret.imp_retencion, 10)).toFixedOK(2)
+                        nuevosMontos.importe_total_retencion = (parseFloat(nuevosMontos.importe_total_retencion, 10) - parseFloat(ret.imp_retencion, 10)).toFixedOK(2)
+                    });
+
+                    retesConservadas = retesConservadas.concat(nuevosMontos.retencion)
+                    const acumuladosConservados = retenciones.detalleAcumulados.filter(item => item.jurisdiccion !== padronEmbargo.jurisdiccion);
+
+                    nuevosMontos.retencion.forEach(ret => {
+                        nuevosMontos.imp_retencion_iibb = (parseFloat(nuevosMontos.imp_retencion_iibb, 10) +  parseFloat(ret.imp_retencion, 10)).toFixedOK(2)
+                        nuevosMontos.importe_total_retencion = (parseFloat(nuevosMontos.importe_total_retencion, 10) + parseFloat(ret.imp_retencion, 10)).toFixedOK(2)
+                    });
+
+                    nuevosMontos.importe_neto_a_abonar = (parseFloat(nuevosMontos.neto_bill_aplicados, 10) -  parseFloat(nuevosMontos.importe_total_retencion, 10)).toFixedOK(2)
+
+
+                    retenciones.imp_retencion_iibb = nuevosMontos.imp_retencion_iibb;
+                    retenciones.importe_neto_a_abonar = nuevosMontos.importe_neto_a_abonar;
+                    retenciones.importe_total_retencion = nuevosMontos.importe_total_retencion;
+                    retenciones.retencion_iibb = retesConservadas;
+                    retenciones.listaRetenciones = retesConservadas;
+                    retenciones.detalleAcumulados = acumuladosConservados;
+                    log.debug("nuevosMontos ", JSON.stringify(nuevosMontos))
+                    log.debug("retenciones ", JSON.stringify(retenciones))
+                }
+            }
+            respuestaFinal.push(retenciones)
+
+            return respuestaFinal;
         }
 
 
@@ -2881,6 +3038,7 @@
                                     infoLineasJurisdiccionesIIBB[j].tipoExencion = objEstadoInscripcionJurIIBB.jurisdicciones[i].tipoExencion;
                                     infoLineasJurisdiccionesIIBB[j].fcaducidadExencion = objEstadoInscripcionJurIIBB.jurisdicciones[i].fcaducidadExencion;
                                     infoLineasJurisdiccionesIIBB[j].esJurisdiccionGeneral = objEstadoInscripcionJurIIBB.jurisdicciones[i].esJurisdiccionGeneral;
+                                    infoLineasJurisdiccionesIIBB[j].coeficienteBaseImponible = objEstadoInscripcionJurIIBB.jurisdicciones[i].coeficienteBaseImponible;
                                     infoLineasJurisdiccionesIIBB[j].jurisdiccionCodigo = objEstadoInscripcionJurIIBB.jurisdicciones[i].jurisdiccionCodigo;
                                     infoLineasJurisdiccionesIIBB[j].jurisdiccionSede = objEstadoInscripcionJurIIBB.jurisdicciones[i].jurisdiccionSede;
                                     infoLineasJurisdiccionesIIBB[j].esJurisdEntrega = objEstadoInscripcionJurIIBB.jurisdicciones[i].esJurisdEntrega;
@@ -3002,69 +3160,7 @@
             return respuesta;
         }
 
-        function obtenerFactPagasPeriodoIIBB(entidad, periodo, subsidiaria) {
 
-            var proceso = 'obtenerFactPagasPeriodoIIBB';
-            var respuesta = { error: false, mensaje: '', importeTotalNetoAcum: 0.0, importeTotalBrutoAcum: 0.0 };
-            log.debug(proceso, 'INICIO - obtenerFactPagasPeriodoIIBB / entidad: ' + entidad + ' / periodo: ' + periodo + ' / subsidiaria: ' + subsidiaria);
-
-            try {
-                /* Filtros */
-                var filtros = [];
-                if (!isEmpty(entidad)) {
-                    var filtro = {};
-                    filtro.name = 'entity';
-                    filtro.operator = 'ANYOF';
-                    filtro.values = entidad;
-                    filtros.push(filtro);
-                }
-
-                if (!isEmpty(subsidiaria)) {
-                    var filtro1 = {};
-                    filtro1.name = 'subsidiary';
-                    filtro1.operator = 'ANYOF';
-                    filtro1.values = subsidiaria;
-                    filtros.push(filtro1);
-                }
-
-                if (!isEmpty(periodo)) {
-                    var filtro2 = {};
-                    filtro2.name = 'postingperiod';
-                    filtro2.operator = 'IS';
-                    filtro2.values = periodo;
-                    filtros.push(filtro2);
-                }
-
-                var objResultSet = utilidades.searchSavedPro('customsearch_l54_fac_pag_per_iibb_cal_re', filtros);
-
-                if (objResultSet.error) {
-                    log.error(proceso, 'Error en consulta de SS ***Script / L54 - Facturas Pagadas Período IIBB (Cálculo Retenciones)');
-                    return respuesta;
-                }
-
-                var resultSet = objResultSet.objRsponseFunction.result;
-                var resultSearch = objResultSet.objRsponseFunction.search;
-
-                if (!utilidades.isEmpty(resultSet) && resultSet.length > 0) {
-                    for (var i = 0; i < resultSet.length; i++) {
-                        respuesta.importeTotalBrutoAcum = resultSet[i].getValue({ name: resultSearch.columns[5] });
-                        respuesta.importeTotalNetoAcum = resultSet[i].getValue({ name: resultSearch.columns[6] });
-                    }
-                } else {
-                    respuesta.error = true;
-                    respuesta.mensaje = 'No se encontró ningún resultado de transaccion para los filtros ingresados para obtener las facturas pagadas en el mes';
-                    log.error(proceso, respuesta.mensaje);
-                }
-            } catch (error) {
-                respuesta.error = true;
-                respuesta.mensaje = 'Error excepcion al obtener todas las transacciones del proveedor pagadas en el periodo del pago actual - detalles: ' + error.message;
-                log.error(proceso, respuesta.mensaje);
-            }
-
-            log.debug(proceso, 'FIN - obtenerFactPagasPeriodoIIBB / respuesta: ' + JSON.stringify(respuesta));
-
-            return respuesta;
-        }
 
         
         function obtenerAcumSinJurisdicciones(entidad, periodo, subsidiaria, codigoRet) {
@@ -3393,47 +3489,6 @@
             return false;
         }
 
-        function l54esOneworld() {
-
-            var mySS = search.create({
-                type: 'customrecord_l54_datos_impositivos_emp',
-                columns: [{
-                    name: 'internalid'
-                }]
-            });
-
-            var arraySearchParams = [];
-
-            var objParam = new Object({});
-            objParam.name = 'isinactive';
-            objParam.operator = search.Operator.IS;
-            objParam.values = ['F'];
-            arraySearchParams.push(objParam);
-
-            var objParam2 = new Object({});
-            objParam2.name = 'custrecord_l54_es_oneworld';
-            objParam2.operator = search.Operator.IS;
-            objParam2.values = ['T'];
-            arraySearchParams.push(objParam2);
-
-            var filtro = '';
-
-            for (var i = 0; i < arraySearchParams.length; i++) {
-                filtro = search.createFilter({
-                    name: arraySearchParams[i].name,
-                    operator: arraySearchParams[i].operator,
-                    values: arraySearchParams[i].values
-                });
-                mySS.filters.push(filtro);
-            }
-
-            var searchresults = mySS.runPaged();
-
-            if (searchresults != null && searchresults.count > 0)
-                return true;
-            else
-                return false;
-        }
 
         Number.prototype.toFixedOK = function (decimals) {
             var sign = this >= 0 ? 1 : -1;
@@ -3715,6 +3770,27 @@
                     objDatosImpositivos.calcularTI = searchResult[0].getValue({
                         name: resultSet.columns[35]
                     });
+                    objDatosImpositivos.contribuyenteIVANoInscrito = searchResult[0].getValue({
+                        name: resultSet.columns[36]
+                    });
+                    objDatosImpositivos.parametrizacionIVANoInscrito = searchResult[0].getValue({
+                        name: resultSet.columns[37]
+                    });
+                    objDatosImpositivos.nombreParamIVANoInscrito = searchResult[0].getText({
+                        name: resultSet.columns[37]
+                    });
+                    objDatosImpositivos.contribuyenteGANNoInscrito = searchResult[0].getText({
+                        name: resultSet.columns[38]
+                    }); 
+                    objDatosImpositivos.parametrizacionGANNoInscrito = searchResult[0].getValue({
+                        name: resultSet.columns[39]
+                    });
+                    objDatosImpositivos.nombreParamGANNoInscrito = searchResult[0].getText({
+                        name: resultSet.columns[39]
+                    });
+                    objDatosImpositivos.calcularSobreIVANoInscrito = searchResult[0].getValue({
+                        name: resultSet.columns[40]
+                    });
                     arrayDatosImpositivos.push(objDatosImpositivos);
                     // log.debug('L54 - Calculo Retenciones', 'RETURN - arrayDatosImpositivos: ' + JSON.stringify(arrayDatosImpositivos));
                     log.debug('FIN - consultaDatosImpositivos', JSON.stringify(arrayDatosImpositivos));
@@ -3912,6 +3988,10 @@
                         var aplicaCalcRetPorInscrip = convertToBoolean(completeResultSet[i].getValue({
                             name: resultSearch.columns[9]
                         }));
+                        
+                        var coeficiente_base_imponible = completeResultSet[i].getValue({
+                            name: resultSearch.columns[10]
+                        });
 
                         if (!isEmpty(fecha_caducidad)) {
                             fecha_caducidad_parseada = parseDate(fecha_caducidad);
@@ -3944,6 +4024,7 @@
                                         estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].jurisdiccionTexto = jurisdiccionTexto;
                                         estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].tipoContribuyente = !isEmpty(estado_regimen) ? estado_regimen : idTipoContribIIBBDefault;
                                         estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].tipoContribuyenteTexto = !isEmpty(estado_regimen_texto) ? estado_regimen_texto : idTipoContribIIBBDefaultText;
+                                        estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].coeficienteBaseImponible = coeficiente_base_imponible;
                                         estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].certExencion = certificado_exencion;
                                         estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].tipoExencion = tipo_exencion;
                                         estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].fcaducidadExencion = fecha_caducidad_parseada;
@@ -4014,6 +4095,7 @@
                                     estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].tipoExencion = "";
                                     estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].fcaducidadExencion = "";
                                     estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].esJurisdiccionGeneral = jurisdiccionGeneral;
+                                    estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].coeficienteBaseImponible = 1;
                                     estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].jurisdiccionCodigo = jurisdiccionEntregaCodigo;
                                     estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].jurisdiccionSede = false;
                                     estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].esJurisdEntrega = true;
@@ -4058,6 +4140,7 @@
                                 estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].jurisdiccionTexto = jurisdiccionTucumanText;
                                 estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].tipoContribuyente = idTipoContribIIBBDefault;
                                 estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].tipoContribuyenteTexto = idTipoContribIIBBDefaultText;
+                                    estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].coeficienteBaseImponible = 1;
                                 estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].certExencion = "";
                                 estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].tipoExencion = "";
                                 estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].fcaducidadExencion = "";
@@ -4072,7 +4155,7 @@
                     }
                 }
             }
-
+            jurisdiccionEspecial = estadoInscripcionProveedor;
             log.debug('FIN - getProveedorInscriptoRegimenIIBB', 'RETURN - estadoInscripcionProveedor: ' + JSON.stringify(estadoInscripcionProveedor));
             return estadoInscripcionProveedor;
         }
@@ -4085,7 +4168,8 @@
             var proveedorInscripto = new Object(),
                 inscripto_regimen_gan = false,
                 inscripto_regimen_suss = false,
-                inscripto_regimen_iva = false;
+                inscripto_regimen_iva = false,
+                aplicaPorcentaje = false;
 
             proveedorInscripto.warning_gan = false;
             proveedorInscripto.warning_suss = false;
@@ -4140,6 +4224,12 @@
                 var fechaCaducidadSUSS = searchResult[0].getValue({
                     name: resultSet.columns[6]
                 });
+                var fechaInicioGan = searchResult[0].getValue({
+                    name: resultSet.columns[7]
+                });
+                var porcentajeExclusion = searchResult[0].getValue({
+                    name: resultSet.columns[8]
+                });
 
                 tipoContGAN = estadoRegimenGan;
                 tipoContSUSS = estadoRegimenSUSS;
@@ -4154,6 +4244,11 @@
                 fechaCaducidadGan.setHours(0, 0, 0, 0);
             }
 
+            if (!isEmpty(fechaInicioGan)) {
+                fechaInicioGan = parseDate(fechaInicioGan);
+                fechaInicioGan.setHours(0, 0, 0, 0);
+            }
+
             if (!isEmpty(fechaCaducidadSUSS)) {
                 fechaCaducidadSUSS = parseDate(fechaCaducidadSUSS);
                 fechaCaducidadSUSS.setHours(0, 0, 0, 0);
@@ -4162,12 +4257,12 @@
             // ganancias no es Exento
             if (estadoRegimenGan != estadoExentoGan) {
                 if (!isEmpty(fechaCaducidadGan)) {
-                    if (fechaCaducidadGan < trandate) {
+                    if (fechaCaducidadGan < trandate || (!isEmpty(fechaInicioGan) && fechaInicioGan > trandate)) {
                         proveedorInscripto.warning_gan = true;
                         proveedorInscripto.mensaje_gan = "Las retenciones serán calculadas, debido a que el certificado de exención de Ganancias se encuentra vencido.";
                         inscripto_regimen_gan = true;
                     } else
-                        inscripto_regimen_gan = false;
+                        inscripto_regimen_gan = aplicaPorcentaje = true;
                 }
                 else {
                     inscripto_regimen_gan = true;
@@ -4214,6 +4309,13 @@
             proveedorInscripto.inscripto_regimen_gan = inscripto_regimen_gan;
             proveedorInscripto.inscripto_regimen_suss = inscripto_regimen_suss;
             proveedorInscripto.inscripto_regimen_iva = inscripto_regimen_iva;
+
+            
+            proveedorInscripto.contribuyenteIVA = estadoRegimenIVA;
+            proveedorInscripto.contribuyenteGAN = estadoRegimenGan;
+
+            proveedorInscripto.porcentajeExclusion = porcentajeExclusion;
+            proveedorInscripto.aplicaPorcentaje = aplicaPorcentaje;
 
             log.debug('FIN - getProveedorInscriptoRegimen', 'RETURN - proveedorInscripto: ' + JSON.stringify(proveedorInscripto));
             return proveedorInscripto;
@@ -4323,6 +4425,9 @@
                     });
                     informacionCodigosVB[i].aplicaTotal = completeResultSet[i].getValue({
                         name: resultSearch.columns[14]
+                    });
+                    informacionCodigosVB[i].sobreIVA = completeResultSet[i].getValue({
+                        name: resultSearch.columns[15]
                     });
                 }
             }
@@ -4568,137 +4673,7 @@
             return informacionCodigosVB;
         }
 
-        //JSALAZAR: FUNCION QUE OBTIENE LOS CODIGOS DE RETENCION QUE APLICAN LAS BILLS RECIBIDAS POR PARAMETRO EN MONEDA LOCAL - DEVUELVE UN ARRAY
-        function obtener_arreglo_codigos_ret_vendorbill_moneda_local(entidad, billsPagar, subsidiaria, esONG) {
-            log.debug('L54 - Calculo Retenciones', 'INICIO - obtener_arreglo_codigos_ret_vendorbill_moneda_local');
-            log.debug('L54 - Calculo Retenciones', 'Parámetros - entidad: ' + entidad + ' - billsPagar: ' + billsPagar + ' - subsidiaria: ' + subsidiaria + ' - es ONG: ' + esONG);
 
-            var informacionCodigosVB = [];
-
-            //SAVE SEARCH A EJECUTAR
-            // Si es ONG se invoca al SS que sólo toma en cuenta las líneas con ID IMPUESTO AFIP == 2
-            if (!isEmpty(esONG) && (esONG == 'T' || esONG)) {
-                var searchCodRet = search.load({
-                    id: 'customsearch_l54_bill_cod_ret_em_ong_m_l'
-                });
-            } else { // Si no es ONG se invoca al SS que no toma en cuenta las líneas con ID IMPUESTO AFIP == 3
-                var searchCodRet = search.load({
-                    id: 'customsearch_l54_bill_cod_ret_mon_local'
-                });
-            }
-
-            //FILTRO PROVEEDOR
-            if (!isEmpty(entidad)) {
-                var filtroEntidad = search.createFilter({
-                    name: 'entity',
-                    operator: search.Operator.IS,
-                    values: entidad
-                });
-                searchCodRet.filters.push(filtroEntidad);
-            }
-
-            //FILTRO BILLS A PAGAR
-            if (!isEmpty(billsPagar)) {
-                var filtroBillsPagar = search.createFilter({
-                    name: 'internalid',
-                    operator: search.Operator.ANYOF,
-                    values: billsPagar
-                });
-                searchCodRet.filters.push(filtroBillsPagar);
-            }
-
-            //FILTRO SUBSIDIARIA
-            if (!isEmpty(subsidiaria)) {
-                var filtroSubsidiaria = search.createFilter({
-                    name: 'subsidiary',
-                    operator: search.Operator.IS,
-                    values: subsidiaria
-                });
-                searchCodRet.filters.push(filtroSubsidiaria);
-            }
-
-            var resultSearch = searchCodRet.run();
-            var completeResultSet = [];
-            var resultIndex = 0;
-            var resultStep = 1000; // Number of records returned in one step (maximum is 1000)
-            var resultado; // temporary variable used to store the result set
-            
-
-            do {
-                
-                // fetch one result set
-                resultado = resultSearch.getRange({
-                    start: resultIndex,
-                    end: resultIndex + resultStep
-                });
-
-                if (!isEmpty(resultado) && resultado.length > 0) {
-                    if (resultIndex == 0)
-                        completeResultSet = resultado;
-                    else
-                        completeResultSet = completeResultSet.concat(resultado);
-                }
-                //increase pointer
-                resultIndex = resultIndex + resultStep;
-
-                // once no records are returned we already got all of them
-                
-            } while (!isEmpty(resultado) && resultado.length > 0)
-
-
-            if (!isEmpty(completeResultSet) && completeResultSet.length > 0) {
-                for (var i = 0; i < completeResultSet.length; i++) {
-                    informacionCodigosVB[i] = new Object();
-
-                    informacionCodigosVB[i].idInterno = completeResultSet[i].getValue({
-                        name: resultSearch.columns[1]
-                    });//ID INTERNO
-
-                    informacionCodigosVB[i].importeTotal = parseFloat(completeResultSet[i].getValue({
-                        name: resultSearch.columns[2]
-                    }), 10);//IMPORTE TOTAL
-
-                    informacionCodigosVB[i].codigoRetGanancias = completeResultSet[i].getValue({
-                        name: resultSearch.columns[3]
-                    });//CODIGO RETENCION GANANCIAS
-
-                    informacionCodigosVB[i].codigoRetIVA = completeResultSet[i].getValue({
-                        name: resultSearch.columns[4]
-                    });//CODIGO RETENCION IVA
-
-                    informacionCodigosVB[i].codigoRetSUSS = completeResultSet[i].getValue({
-                        name: resultSearch.columns[5]
-                    });//CODIGO RETENCION SUSS
-
-                    informacionCodigosVB[i].esFacturaM = completeResultSet[i].getValue({
-                        name: resultSearch.columns[6]
-                    });//INDICA SI ES UNA TRANSACCION M
-
-                    informacionCodigosVB[i].calcularSobreIVA = completeResultSet[i].getValue({
-                        name: resultSearch.columns[8]
-                    });//INDICA SI LA BASE DE CÁLCULO SE CALCULA SOBRE IVA
-
-                    informacionCodigosVB[i].nombreRetGanancias = completeResultSet[i].getValue({
-                        name: resultSearch.columns[9]
-                    });//INDICA EL NOMBRE DE LA RETENCIÓN DE GANANCIAS
-
-                    informacionCodigosVB[i].nombreRetSUSS = completeResultSet[i].getValue({
-                        name: resultSearch.columns[10]
-                    });//INDICA EL NOMBRE DE LA RETENCIÓN DE SUSS
-
-                    informacionCodigosVB[i].nombreRetIVA = completeResultSet[i].getValue({
-                        name: resultSearch.columns[11]
-                    });//INDICA EL NOMBRE DE LA RETENCIÓN DE IVA
-                }
-            }
-            else {
-                log.debug('L54 - Calculo Retenciones', 'obtener_arreglo_codigos_ret_vendorbill_moneda_local - No se encuentro informacion para las bills recibidas por parametro');
-            }
-
-            log.debug('L54 - Calculo Retenciones', 'RETURN - informacionCodigosVB: ' + JSON.stringify(informacionCodigosVB));
-            log.debug('L54 - Calculo Retenciones', 'FIN - obtener_arreglo_codigos_ret_vendorbill_moneda_local');
-            return informacionCodigosVB;
-        }
 
         //ABRITO: FUNCION QUE OBTIENE LOS IMPORTES NETOS DE LAS BILLS - DEVUELVE UN ARRAY
         function obtener_arreglo_netos_vendorbill(entidad, billsPagar, subsidiaria, sinJurisdiccionUnica, esONG) {
@@ -4827,115 +4802,7 @@
             return ((isEmpty(string) || string == 'F' || string == false) ? false : true);
         }
 
-        //JSALAZAR: FUNCION QUE PERMITE OBTENER LOS IMPORTES NETOS DE LAS BILLS EN SU MONEDA LOCAL - DEVUELVE UN ARRAY
-        function obtener_arreglo_netos_vendorbill_moneda_local(entidad, billsPagar, subsidiaria, sinJurisdiccionUnica, esONG) {
-
-            log.debug('L54 - Calculo Retenciones', 'INICIO - obtener_arreglo_netos_vendorbill_moneda_local');
-            log.debug('L54 - Calculo Retenciones', 'Parámetros - entidad: ' + entidad + ' - billsPagar: ' + billsPagar + ' - subsidiaria: ' + subsidiaria + ' - sinJurisdiccionUnica: ' + sinJurisdiccionUnica + ' - esONG: ' + esONG);
-
-            var informacionNetosVB = [];
-
-            //SAVE SEARCH A EJECUTAR
-            // Si es ONG se invoca al SS que sólo toma en cuenta las líneas con ID IMPUESTO AFIP == 2
-            if (!isEmpty(esONG) && (esONG == 'T' || esONG)) {
-                var searchNetosVB = search.load({
-                    id: 'customsearch_l54_bill_net_amt_em_ong_m_l'
-                });
-            } else { // Si no es ONG se invoca al SS que no toma en cuenta las líneas con ID IMPUESTO AFIP == 3
-                var searchNetosVB = search.load({
-                    id: 'customsearch_l54_bill_net_amt_mon_local'
-                });
-            }
-
-            //log.debug('L54 - Calculo Retenciones', 'INICIO - obtener_arreglo_netos_vendorbill - searchnetosvb: ' + JSON.stringify(searchNetosVB));
-
-            //FILTRO PROVEEDOR
-            if (!isEmpty(entidad)) {
-                var filtroEntidad = search.createFilter({
-                    name: 'entity',
-                    operator: search.Operator.IS,
-                    values: entidad
-                });
-                searchNetosVB.filters.push(filtroEntidad);
-            }
-
-            //FILTRO BILLS A PAGAR
-            if (!isEmpty(billsPagar)) {
-                var filtroBillsPagar = search.createFilter({
-                    name: 'internalid',
-                    operator: search.Operator.ANYOF,
-                    values: billsPagar
-                });
-                searchNetosVB.filters.push(filtroBillsPagar);
-            }
-
-            //FILTRO SUBSIDIARIA
-            if (!isEmpty(subsidiaria)) {
-                var filtroSubsidiaria = search.createFilter({
-                    name: 'subsidiary',
-                    operator: search.Operator.IS,
-                    values: subsidiaria
-                });
-                searchNetosVB.filters.push(filtroSubsidiaria);
-            }
-
-            if (sinJurisdiccionUnica) {
-                var filtroJurisdiccionUnica = search.createFilter({
-                    name: 'custbody_l54_jurisdiccion_unica',
-                    operator: search.Operator.ANYOF,
-                    values: '@NONE@'
-                });
-                searchNetosVB.filters.push(filtroJurisdiccionUnica);
-            }
-
-            var resultSearch = searchNetosVB.run();
-            var completeResultSet = [];
-            var resultIndex = 0;
-            var resultStep = 1000; // Number of records returned in one step (maximum is 1000)
-            var resultado; // temporary variable used to store the result set
-            
-
-            do {
-                
-                // fetch one result set
-                resultado = resultSearch.getRange({
-                    start: resultIndex,
-                    end: resultIndex + resultStep
-                });
-
-                if (!isEmpty(resultado) && resultado.length > 0) {
-                    if (resultIndex == 0)
-                        completeResultSet = resultado;
-                    else
-                        completeResultSet = completeResultSet.concat(resultado);
-                }
-                //increase pointer
-                resultIndex = resultIndex + resultStep;
-
-                // once no records are returned we already got all of them
-                
-            } while (!isEmpty(resultado) && resultado.length > 0)
-
-
-            if (!isEmpty(completeResultSet) && completeResultSet.length > 0) {
-                for (var i = 0; i < completeResultSet.length; i++) {
-                    informacionNetosVB[i] = new Object();
-
-                    informacionNetosVB[i].idInterno = completeResultSet[i].getValue({
-                        name: resultSearch.columns[1]
-                    });//ID INTERNO BILL
-
-                    informacionNetosVB[i].importe = parseFloat(completeResultSet[i].getValue({
-                        name: resultSearch.columns[2]
-                    }), 10);//IMPORTE NETO
-                }
-            } else {
-                log.debug('L54 - Calculo Retenciones', 'obtener_arreglo_netos_vendorbill_moneda_local - No se encuentro informacion para las bills recibidas por parametro');
-            }
-            log.debug('L54 - Calculo Retenciones', 'RETURN - informacionNetosVB: ' + JSON.stringify(informacionNetosVB));
-            log.debug('L54 - Calculo Retenciones', 'FIN - obtener_arreglo_netos_vendorbill_moneda_local');
-            return informacionNetosVB;
-        }
+    
 
         //ABRITO: FUNCION QUE OBTIENE LOS IMPORTES PERCIBIDOS DE LAS BILLS - DEVUELVE UN ARRAY
         function obtener_arreglo_imp_perc(entidad, billsPagar, subsidiaria) {
@@ -5127,148 +4994,7 @@
             return informacionIVAVB;
         }
 
-        /* JSALAZAR: 08/12/2019: SE EXTRAE EL TOTAL DE IMPORTE PAGADO PARA UNA FACTURA EN TODAS LAS VENDOR PAYMENTS QUE SE VINCULÓ ANTES DEL PERIODO DE CALCULO (MENSUAL O ANUAL)
-        NO TOMA EN CUENTA LAS DEL PERIODO ACTUAL */
-        function calcularImportesBrutosPagosPasados(entidad, billsPagar, subsidiaria, fecha_pago, esAnualizada) {
 
-            try {
-                log.debug('L54 - Calculo Retenciones', 'INICIO - calcularImportesBrutosPagosPasados');
-                log.debug('L54 - Calculo Retenciones', 'Parámetros - calcularImportesBrutosPagosPasados - Parámetros - entidad: ' + entidad + ' - billsPagar: ' + billsPagar + ' - subsidiaria: ' + subsidiaria + ' - fecha_pago: ' + fecha_pago + ' - esAnualizada: ' + esAnualizada);
-
-                var informacionPagoPasadosFactura = [];
-
-
-                var searchTotalPagosPasadosFacturas = search.load({
-                    id: 'customsearch_l54_tot_pag_pas_fac_cal_ret'
-                });
-
-                //FILTRO PROVEEDOR
-                if (!isEmpty(entidad)) {
-                    var filtroEntidad = search.createFilter({
-                        name: 'entity',
-                        operator: search.Operator.IS,
-                        values: entidad
-                    });
-                    searchTotalPagosPasadosFacturas.filters.push(filtroEntidad);
-                }
-
-                //FILTRO BILLS A PAGAR
-                if (!isEmpty(billsPagar)) {
-                    var filtroBillsPagar = search.createFilter({
-                        name: 'internalid',
-                        operator: search.Operator.ANYOF,
-                        values: billsPagar
-                    });
-                    searchTotalPagosPasadosFacturas.filters.push(filtroBillsPagar);
-                }
-
-                //FILTRO SUBSIDIARIA
-                if (!isEmpty(subsidiaria)) {
-                    var filtroSubsidiaria = search.createFilter({
-                        name: 'subsidiary',
-                        operator: search.Operator.IS,
-                        values: subsidiaria
-                    });
-                    searchTotalPagosPasadosFacturas.filters.push(filtroSubsidiaria);
-                }
-
-                //FILTRO PERIODO O FECHAS
-                if (!isEmpty(fecha_pago)) {
-
-                    /* var trandateDate = format.parse({
-                        value: fecha_pago,
-                        type: format.Type.DATE,
-                        timezone: format.Timezone.AMERICA_BUENOS_AIRES // Montevideo - Uruguay
-                    }); */
-
-                    var trandateDate = fecha_pago;
-
-                    var dia = trandateDate.getDate();
-                    var mes = trandateDate.getMonth();
-                    var anio = trandateDate.getFullYear();
-                    var trandateDate = new Date(anio, mes, dia);
-
-                    var fechaInicial = new Date(anio, mes, dia); // ver de poner la fecha actual o la fecha de la transacción
-                    fechaInicial.setDate(1);
-
-                    if (esAnualizada) {
-                        //fechaInicial.setMonth(fechaInicial.getMonth() - 11);
-                        fechaInicial.setMonth(0);
-                    }
-
-                    var fechaInicialAUX = format.format({
-                        value: fechaInicial,
-                        type: format.Type.DATE,
-                        timezone: format.Timezone.AMERICA_BUENOS_AIRES
-                    });
-
-                    //FILTRO FECHA HASTA
-                    if (!isEmpty(fechaInicialAUX)) {
-
-                        var filtroFechaHasta = search.createFilter({
-                            name: 'trandate',
-                            join: 'payingtransaction',
-                            operator: search.Operator.BEFORE,
-                            values: fechaInicialAUX
-                        });
-                        searchTotalPagosPasadosFacturas.filters.push(filtroFechaHasta);
-                    }
-                }
-
-                var resultSearch = searchTotalPagosPasadosFacturas.run();
-                var completeResultSet = [];
-                var resultIndex = 0;
-                var resultStep = 1000; // Number of records returned in one step (maximum is 1000)
-                var resultado; // temporary variable used to store the result set
-                
-
-                do {
-                    
-                    // fetch one result set
-                    resultado = resultSearch.getRange({
-                        start: resultIndex,
-                        end: resultIndex + resultStep
-                    });
-
-                    if (!isEmpty(resultado) && resultado.length > 0) {
-                        if (resultIndex == 0)
-                            completeResultSet = resultado;
-                        else
-                            completeResultSet = completeResultSet.concat(resultado);
-                    }
-                    //increase pointer
-                    resultIndex = resultIndex + resultStep;
-
-                    // once no records are returned we already got all of them
-                    
-                } while (!isEmpty(resultado) && resultado.length > 0)
-
-
-                if (!isEmpty(completeResultSet) && completeResultSet.length > 0) {
-                    for (var i = 0; i < completeResultSet.length; i++) {
-                        informacionPagoPasadosFactura[i] = new Object();
-
-                        informacionPagoPasadosFactura[i].idInterno = completeResultSet[i].getValue({
-                            name: resultSearch.columns[0]
-                        });//ID INTERNO BILL
-
-                        informacionPagoPasadosFactura[i].importe = parseFloat(completeResultSet[i].getValue({
-                            name: resultSearch.columns[1]
-                        }), 10);//IMPORTE BRUTO PAGADO
-                    }
-                }
-                else {
-                    log.debug('L54 - Calculo Retenciones', 'calcularImportesBrutosPagosPasados - No se encuentro informacion de importes para las bills recibidas por parametro');
-                }
-
-                log.debug('L54 - Calculo Retenciones', 'RETURN - informacionPagoPasadosFactura: ' + JSON.stringify(informacionPagoPasadosFactura));
-                log.debug('L54 - Calculo Retenciones', 'FIN - calcularImportesBrutosPagosPasados');
-                return informacionPagoPasadosFactura;
-            } catch (e) {
-                log.error('calcularImportesBrutosPagosPasados', 'Error - calcularImportesBrutosPagosPasados - Excepcion Error: ' + e.message);
-                return null;
-            }
-        }
 
         //JSALAZAR: 08/12/2019: SE EXTRAE EL TOTAL DE IMPORTE BRUTO PARA LAS FACTURA QUE HAN SIDO PAGADAS ANTES DEL PAGO ACTUAL - TOMANDO EN CUENTA LAS DEL PERIODO ACTUAL Y LAS ANTERIORES
         function calcularImpBrutosPagPasadosTotalesAcumulados(entidad, billsPagar, subsidiaria, fecha_pago) {
@@ -5448,28 +5174,7 @@
             return neto_vendorbill;
         }
 
-        function obtener_neto_(arregloNetosVendorBill, idVendorBill) {
 
-            log.debug('L54 - Calculo Retenciones', 'INICIO - obtener_neto_vendorbill');
-            log.debug('L54 - Calculo Retenciones', 'Parámetros - arregloNetosVendorBill: ' + JSON.stringify(arregloNetosVendorBill) + ', idVendorBill: ' + idVendorBill);
-
-            var neto_vendorbill = 0;
-
-            var resultVendorBill = arregloNetosVendorBill.filter(function (obj) {
-                return obj.idInterno == idVendorBill;
-            });
-
-            if (!isEmpty(resultVendorBill) && resultVendorBill.length > 0) {
-                neto_vendorbill = parseFloat(resultVendorBill[0].importe, 10);
-            }
-            else {
-                log.debug('L54 - Calcular Retenciones (SS)', 'obtener_neto_vendorbill - No se encuentro informacion para las bills recibidas por parametro');
-            }
-
-            log.debug('L54 - Calculo Retenciones', 'RETURN - neto_vendorbill: ' + neto_vendorbill);
-            log.debug('L54 - Calculo Retenciones', 'FIN - obtener_neto_vendorbill');
-            return neto_vendorbill;
-        }
 
         function obtener_importe_percepcion(arregloImpPerc, idVendorBill) {
             log.debug('INICIO - obtener_importe_percepcion', 'Parámetros - arregloImpPerc: ' + JSON.stringify(arregloImpPerc) + ', idVendorBill: ' + idVendorBill);
@@ -5883,6 +5588,10 @@
                         name: resultSearch.columns[10]
                     });//PERIODO
 
+                    var montosEmbargos = completeResultSet[i].getValue({
+                        name: resultSearch.columns[11]
+                    });//PERIODO
+
                     if (!isEmpty(codigoRetencionPadron))
                         arregloCodigosRetencionPadronIIBB[i].codigo = codigoRetencionPadron;
 
@@ -5912,18 +5621,21 @@
                     if (!isEmpty(periodo))
                         arregloCodigosRetencionPadronIIBB[i].periodo = periodo;
 
+                    if (!isEmpty(montosEmbargos))
+                        arregloCodigosRetencionPadronIIBB[i].montosEmbargos = montosEmbargos;
                 }
             } else {
                 log.debug('obtenerCodigosRetencionPadronesIIBB', 'obtenerCodigosRetencionPadronesIIBB - No se encuentro informacion para el tipo de padron y proveedor recibido por parametro');
             }
 
+            padronEspecial = arregloCodigosRetencionPadronIIBB;
             log.debug('obtenerCodigosRetencionPadronesIIBB', 'RETURN - obtenerCodigosRetencionPadronesIIBB: ' + JSON.stringify(arregloCodigosRetencionPadronIIBB));
             log.debug('obtenerCodigosRetencionPadronesIIBB', 'FIN - obtenerCodigosRetencionPadronesIIBB');
             return arregloCodigosRetencionPadronIIBB;
         }
 
         //ABRITO 09/11/2018: Método que me devuelve por cada Jurisdiccion de IIBB los Codigos de Retencion a utilizar
-        function obtenerCodigosRetencionIIBB(id_proveedor, subsidiaria, objEstadosIIBB, idConfGeneral, importeNetoTotalFacturas, resultsNetosJurisdiccion, arrayJurisdiccionesEntregaUnificado, existeFacturaSinJurisdiccionEntrega, tipoContribuyenteIVA, importeBrutoFacturasProveedorNormal, jurisdiccionCordoba, importeBrutoFacturasAliados, importeBrutoTotalFacturas, paramNoAplicaProvincia,id_posting_period) {
+        function obtenerCodigosRetencionIIBB(id_proveedor, subsidiaria, objEstadosIIBB, idConfGeneral, importeNetoTotalFacturas, resultsNetosJurisdiccion, arrayJurisdiccionesEntregaUnificado, existeFacturaSinJurisdiccionEntrega, tipoContribuyenteIVA, importeBrutoFacturasProveedorNormal, jurisdiccionCordoba, importeBrutoFacturasAliados, importeBrutoTotalFacturas, paramNoAplicaProvincia,id_posting_period, ignorarTipoContribuyenteIVA) {
 
             let proceso = 'obtenerCodigosRetencionIIBB';
             var codigosRetencionIIBB = {};
@@ -5939,13 +5651,13 @@
                      '- importeBrutoFacturasAliados: ' + importeBrutoFacturasAliados);
 
 
-                var importeNetoJurisdiccion = 0;
-                var objJurisdiccionCabecera = [];
-                var objJurisdiccionesGlobales = {};
-                var indiceObjeto = 0;
+
+
+           
+
                 var errorObtCodigoRetIIBB = false;
                 var jurisdiccionesSinConfiguracion = "";
-                var importeJurisdiccionGeneral = 0;
+      
                 var arrayConfigDetalle = [];
                 var errorParcial = false;
                 var errorPadronExcluyenteGeneral = false;
@@ -5971,7 +5683,7 @@
                         log.error('obtenerCodigosRetencionIIBB', 'obtenerCodigosRetencionIIBB - No se encontró informacion en el RT IIBB configuración detalle para las jurisdicciones del proveedor');
                     }
 
-                    var condicionParcial = "";
+                
 
                     if (!errorObtCodigoRetIIBB && !errorParcial) {
                         jurisdiccionesEntrega = jurisdiccionesEntregaValidas(arrayJurisdiccionesEntregaUnificado, arrayConfigDetalle, objEstadosIIBB.jurisdicciones);
@@ -6011,7 +5723,7 @@
                             if (buscarConfig) {
                                 infoConfigDetalle = arrayConfigDetalle.filter(function (obj) {
                                     return ((obj.jurisdiccionConfigDetalle == objEstadosIIBB.jurisdicciones[i].jurisdiccion) && (obj.tipoContribuyenteIIBB.split(',').indexOf(objEstadosIIBB.jurisdicciones[i].tipoContribuyente) >= 0) &&
-                                        (obj.jurisdiccionSede === objEstadosIIBB.jurisdicciones[i].jurisdiccionSede) && (obj.tipoContribuyenteIVA.split(',').indexOf(tipoContribuyenteIVA) >= 0) && 
+                                        (obj.jurisdiccionSede === objEstadosIIBB.jurisdicciones[i].jurisdiccionSede) && (ignorarTipoContribuyenteIVA || obj.tipoContribuyenteIVA.split(',').indexOf(tipoContribuyenteIVA) >= 0) && 
                                         (obj.critJurisdUtilizacion.split(',').indexOf(objEstadosIIBB.jurisdicciones[i].critJurisdUtilizacion) >= 0) && (obj.critJurisdEntrega.split(',').indexOf(objEstadosIIBB.jurisdicciones[i].critJurisdEntrega) >= 0) && 
                                         (obj.critJurisdOrigen.split(',').indexOf(objEstadosIIBB.jurisdicciones[i].critJurisdOrigen) >= 0) && (obj.critJurisdFacturacion.split(',').indexOf(objEstadosIIBB.jurisdicciones[i].critJurisdFacturacion) >= 0));
                                 });
@@ -6038,7 +5750,7 @@
                                 var porcentajeAlicUtilSedeNoTucuman = infoConfigDetalle[0].porcentajeAlicUtilSedeNoTucuman;
                                 var porcentajeEspecialUtilizarBI = infoConfigDetalle[0].porcentajeEspecialUtilizarBI;
                                 var baseCalcAcumulada = infoConfigDetalle[0].baseCalcAcumulada;
-                                var calcularSobreNeto = infoConfigDetalle[0].calcularSobreNeto;
+                                
                                 var calcularSobreBruto = infoConfigDetalle[0].calcularSobreBruto;
                                 var impMinBaseCalculoRet = infoConfigDetalle[0].impMinBaseCalculoRet;
                                 var criterioPorcentajeEspecial = infoConfigDetalle[0].criterioPorcentajeEspecial;
@@ -6110,10 +5822,10 @@
                                     infoRet.idJurisdiccionDireccionEntrega = '';
                                     infoRet.importe_total_factura_aliados = 0.0;
                                     objJurisdiccionCabecera = [];
-                                    importeNetoJurisdiccion = 0;
-                                    objJurisdiccionesGlobales = [];
-                                    importeJurisdiccionGeneral = 0;
-                                    var existeDobleRetencionCordoba = false;
+
+                                    
+                                    
+                  
 
                                     /* Verificación de jurisdicción que se va iterando para saber si pertenece sólo a la Configuración General IIBB 
                                     Funcionalidad para sumar el importe de una jurisdicción que está configurada sólo en la Configuración General IIBB */
@@ -6242,6 +5954,7 @@
                                     //Nuevo - ID Tipo Contribuyente IIBB
                                     infoRet.condicionID = objEstadosIIBB.jurisdicciones[i].tipoContribuyente;
                                     infoRet.jurisdiccion = objEstadosIIBB.jurisdicciones[i].jurisdiccion;
+                                    infoRet.coeficienteBaseImponible = objEstadosIIBB.jurisdicciones[i].coeficienteBaseImponible;
                                     // Nuevo - Considerar Procentaje de Retenciones
                                     // infoRet.porcentajeRetencion = parseFloat((parseFloat(codigoRetIIBB.alicuota, 10) / 100), 10).toString();
                                     infoRet.porcentajeRetencion = parseFloat(parseFloat(convertToInteger(codigoRetIIBB.alicuota), 10) / (100 * Math.pow(10, countDecimales(codigoRetIIBB.alicuota))), 10).toString();
@@ -6732,911 +6445,7 @@
             }
         }
 
-        //ABRITO 12/11/2018: Funcion devuelve la sumatoria de todos los pagos pasados para un proveedor, periodo, tipo ret. y cod. de ret.
-        function getImpPagosPasadosGanMonotributo(id_proveedor, id_periodo, codigo_retencion, fecha_pago, moneda, billsPagar, subsidiaria, tipoRetencion) {
 
-            log.debug('L54 - Calculo Retenciones', 'INICIO - getImpPagosPasadosGanMonotributo');
-            log.debug('L54 - Calculo Retenciones', 'Parámetros - id_proveedor: ' + id_proveedor + ' - codigo_retencion: ' + codigo_retencion + ' - fecha_pago: ' + fecha_pago + ' - subsidiaria: ' + subsidiaria + ' - tipoRetencion: ' + tipoRetencion);
-
-            //var trandateDate = nlapiStringToDate(fecha_pago, 'datetimetz');
-            /* var trandateDate = format.parse({
-                value: fecha_pago,
-                type: format.Type.DATE,
-                timezone: format.Timezone.AMERICA_BUENOS_AIRES // Montevideo - Uruguay
-            }); */
-
-            var trandateDate = fecha_pago;
-
-            var dia = trandateDate.getDate();
-            var mes = trandateDate.getMonth();
-            var anio = trandateDate.getFullYear();
-            var trandateDate = new Date(anio, mes, dia);
-
-            // Busco los Pagos Anteriores de Monotributo de la Misma Moneda
-            var fechaInicial = new Date(anio, mes, dia); // ver de poner la fecha actual o la fecha de la transacción
-            fechaInicial.setDate(1);
-            //fechaInicial.setMonth(fechaInicial.getMonth() - 11);
-            fechaInicial.setMonth(0);
-
-            var fechaFinal = new Date(anio, mes, dia);
-            var importe_neto_factura_proveedor_total = 0;
-
-            var fechaInicialAUX = format.format({
-                value: fechaInicial,
-                type: format.Type.DATE,
-                timezone: format.Timezone.AMERICA_BUENOS_AIRES
-            });
-
-            var fechaFinalAUX = format.format({
-                value: fechaFinal,
-                type: format.Type.DATE,
-                timezone: format.Timezone.AMERICA_BUENOS_AIRES
-            });
-
-            //SAVE SEARCH A EJECUTAR
-            var searchPPGanMonoTrib = search.load({
-                id: 'customsearch_l54_imp_ant_gan_monotrib'
-            });
-
-            //FILTRO PROVEEDOR
-            if (!isEmpty(id_proveedor)) {
-                var filtroProveedor = search.createFilter({
-                    name: 'entity',
-                    operator: search.Operator.IS,
-                    values: id_proveedor
-                });
-                searchPPGanMonoTrib.filters.push(filtroProveedor);
-            }
-
-            //FILTRO FECHA DESDE
-            if (!isEmpty(fechaInicialAUX)) {
-
-                var filtroFechaDesde = search.createFilter({
-                    name: 'trandate',
-                    operator: search.Operator.ONORAFTER,
-                    values: fechaInicialAUX
-                });
-                searchPPGanMonoTrib.filters.push(filtroFechaDesde);
-            }
-
-            //FILTRO FECHA HASTA
-            if (!isEmpty(fechaFinalAUX)) {
-
-                var filtroFechaHasta = search.createFilter({
-                    name: 'trandate',
-                    operator: search.Operator.ONORBEFORE,
-                    values: fechaFinalAUX
-                });
-                searchPPGanMonoTrib.filters.push(filtroFechaHasta);
-            }
-
-            //FILTRO CODIGO RETENCION GANANCIAS O SUSS
-            if (!isEmpty(codigo_retencion)) {
-
-                var filtroCodRetGAN = search.createFilter({
-                    name: 'custbody_l54_codigo_ret_' + tipoRetencion,
-                    operator: search.Operator.IS,
-                    values: codigo_retencion
-                });
-                searchPPGanMonoTrib.filters.push(filtroCodRetGAN);
-            }
-
-            //FILTRO SUBSIDIARIA
-            if (!isEmpty(subsidiaria)) {
-
-                var filtroSubsidiaria = search.createFilter({
-                    name: 'subsidiary',
-                    operator: search.Operator.IS,
-                    values: subsidiaria
-                });
-                searchPPGanMonoTrib.filters.push(filtroSubsidiaria);
-            }
-
-            var resultSearch = searchPPGanMonoTrib.run();
-            var completeResultSet = [];
-            var resultIndex = 0;
-            var resultStep = 1000; // Number of records returned in one step (maximum is 1000)
-            var resultado; // temporary variable used to store the result set
-            
-
-            do {
-                
-                // fetch one result set
-                resultado = resultSearch.getRange({
-                    start: resultIndex,
-                    end: resultIndex + resultStep
-                });
-
-                if (!isEmpty(resultado) && resultado.length > 0) {
-                    if (resultIndex == 0)
-                        completeResultSet = resultado;
-                    else
-                        completeResultSet = completeResultSet.concat(resultado);
-                }
-                //increase pointer
-                resultIndex = resultIndex + resultStep;
-
-                // once no records are returned we already got all of them
-                
-            } while (!isEmpty(resultado) && resultado.length > 0)
-
-
-            if (!isEmpty(completeResultSet)) {
-                for (var i = 0; i < completeResultSet.length; i++) {
-                    importe_neto_factura_proveedor_total = parseFloat(completeResultSet[i].getValue({
-                        name: resultSearch.columns[0]/*,
-                        summary: 'sum'*/
-                    }), 10);//IMPORTE
-                }
-
-                if (isEmpty(importe_neto_factura_proveedor_total) || (!isEmpty(importe_neto_factura_proveedor_total) && isNaN(importe_neto_factura_proveedor_total)))
-                    importe_neto_factura_proveedor_total = 0;
-            }
-            else {
-                log.debug('L54 - Calculo Retenciones', 'getImpPagosPasadosGanMonotributo - No se encuentro informacion para las bills con los parametros indicados');
-            }
-
-            if (isEmpty(importe_neto_factura_proveedor_total) || (!isEmpty(importe_neto_factura_proveedor_total) && isNaN(importe_neto_factura_proveedor_total)))
-                importe_neto_factura_proveedor_total = 0;
-
-            log.debug('L54 - Calculo Retenciones', 'RETURN - importe_neto_factura_proveedor_total: ' + parseFloat(importe_neto_factura_proveedor_total, 10).toFixedOK(2));
-            log.debug('L54 - Calculo Retenciones', 'FIN - getImpPagosPasadosGanMonotributo');
-            return parseFloat(importe_neto_factura_proveedor_total, 10).toFixedOK(2);
-        }
-
-        //JSALAZAR 03/12/2019: Funcion que obtiene el neto de todos las facturas del proveedor, en el periodo
-        function getImpFacturasPagas(id_proveedor, fecha_pago, subsidiaria, codigoRetencion, tipoRetencion, esAnualizada) {
-
-            try {
-                log.debug('L54 - Calculo Retenciones', 'INICIO - getImpFacturasPagas');
-                log.debug('L54 - Calculo Retenciones', 'Parámetros - id_proveedor: ' + id_proveedor + ' - fecha_pago: ' + fecha_pago + ' - subsidiaria: ' + subsidiaria + ' - codigoRetencion: ' + JSON.stringify(codigoRetencion) + ' - tipoRetencion: ' + tipoRetencion + ' - esAnualizada: ' + esAnualizada);
-
-                var informacionPagoPasados = [];
-
-                if (!isEmpty(codigoRetencion) && codigoRetencion.length > 0) {
-
-                    //SAVE SEARCH A EJECUTAR
-                    var searchPagosPasados = search.load({
-                        id: 'customsearch_l54_bill_net_amt_bas_ca_c_r'
-                    });
-
-                    //FILTRO PROVEEDOR
-                    if (!isEmpty(id_proveedor)) {
-                        var filtroProveedor = search.createFilter({
-                            name: 'entity',
-                            operator: search.Operator.IS,
-                            values: id_proveedor
-                        });
-                        searchPagosPasados.filters.push(filtroProveedor);
-                    }
-
-                    //FILTRO PERIODO O PERIODO DE ACUERDO A SI ES ANUALIZADA
-                    if (esAnualizada) {
-                        if (!isEmpty(fecha_pago)) {
-
-
-                            /* var trandateDate = format.parse({
-                                value: fecha_pago,
-                                type: format.Type.DATE,
-                                timezone: format.Timezone.AMERICA_BUENOS_AIRES // Montevideo - Uruguay
-                            }); */
-
-                            var trandateDate = fecha_pago;
-
-                            var dia = trandateDate.getDate();
-                            var mes = trandateDate.getMonth();
-                            var anio = trandateDate.getFullYear();
-                            var trandateDate = new Date(anio, mes, dia);
-
-                            // Busco los Pagos Anteriores de Monotributo de la Misma Moneda
-                            var fechaInicial = new Date(anio, mes, dia); // ver de poner la fecha actual o la fecha de la transacción
-                            fechaInicial.setDate(1);
-                            //fechaInicial.setMonth(fechaInicial.getMonth() - 11);
-                            fechaInicial.setMonth(0);
-
-                            var fechaFinal = new Date(anio, mes, dia);
-
-                            var fechaInicialAUX = format.format({
-                                value: fechaInicial,
-                                type: format.Type.DATE,
-                                timezone: format.Timezone.AMERICA_BUENOS_AIRES
-                            });
-
-                            var fechaFinalAUX = format.format({
-                                value: fechaFinal,
-                                type: format.Type.DATE,
-                                timezone: format.Timezone.AMERICA_BUENOS_AIRES
-                            });
-
-                            //FILTRO FECHA DESDE
-                            if (!isEmpty(fechaInicialAUX)) {
-
-                                var filtroFechaDesde = search.createFilter({
-                                    name: 'trandate',
-                                    join: 'payingtransaction',
-                                    operator: search.Operator.ONORAFTER,
-                                    values: fechaInicialAUX
-                                });
-                                searchPagosPasados.filters.push(filtroFechaDesde);
-                            }
-
-                            //FILTRO FECHA HASTA
-                            if (!isEmpty(fechaFinalAUX)) {
-
-                                var filtroFechaHasta = search.createFilter({
-                                    name: 'trandate',
-                                    join: 'payingtransaction',
-                                    operator: search.Operator.ONORBEFORE,
-                                    values: fechaFinalAUX
-                                });
-                                searchPagosPasados.filters.push(filtroFechaHasta);
-                            }
-                        }
-                    } else {
-                        if (!isEmpty(fecha_pago)) {
-
-                            /* var trandateDate = format.parse({
-                                value: fecha_pago,
-                                type: format.Type.DATE,
-                                timezone: format.Timezone.AMERICA_BUENOS_AIRES // Montevideo - Uruguay
-                            }); */
-
-                            var trandateDate = fecha_pago;
-
-                            var dia = trandateDate.getDate();
-                            var mes = trandateDate.getMonth();
-                            var anio = trandateDate.getFullYear();
-                            var trandateDate = new Date(anio, mes, dia);
-
-                            var fechaInicial = new Date(anio, mes, dia); // ver de poner la fecha actual o la fecha de la transacción
-                            fechaInicial.setDate(1);
-
-                            var fechaFinal = new Date(anio, mes, dia);
-
-                            var fechaInicialAUX = format.format({
-                                value: fechaInicial,
-                                type: format.Type.DATE,
-                                timezone: format.Timezone.AMERICA_BUENOS_AIRES
-                            });
-
-                            var fechaFinalAUX = format.format({
-                                value: fechaFinal,
-                                type: format.Type.DATE,
-                                timezone: format.Timezone.AMERICA_BUENOS_AIRES
-                            });
-
-                            //FILTRO FECHA DESDE
-                            if (!isEmpty(fechaInicialAUX)) {
-
-                                var filtroFechaDesde = search.createFilter({
-                                    name: 'trandate',
-                                    join: 'payingtransaction',
-                                    operator: search.Operator.ONORAFTER,
-                                    values: fechaInicialAUX
-                                });
-                                searchPagosPasados.filters.push(filtroFechaDesde);
-                            }
-
-                            //FILTRO FECHA HASTA
-                            if (!isEmpty(fechaFinalAUX)) {
-
-                                var filtroFechaHasta = search.createFilter({
-                                    name: 'trandate',
-                                    join: 'payingtransaction',
-                                    operator: search.Operator.ONORBEFORE,
-                                    values: fechaFinalAUX
-                                });
-                                searchPagosPasados.filters.push(filtroFechaHasta);
-                            }
-
-                        }
-                    }
-
-                    //FILTRO SUBSIDIARIA
-                    if (!isEmpty(subsidiaria)) {
-                        var filtroSubsidiaria = search.createFilter({
-                            name: 'subsidiary',
-                            operator: search.Operator.IS,
-                            values: subsidiaria
-                        });
-                        searchPagosPasados.filters.push(filtroSubsidiaria);
-                    }
-
-                    if (!isEmpty(codigoRetencion) && codigoRetencion === 'iva') {
-                        var filtroCodigoRetencion = search.createFilter({
-                            name: 'custbody_l54_codigo_ret_' + tipoRetencion,
-                            operator: search.Operator.ANYOF,
-                            values: codigoRetencion
-                        });
-                        searchPagosPasados.filters.push(filtroCodigoRetencion);
-                    }
-
-                    var resultSearch = searchPagosPasados.run();
-                    var completeResultSet = [];
-                    var resultIndex = 0;
-                    var resultStep = 1000; // Number of records returned in one step (maximum is 1000)
-                    var resultado; // temporary variable used to store the result set
-                    
-
-                    do {
-                        
-                        // fetch one result set
-                        resultado = resultSearch.getRange({
-                            start: resultIndex,
-                            end: resultIndex + resultStep
-                        });
-
-                        if (!isEmpty(resultado) && resultado.length > 0) {
-                            if (resultIndex == 0)
-                                completeResultSet = resultado;
-                            else
-                                completeResultSet = completeResultSet.concat(resultado);
-                        }
-                        //increase pointer
-                        resultIndex = resultIndex + resultStep;
-
-                        // once no records are returned we already got all of them
-                        
-                    } while (!isEmpty(resultado) && resultado.length > 0)
-
-                    // log.audit('L54 - Calcular Retenciones - LINE 7510', 'completeResultSet.length: ' + completeResultSet.length);
-
-                    if ((!isEmpty(completeResultSet)) && (completeResultSet.length > 0)) {
-                        for (var i = 0; i < completeResultSet.length; i++) {
-
-                            informacionPagoPasados[i] = {};
-
-                            informacionPagoPasados[i].idInterno = completeResultSet[i].getValue({
-                                name: resultSearch.columns[1]
-                            });
-
-                            informacionPagoPasados[i].importe = completeResultSet[i].getValue({
-                                name: resultSearch.columns[4]
-                            });//BASE CALCULO - FACTURAS PASADAS - PAGO ACUMULADO EN PAGOS PASADOS - AMOUNT ACUMULADO DE LOS PAGOS PASADOS
-
-                            informacionPagoPasados[i].codigoRetGanancias = completeResultSet[i].getValue({
-                                name: resultSearch.columns[5]
-                            });//CODIGO RETENCION GANANCIAS
-
-                            informacionPagoPasados[i].codigoRetIVA = completeResultSet[i].getValue({
-                                name: resultSearch.columns[6]
-                            });//CODIGO RETENCION IVA
-
-                            informacionPagoPasados[i].codigoRetSUSS = completeResultSet[i].getValue({
-                                name: resultSearch.columns[7]
-                            });//CODIGO RETENCION SUSS
-                        }
-                    } else {
-                        log.debug('L54 - Calculo Retenciones', 'getImpPagosPasados - No se encuentro informacion de importe de pagos pasados para los parametros indicados');
-                    }
-                }
-
-                log.debug('L54 - Calculo Retenciones', 'RETURN - importePagosPasados: ' + JSON.stringify(informacionPagoPasados));
-                log.debug('L54 - Calculo Retenciones', 'FIN - getImpFacturasPagas');
-                // return JSON.stringify(informacionPagoPasados);
-                return informacionPagoPasados;
-
-            } catch (e) {
-                log.error('getImpFacturasPagas', 'Error - getImpFacturasPagas - Excepcion Error: ' + e.message);
-                return null;
-            }
-
-        }
-
-        function obtenerPuntoVenta(esND, subsidiaria, tipoTransStr, locationId) {
-            log.debug('L54 - Calculo Retenciones', 'INICIO - obtenerPuntoVenta');
-            log.debug('L54 - Calculo Retenciones', 'Parámetros - esND: ' + esND + ' - subsidiaria: ' + subsidiaria + ' - tipoTransStr: ' + tipoTransStr + ' - locationId: ' + locationId);
-
-            var categoriaNumerador = null;
-            var resultgetTipoTransId = getTipoTransId(tipoTransStr);
-            var tipoTransId = numeradorAUtilizar(resultgetTipoTransId, esND, subsidiaria);
-
-            if (!isEmpty(locationId)) {
-                var fieldLookUp = search.lookupFields({
-                    type: search.Type.LOCATION,
-                    id: locationId,
-                    columns: ['custrecord_l54_loc_categoria_numerador']
-                });
-
-                if (!isEmpty(fieldLookUp))
-                    categoriaNumerador = fieldLookUp.custrecord_l54_loc_categoria_numerador;
-            }
-
-            log.debug('L54 - Calculo Retenciones', 'RETURN - getBocaPreferidaParaTrans: ' + getBocaPreferidaParaTrans(tipoTransId, subsidiaria, categoriaNumerador));
-            log.debug('L54 - Calculo Retenciones', 'FIN - obtenerPuntoVenta');
-            return getBocaPreferidaParaTrans(tipoTransId, subsidiaria, categoriaNumerador);
-        }
-
-
-        function numeradorAUtilizar(tipoTransNetSuite, esND, subsidiaria) {
-
-            log.debug('L54 - Calculo Retenciones', 'INICIO - numeradorAUtilizar');
-            log.debug('L54 - Calculo Retenciones', 'Parámetros - esND: ' + esND + ' - subsidiaria: ' + subsidiaria + ' - tipoTransNetSuite: ' + tipoTransNetSuite);
-
-            //SI VIENE NULL SE LE ASIGNA VALOR FALSE
-            if (isEmpty(esND))
-                esND = false;
-
-            //SAVE SEARCH A EJECUTAR
-            var saveSearch = search.load({
-                id: 'customsearch_l54_num_transac_cal_ret'
-            });
-
-            //FILTRO TIPO TRANSACCION NS
-            if (!isEmpty(tipoTransNetSuite)) {
-                var filtroTipoTransNS = search.createFilter({
-                    name: 'custrecord_l54_tipo_trans_netsuite',
-                    operator: search.Operator.IS,
-                    values: tipoTransNetSuite
-                });
-                saveSearch.filters.push(filtroTipoTransNS);
-            }
-
-            //FILTRO ES NOTA DE DEBITO?
-            if (!isEmpty(esND)) {
-                var filtroND = search.createFilter({
-                    name: 'custrecord_l54_es_nd',
-                    operator: search.Operator.IS,
-                    values: esND
-                });
-                saveSearch.filters.push(filtroND);
-            }
-
-            //FILTRO SUBSIDIARIA
-            if (!isEmpty(subsidiaria)) {
-                var filtroSubsidiaria = search.createFilter({
-                    name: 'custrecord_l54_num_trans_subsidiaria',
-                    operator: search.Operator.IS,
-                    values: subsidiaria
-                });
-                saveSearch.filters.push(filtroSubsidiaria);
-            }
-
-            var resultSearch = saveSearch.run();
-            var completeResultSet = [];
-            var resultIndex = 0;
-            var resultStep = 1000; // Number of records returned in one step (maximum is 1000)
-            var resultado; // temporary variable used to store the result set
-            
-
-            do {
-                
-                // fetch one result set
-                resultado = resultSearch.getRange({
-                    start: resultIndex,
-                    end: resultIndex + resultStep
-                });
-
-                if (!isEmpty(resultado) && resultado.length > 0) {
-                    if (resultIndex == 0)
-                        completeResultSet = resultado;
-                    else
-                        completeResultSet = completeResultSet.concat(resultado);
-                }
-                //increase pointer
-                resultIndex = resultIndex + resultStep;
-
-                // once no records are returned we already got all of them
-                
-            } while (!isEmpty(resultado) && resultado.length > 0)
-
-            if (!isEmpty(completeResultSet)) {
-                if (completeResultSet.length > 0) {
-                    var numerador = completeResultSet[0].getValue({
-                        name: resultSearch.columns[1]
-                    });
-                    log.debug('L54 - Calculo Retenciones', 'RETURN - numerador: ' + numerador);
-                    return numerador;
-                }
-            }
-            else {
-                log.debug('L54 - Calculo Retenciones', 'RETURN - null');
-                return null;
-            }
-            log.debug('L54 - Calculo Retenciones', 'FIN - numeradorAUtilizar');
-            return null;
-        }
-
-
-        function getTipoTransId(tipoTransStr) {
-            log.debug('L54 - Calculo Retenciones', 'INICIO - getTipoTransId');
-            log.debug('L54 - Calculo Retenciones', 'Parámetros - tipoTransStr: ' + tipoTransStr);
-
-            if (!isEmpty(tipoTransStr)) {
-
-                var saveSearch = search.create({
-                    type: 'customlist_l54_tipo_transaccion',
-                    columns: [{
-                        name: 'internalId'
-                    }],
-                    filters: [{
-                        name: 'name',
-                        operator: 'is',
-                        values: tipoTransStr
-                    }]
-                });
-
-                var resultSearch = saveSearch.run();
-                var completeResultSet = [];
-                var resultIndex = 0;
-                var resultStep = 1000; // Number of records returned in one step (maximum is 1000)
-                var resultado; // temporary variable used to store the result set
-                
-
-                do {
-                    
-                    // fetch one result set
-                    resultado = resultSearch.getRange({
-                        start: resultIndex,
-                        end: resultIndex + resultStep
-                    });
-
-                    if (!isEmpty(resultado) && resultado.length > 0) {
-                        if (resultIndex == 0)
-                            completeResultSet = resultado;
-                        else
-                            completeResultSet = completeResultSet.concat(resultado);
-                    }
-                    //increase pointer
-                    resultIndex = resultIndex + resultStep;
-
-                    // once no records are returned we already got all of them
-                    
-                } while (!isEmpty(resultado) && resultado.length > 0)
-
-                //log.debug('getTipoTransId','LINE 3550 - completeResultSet: '+JSON.stringify(completeResultSet));
-                if (!isEmpty(completeResultSet)) {
-                    if (completeResultSet.length > 0) {
-                        var internalId = completeResultSet[0].getValue({
-                            name: resultSearch.columns[0]
-                        });
-                        log.debug('L54 - Calculo Retenciones', 'RETURN - internalId: ' + internalId);
-                        return internalId;
-                    }
-                }
-                else {
-                    log.debug('L54 - Calculo Retenciones', 'getTipoTransId - No se encuentro el tipo de transaccion con los parametros indicados');
-                    log.debug('L54 - Calculo Retenciones', 'RETURN - null');
-                    log.debug('L54 - Calculo Retenciones', 'FIN - getTipoTransId');
-                    return null;
-                }
-            }
-            return null;
-        }
-
-
-        function getBocaPreferidaParaTrans(tipoTransId, subsidiaria, categoriaNumerador) {
-            log.debug('L54 - Calculo Retenciones', 'INICIO - getBocaPreferidaParaTrans');
-            log.debug('L54 - Calculo Retenciones', 'Parámetros - tipoTransId: ' + tipoTransId + '- subsidiaria: ' + subsidiaria + ' - categoriaNumerador: ' + categoriaNumerador);
-            var i = 0;
-
-            if (isEmpty(tipoTransId))
-                return 1;
-
-            //SAVE SEARCH A EJECUTAR
-            var saveSearch = search.load({
-                id: 'customsearch_l54_numeradores_cal_ret'
-            });
-
-            //FILTRO TIPO TRANSACCION
-            if (!isEmpty(tipoTransId)) {
-                var filtroTipoTrans = search.createFilter({
-                    name: 'custrecord_l54_num_tipo_trans',
-                    operator: search.Operator.ANYOF,
-                    values: tipoTransId
-                });
-                saveSearch.filters.push(filtroTipoTrans);
-            }
-
-            //FILTRO SUBSIDIARIA
-            if (!isEmpty(subsidiaria)) {
-                var filtroSubsidiaria = search.createFilter({
-                    name: 'custrecord_l54_num_subsidiaria',
-                    operator: search.Operator.IS,
-                    values: subsidiaria
-                });
-                saveSearch.filters.push(filtroSubsidiaria);
-            }
-
-            //FILTRO PREFERIDO
-            var filtroPreferido = search.createFilter({
-                name: 'custrecord_l54_num_preferido',
-                operator: search.Operator.IS,
-                values: true
-            });
-            saveSearch.filters.push(filtroPreferido);
-
-            var objDatosImpositivos = consultaDatosImpositivos(subsidiaria);
-            var numXLocation = false;
-            var numXLocation = objDatosImpositivos[0].numXLocation;
-            //log.debug('getBocaPreferidaParaTrans','LINE 3618 - numXLocation: '+numXLocation);
-
-            //Si la empresa utiliza numeracion por location, filtro categoria de numerador
-            if (numXLocation) {
-                if (isEmpty(categoriaNumerador))
-                    categoriaNumerador = '@NONE@';
-            }
-            else {
-                categoriaNumerador = '@NONE@'; //Como la empresa no utiliza numerador por location, busco el numerador sin categoria
-            }
-
-            //FILTRO CATEGORIA NUMERADOR
-            if (!isEmpty(categoriaNumerador)) {
-                var filtroCatNumerador = search.createFilter({
-                    name: 'custrecord_l54_num_categoria_numerador',
-                    operator: search.Operator.IS,
-                    values: categoriaNumerador
-                });
-                saveSearch.filters.push(filtroCatNumerador);
-            }
-
-            var resultSearch = saveSearch.run();
-            var completeResultSet = [];
-            var resultIndex = 0;
-            var resultStep = 1000; // Number of records returned in one step (maximum is 1000)
-            var resultado; // temporary variable used to store the result set
-            
-
-            do {
-                
-                // fetch one result set
-                resultado = resultSearch.getRange({
-                    start: resultIndex,
-                    end: resultIndex + resultStep
-                });
-
-                if (!isEmpty(resultado) && resultado.length > 0) {
-                    if (resultIndex == 0)
-                        completeResultSet = resultado;
-                    else
-                        completeResultSet = completeResultSet.concat(resultado);
-                }
-                //increase pointer
-                resultIndex = resultIndex + resultStep;
-
-                // once no records are returned we already got all of them
-                
-            } while (!isEmpty(resultado) && resultado.length > 0)
-
-            //log.debug('getBocaPreferidaParaTrans','LINE 3667 - completeResultSet: '+JSON.stringify(completeResultSet));
-            if (!isEmpty(completeResultSet)) {
-                if (completeResultSet.length > 0) {
-                    var boca = completeResultSet[0].getValue({
-                        name: resultSearch.columns[0]
-                    });
-                    log.debug('L54 - Calculo Retenciones', 'RETURN - boca: ' + boca);
-                    log.debug('L54 - Calculo Retenciones', 'FIN - getBocaPreferidaParaTrans');
-                    return boca;
-                }
-            }
-            else {
-                log.debug('L54 - Calculo Retenciones', 'getBocaPreferidaParaTrans - No se encuentro informacion de numeradores con los parametros recibidos');
-                log.debug('L54 - Calculo Retenciones', 'RETURN 1');
-                log.debug('L54 - Calculo Retenciones', 'FIN - getBocaPreferidaParaTrans');
-                return 1;
-            }
-            log.debug('L54 - Calculo Retenciones', 'RETURN 1');
-            return 1; // Boca default: 0001
-        }
-
-
-        function getLetraId(letraStr) {
-            log.debug('L54 - Calculo Retenciones', 'INICIO - getLetraId');
-            log.debug('L54 - Calculo Retenciones', 'Parámetros - letraStr: ' + letraStr);
-
-            var letraId = null;
-
-            if (letraStr == 'A')
-                letraId = 1;
-            else if (letraStr == 'B')
-                letraId = 2;
-            else if (letraStr == 'C')
-                letraId = 3;
-            else if (letraStr == 'E')
-                letraId = 4;
-            else if (letraStr == 'R')
-                letraId = 5;
-            else if (letraStr == 'X')
-                letraId = 6;
-
-            log.debug('L54 - Calculo Retenciones', 'RETURN - letraId: ' + letraId);
-            log.debug('L54 - Calculo Retenciones', 'FIN - getLetraId');
-            return letraId;
-        }
-
-
-        function devolverNuevoNumero(tipoTransId, boca, letra, subsidiaria, jurisdiccion) {
-
-            log.debug('L54 - Calculo Retenciones', 'INICIO - devolverNuevoNumero');
-            log.debug('L54 - Calculo Retenciones', 'Parámetros - tipoTransId: ' + tipoTransId + ', boca: ' + boca + ', letra: ' + letra + ', subsidiaria: ' + subsidiaria + ', jurisdiccion: ' + jurisdiccion);
-
-            if (!isEmpty(tipoTransId) && !isEmpty(boca) && !isEmpty(letra)) {
-
-                var numeradorElectronico = false;
-                var tipoMiddleware = 1;
-                var tipoTransaccionAFIP = "";
-                var idInternoNumerador = "";
-
-                //SAVE SEARCH A EJECUTAR
-                var saveSearch = search.load({
-                    id: 'customsearch_l54_numeradores_cal_ret'
-                });
-                //FILTRO TIPO TRANSACCION
-                if (!isEmpty(tipoTransId)) {
-                    var filtroTipoTrans = search.createFilter({
-                        name: 'custrecord_l54_num_tipo_trans',
-                        operator: search.Operator.ANYOF,
-                        values: tipoTransId
-                    });
-                    saveSearch.filters.push(filtroTipoTrans);
-                }
-                //FILTRO BOCA
-                if (!isEmpty(boca)) {
-                    var filtroBoca = search.createFilter({
-                        name: 'custrecord_l54_num_boca',
-                        operator: search.Operator.ANYOF,
-                        values: boca
-                    });
-                    saveSearch.filters.push(filtroBoca);
-                }
-                //FILTRO LETRA
-                if (!isEmpty(letra)) {
-                    var filtroLetra = search.createFilter({
-                        name: 'custrecord_l54_num_letra',
-                        operator: search.Operator.ANYOF,
-                        values: letra
-                    });
-                    saveSearch.filters.push(filtroLetra);
-                }
-                //FILTRO SUBSIDIARIA
-                if (!isEmpty(subsidiaria)) {
-                    var filtroSubsidiaria = search.createFilter({
-                        name: 'custrecord_l54_num_subsidiaria',
-                        operator: search.Operator.IS,
-                        values: subsidiaria
-                    });
-                    saveSearch.filters.push(filtroSubsidiaria);
-                }
-                //FILTRO JURISDICCION
-                if (!isEmpty(jurisdiccion)) {
-                    var filtroJurisdiccion = search.createFilter({
-                        name: 'custrecord_l54_num_jurisdiccion',
-                        operator: search.Operator.IS,
-                        values: jurisdiccion
-                    });
-                    saveSearch.filters.push(filtroJurisdiccion);
-                }
-
-                var resultSearch = saveSearch.run();
-                var completeResultSet = [];
-                var resultIndex = 0;
-                var resultStep = 1000; // Number of records returned in one step (maximum is 1000)
-                var resultado; // temporary variable used to store the result set
-                
-
-                do {
-                    
-                    // fetch one result set
-                    resultado = resultSearch.getRange({
-                        start: resultIndex,
-                        end: resultIndex + resultStep
-                    });
-
-                    if (!isEmpty(resultado) && resultado.length > 0) {
-                        if (resultIndex == 0)
-                            completeResultSet = resultado;
-                        else
-                            completeResultSet = completeResultSet.concat(resultado);
-                    }
-                    //increase pointer
-                    resultIndex = resultIndex + resultStep;
-
-                    // once no records are returned we already got all of them
-                    
-                } while (!isEmpty(resultado) && resultado.length > 0)
-
-                if (!isEmpty(completeResultSet)) {
-                    if (completeResultSet.length > 0) {
-                        var numerador = completeResultSet[0].getValue({ name: resultSearch.columns[1] });
-                        var numeradorInicial = completeResultSet[0].getValue({ name: resultSearch.columns[2] });
-                        var numeradorLong = completeResultSet[0].getValue({ name: resultSearch.columns[3] });
-                        var numeradorPrefijo = completeResultSet[0].getValue({ name: resultSearch.columns[4] });
-                        numeradorElectronico = completeResultSet[0].getValue({ name: resultSearch.columns[5] });
-                        tipoMiddleware = completeResultSet[0].getValue({ name: resultSearch.columns[6] });
-                        tipoTransaccionAFIP = completeResultSet[0].getValue({ name: resultSearch.columns[7] });
-                        idInternoNumerador = completeResultSet[0].getValue({ name: resultSearch.columns[8] });
-                        var recId = completeResultSet[0].getValue({ name: resultSearch.columns[8] });
-                    }
-                }
-                else {
-                    log.debug('L54 - Calculo Retenciones', 'devolverNuevoNumero - No se encuentro informacion de numeradores con los parametros recibidos');
-                    log.debug('L54 - Calculo Retenciones', 'RETURN 1');
-                    log.debug('L54 - Calculo Retenciones', 'FIN - devolverNuevoNumero');
-                    return 1;
-                }
-
-                if (!isEmpty(numeradorElectronico) && (numeradorElectronico == 'T' || numeradorElectronico == true)) {
-                    // Si es Numerador Electronico
-                    var numeradorArray = new Array();
-                    numeradorArray['referencia'] = idInternoNumerador;
-                    numeradorArray['numerador'] = ""; // numerador
-                    numeradorArray['numeradorPrefijo'] = ""; // prefijo + numerador
-                    numeradorArray['numeradorElectronico'] = 'T';
-                    numeradorArray['tipoTransAFIP'] = tipoTransaccionAFIP;
-                    log.debug('L54 - Calculo Retenciones', 'RETURN - numeradorArray: ' + JSON.stringify(numeradorArray));
-                    log.debug('L54 - Calculo Retenciones', 'FIN - devolverNuevoNumero');
-                    return numeradorArray;
-                }
-                else {
-                    if (isEmpty(numerador)) {
-                        //nlapiSubmitField('customrecord_l54_numeradores', recId, ['custrecord_l54_num_numerador'], [parseInt(numeradorInicial) + 1]);
-                        var contador = parseInt(numeradorInicial) + 1;
-
-                        record.submitFields({
-                            type: 'customrecord_l54_numeradores',
-                            id: recId,
-                            values: {
-                                custrecord_l54_num_numerador: contador
-                            },
-                            options: {
-                                enableSourcing: false,
-                                ignoreMandatoryFields: true
-                            }
-                        });
-                        numerador = numeradorInicial;
-                    }
-                    else {
-                        //nlapiSubmitField('customrecord_l54_numeradores', recId, ['custrecord_l54_num_numerador'], [parseInt(numerador) + 1]);
-                        var contador = parseInt(numerador) + 1;
-                        record.submitFields({
-                            type: 'customrecord_l54_numeradores',
-                            id: recId,
-                            values: {
-                                custrecord_l54_num_numerador: contador
-                            },
-                            options: {
-                                enableSourcing: false,
-                                ignoreMandatoryFields: true
-                            }
-                        });
-                    }
-                    var numerador = zeroFill(numerador, numeradorLong);
-
-                    if (!isEmpty(numeradorPrefijo)) {
-                        var numeradorArray = new Array();
-                        numeradorArray['referencia'] = idInternoNumerador;
-                        numeradorArray['numerador'] = numerador.toString(); // numerador
-                        numeradorArray['numeradorPrefijo'] = numeradorPrefijo.toString() + numerador.toString(); // prefijo + numerador
-                        numeradorArray['numeradorElectronico'] = 'F';
-                        numeradorArray['tipoTransAFIP'] = tipoTransaccionAFIP;
-                        log.debug('L54 - Calculo Retenciones', 'RETURN - numeradorArray: ' + JSON.stringify(numeradorArray));
-                        log.debug('L54 - Calculo Retenciones', 'FIN - devolverNuevoNumero');
-                        return numeradorArray;
-                    } else {
-
-                        var numeradorArray = new Array();
-                        numeradorArray['referencia'] = idInternoNumerador;
-                        numeradorArray['numerador'] = numerador.toString(); // numerador
-                        numeradorArray['numeradorPrefijo'] = numerador.toString(); // prefijo + numerador
-                        numeradorArray['numeradorElectronico'] = 'F';
-                        numeradorArray['tipoTransAFIP'] = tipoTransaccionAFIP;
-                        log.debug('L54 - Calculo Retenciones', 'RETURN - numeradorArray: ' + JSON.stringify(numeradorArray));
-                        log.debug('L54 - Calculo Retenciones', 'FIN - devolverNuevoNumero');
-                        return numeradorArray;
-                    }
-                }
-            } else {
-                var numeradorArray = new Array();
-                numeradorArray['referencia'] = idInternoNumerador;
-                numeradorArray['numerador'] = ""; // numerador
-                numeradorArray['numeradorPrefijo'] = ""; // prefijo + numerador
-                numeradorArray['numeradorElectronico'] = 'F';
-                numeradorArray['tipoTransAFIP'] = '';
-                log.debug('L54 - Calculo Retenciones', 'RETURN - numeradorArray: ' + JSON.stringify(numeradorArray));
-                log.debug('L54 - Calculo Retenciones', 'FIN - devolverNuevoNumero');
-                return numeradorArray;
-            }
-        }
 
 
         function letras(c, d, u) {
@@ -7834,8 +6643,7 @@
                 ce,
                 de,
                 un,
-                hlp,
-                decimal;
+                hlp
 
             if (isNaN(n)) {
 
@@ -7936,571 +6744,25 @@
             if (n < 1000 && n >= 1)
                 log.debug('L54 - Calculo Retenciones', 'FIN - getNumberLiteral');
             return (letras(ce, de, un));
-
-            if (n == 0)
-                log.debug('L54 - Calculo Retenciones', 'RETURN CERO');
-            log.debug('L54 - Calculo Retenciones', 'FIN - getNumberLiteral');
-            return " CERO";
-
-            return "NO DISPONIBLE"
-        }
-
-        function getNumeroEnLetras(numero) {
-            log.debug('L54 - Calculo Retenciones', 'INICIO - getNumeroEnLetras');
-            log.debug('L54 - Calculo Retenciones', 'Parámetros - numero: ' + numero);
-
-            if (!isEmpty(numero)) {
-
-                //var currency_name = 'PESOS';
-                var partes = numero.split('.');
-                var parteEntera = partes[0];
-                var parteDecimal = partes[1];
-                var parteEnteraLetras = '';
-
-                // convierto la parte entera en letras
-                parteEnteraLetras = getNumberLiteral(parteEntera);
-                // le hago un TRIM a la parte entera en letras
-                parteEnteraLetras = parteEnteraLetras.replace(/^\s*|\s*$/g, "");
-
-                var numeroEnLetras = 'Son ' + parteEnteraLetras + ' con ' + parteDecimal;
-
-                // dejo toda la palabra en mayusculas
-                numeroEnLetras = numeroEnLetras.toUpperCase();
-
-                // le agrego MN (Moneda Nacional) al final
-                numeroEnLetras = numeroEnLetras + '/100';
-                log.debug('L54 - Calculo Retenciones', 'RETURN - numeroEnLetras: ' + numeroEnLetras);
-                log.debug('L54 - Calculo Retenciones', 'FIN - getNumeroEnLetras');
-
-                return numeroEnLetras;
-            }
-            log.debug('L54 - Calculo Retenciones', 'RETURN  NULL');
-            log.debug('L54 - Calculo Retenciones', 'FIN - getNumeroEnLetras');
-            return NULL;
         }
 
 
-        function obtenerCuentaIIBB(subsidiaria, jurisdiccionIIBB) {
-
-            log.debug('L54 - Calculo Retenciones', 'INICIO - obtenerCuentaIIBB');
-            log.debug('L54 - Calculo Retenciones', 'Parámetros - subsidiaria:' + subsidiaria + ',jurisdiccionIIBB:' + jurisdiccionIIBB);
-
-            var idCuenta = 0;
-            var idConfGeneral = null;
-            if (!isEmpty(jurisdiccionIIBB)) {
-                //SAVE SEARCH A EJECUTAR
-                var saveSearch = search.load({
-                    id: 'customsearch_l54_pv_iibb_config_general'
-                });
-                //FILTRO SUBSIDIARIA
-                if (!isEmpty(subsidiaria)) {
-                    var filtroSubsidiaria = search.createFilter({
-                        name: 'custrecord_l54_pv_gral_subsidiaria',
-                        operator: search.Operator.IS,
-                        values: subsidiaria
-                    });
-                    saveSearch.filters.push(filtroSubsidiaria);
-                }
-
-                var resultSearch = saveSearch.run();
-                var completeResultSet = [];
-                var resultIndex = 0;
-                var resultStep = 1000; // Number of records returned in one step (maximum is 1000)
-                var resultado; // temporary variable used to store the result set
-                
-
-                do {
-                    
-                    // fetch one result set
-                    resultado = resultSearch.getRange({
-                        start: resultIndex,
-                        end: resultIndex + resultStep
-                    });
-
-                    if (!isEmpty(resultado) && resultado.length > 0) {
-                        if (resultIndex == 0)
-                            completeResultSet = resultado;
-                        else
-                            completeResultSet = completeResultSet.concat(resultado);
-                    }
-                    //increase pointer
-                    resultIndex = resultIndex + resultStep;
-
-                    // once no records are returned we already got all of them
-                    
-                } while (!isEmpty(resultado) && resultado.length > 0)
-
-                if (!isEmpty(completeResultSet)) {
-                    if (completeResultSet.length > 0) {
-                        idConfGeneral = completeResultSet[0].getValue({ name: resultSearch.columns[0] });
-                    }
-                }
-                else {
-                    log.error('L54 - Calculo Retenciones', 'obtenerCuentaIIBB - No se encuentro informacion de Configuración General IIBB');
-                    log.debug('L54 - Calculo Retenciones', 'RETURN NULL');
-                    log.debug('L54 - Calculo Retenciones', 'FIN - obtenerCuentaIIBB');
-                    return null;
-                }
-
-                log.debug('L54 - Calculo Retenciones', 'obtenerCuentaIIBB - idConfGeneral:' + idConfGeneral);
-
-                if (!isEmpty(idConfGeneral) && idConfGeneral > 0) {
-                    //SAVE SEARCH A EJECUTAR
-                    var saveSearch = search.load({
-                        id: 'customsearch_l54_iibb_config_detalle'
-                    });
-                    //FILTRO ID CONFIG GENERAL
-                    if (!isEmpty(idConfGeneral)) {
-                        var filtroConfGeneral = search.createFilter({
-                            name: 'custrecord_l54_pv_det_link_padre',
-                            operator: search.Operator.IS,
-                            values: idConfGeneral
-                        });
-                        saveSearch.filters.push(filtroConfGeneral);
-                    }
-                    //FILTRO JURISDICCION
-                    if (!isEmpty(jurisdiccionIIBB)) {
-                        var filtroJurisdiccion = search.createFilter({
-                            name: 'custrecord_l54_pv_det_jurisdiccion',
-                            operator: search.Operator.IS,
-                            values: jurisdiccionIIBB
-                        });
-                        saveSearch.filters.push(filtroJurisdiccion);
-                    }
-
-                    var resultSearch = saveSearch.run();
-                    var completeResultSet = [];
-                    var resultIndex = 0;
-                    var resultStep = 1000; // Number of records returned in one step (maximum is 1000)
-                    var resultado; // temporary variable used to store the result set
-                    
-
-                    do {
-                        
-                        // fetch one result set
-                        resultado = resultSearch.getRange({
-                            start: resultIndex,
-                            end: resultIndex + resultStep
-                        });
-
-                        if (!isEmpty(resultado) && resultado.length > 0) {
-                            if (resultIndex == 0)
-                                completeResultSet = resultado;
-                            else
-                                completeResultSet = completeResultSet.concat(resultado);
-                        }
-                        //increase pointer
-                        resultIndex = resultIndex + resultStep;
-
-                        // once no records are returned we already got all of them
-                        
-                    } while (!isEmpty(resultado) && resultado.length > 0)
-
-                    if (!isEmpty(completeResultSet)) {
-                        if (completeResultSet.length > 0) {
-                            idCuenta = completeResultSet[0].getValue({ name: resultSearch.columns[3] });
-                        }
-                    }
-                    else {
-                        log.error('L54 - Calculo Retenciones', 'o - No se encuentro informacion de IIBB Configuración Detalle');
-                        log.debug('L54 - Calculo Retenciones', 'RETURN - idCuenta:' + idCuenta);
-                        log.debug('L54 - Calculo Retenciones', 'FIN - obtenerCuentaIIBB');
-                        return idCuenta;
-                    }
-                }
-            }
-            log.debug('L54 - Calculo Retenciones', 'RETURN - idCuenta:' + idCuenta);
-            log.debug('L54 - Calculo Retenciones', 'FIN - obtenerCuentaIIBB');
-            return idCuenta;
-        }
 
 
-        function loadRetenciones(idVendorPayment) {
-            log.debug('L54 - Calculo Retenciones', 'INICIO - loadRetenciones');
-            log.debug('L54 - Calculo Retenciones', 'Parámetros - idVendorPayment: ' + idVendorPayment);
 
-            var arrayRetenciones = new Array();
-
-            //DECLARACION DEL SAVE SEARCH A EJECUTAR
-            var saveSearch = search.load({
-                id: 'customsearch_l54_retenciones_cal_ret'
-            });
-
-            //FILTRO PAGO DE PROVEEDOR
-            if (!isEmpty(idVendorPayment)) {
-                //FILTRO DE SUBSIDIARIA
-                var filtroVendorPayment = search.createFilter({
-                    name: 'custrecord_l54_ret_ref_pago_prov',
-                    operator: search.Operator.IS,
-                    values: idVendorPayment
-                });
-                saveSearch.filters.push(filtroVendorPayment);
-
-                var resultSearch = saveSearch.run();
-                var resultIndex = 0;
-                var resultStep = 1000; // Number of records returned in one step (maximum is 1000)
-                var resultado; // temporary variable used to store the result set
-                
-                var rangoInicial = 0;
-                var completeResultSet = [];
-
-                do {
-                    
-
-                    // fetch one result set
-                    resultado = resultSearch.getRange({
-                        start: resultIndex,
-                        end: resultIndex + resultStep
-                    });
-
-                    if (!isEmpty(resultado) && resultado.length > 0) {
-                        if (resultIndex == 0) completeResultSet = resultado;
-                        else completeResultSet = completeResultSet.concat(resultado);
-                    }
-                    // increase pointer
-                    resultIndex = resultIndex + resultStep;
-                    // once no records are returned we already got all of them
-                } while (!isEmpty(resultado) && resultado.length > 0)
-                rangoInicial = rangoInicial + resultStep;
-
-                for (var i = 0; !isEmpty(completeResultSet) && i < completeResultSet.length; i++) {
-                    var objRetenciones = new Object();
-                    objRetenciones.ret_id_retencion = completeResultSet[i].getValue({ name: resultSearch.columns[0] });
-                    objRetenciones.ret_retencion = completeResultSet[i].getValue({ name: resultSearch.columns[1] });
-                    objRetenciones.ret_jurisdiccion = completeResultSet[i].getValue({ name: resultSearch.columns[2] });
-                    objRetenciones.ret_importe = completeResultSet[i].getValue({ name: resultSearch.columns[3] });
-                    objRetenciones.ret_tipo = completeResultSet[i].getValue({ name: resultSearch.columns[4] });
-                    objRetenciones.ret_base_calculo = completeResultSet[i].getValue({ name: resultSearch.columns[5] });
-                    objRetenciones.ret_base_calculo_imp = completeResultSet[i].getValue({ name: resultSearch.columns[6] });
-                    objRetenciones.ret_neto_bill_aplicado = completeResultSet[i].getValue({ name: resultSearch.columns[7] });
-                    objRetenciones.ret_condicion = completeResultSet[i].getValue({ name: resultSearch.columns[8] });
-                    objRetenciones.ret_tipo_contrib_iibb = completeResultSet[i].getValue({ name: resultSearch.columns[9] });
-                    objRetenciones.ret_alicuota = completeResultSet[i].getValue({ name: resultSearch.columns[10] });
-                    objRetenciones.ret_tipo_exencion = completeResultSet[i].getValue({ name: resultSearch.columns[11] });
-                    objRetenciones.ret_cert_exencion = completeResultSet[i].getValue({ name: resultSearch.columns[12] });
-                    objRetenciones.ret_fecha_exencion = completeResultSet[i].getValue({ name: resultSearch.columns[13] });
-                    arrayRetenciones.push(objRetenciones);
-                }
-                log.debug('L54 - Calculo Retenciones', 'RETURN - arrayRetenciones: ' + JSON.stringify(arrayRetenciones));
-                log.debug('L54 - Calculo Retenciones', 'FIN - loadRetenciones');
-                return arrayRetenciones;
-            }
-            log.debug('L54 - Calculo Retenciones', 'RETURN - arrayRetenciones: ' + JSON.stringify(arrayRetenciones));
-            log.debug('L54 - Calculo Retenciones', 'FIN - loadRetenciones');
-            return arrayRetenciones;
-        }
-
-
-        function zeroFill(number, width) {
-            log.debug('L54 - Calculo Retenciones', 'INICIO - zeroFill');
-            log.debug('L54 - Calculo Retenciones', 'Parámetros - number: ' + number + 'width: ' + width);
-            width -= number.toString().length;
-            if (width > 0) {
-
-                return new Array(width + (/\./.test(number) ? 2 : 1)).join('0') + number;
-            }
-
-            log.debug('L54 - Calculo Retenciones', 'RETURN - number: ' + number);
-            log.debug('L54 - Calculo Retenciones', 'FIN - loadRetenciones');
-            return number;
-        }
 
         Number.prototype.toFixedOK = function (decimals) {
             var sign = this >= 0 ? 1 : -1;
             return (Math.round((this * Math.pow(10, decimals)) + (sign * 0.001)) / Math.pow(10, decimals)).toFixed(decimals);
         }
 
-        function redondeo2decimales(numero) {
-            log.debug('L54 - Calculo Retenciones', 'INICIO - redondeo2decimales');
-            log.debug('L54 - Calculo Retenciones', 'Parámetros - numero: ' + numero);
 
-            var result = parseFloat(Math.round(parseFloat(numero) * 100) / 100).toFixed(2);
 
-            log.debug('L54 - Calculo Retenciones', 'RETURN - result: ' + result);
-            log.debug('L54 - Calculo Retenciones', 'FIN - redondeo2decimales');
-            return result;
-        }
 
-        function searchSavedPro(idSavedSearch, arrayParams) {
-            var objRespuesta = new Object();
-            objRespuesta.error = false;
-            try {
-                var savedSearch = search.load({
-                    id: idSavedSearch
-                });
 
-                if (!isEmpty(arrayParams) && arrayParams.length > 0) {
 
-                    for (var i = 0; i < arrayParams.length; i++) {
-                        var nombre = arrayParams[i].name;
-                        arrayParams[i].operator = operadorBusqueda(arrayParams[i].operator);
-                        var join = arrayParams[i].join;
-                        if (isEmpty(join)) {
-                            join = null;
-                        }
-                        var value = arrayParams[i].values;
-                        if (!Array.isArray(value)) {
-                            value = [value];
-                        }
-                        var filtroID = '';
-                        if (!isEmpty(join)) {
-                            filtroID = search.createFilter({
-                                name: nombre,
-                                operator: arrayParams[i].operator,
-                                join: join,
-                                values: value
-                            });
-                        } else {
-                            filtroID = search.createFilter({
-                                name: nombre,
-                                operator: arrayParams[i].operator,
-                                values: value
-                            });
-                        }
-                        savedSearch.filters.push(filtroID);
-                    }
-                }
-                var resultSearch = savedSearch.run();
-                var completeResultSet = [];
-                var resultIndex = 0;
-                var resultStep = 1000; // Number of records returned in one step (maximum is 1000)
-                var resultado; // temporary variable used to store the result set
-                
 
-                do {
-                    
-                    // fetch one result set
-                    resultado = resultSearch.getRange({
-                        start: resultIndex,
-                        end: resultIndex + resultStep
-                    });
-                    if (!isEmpty(resultado) && resultado.length > 0) {
-                        if (resultIndex == 0) completeResultSet = resultado;
-                        else completeResultSet = completeResultSet.concat(resultado);
-                    }
-                    // increase pointer
-                    resultIndex = resultIndex + resultStep;
-                    // once no records are returned we already got all of them
-                } while (!isEmpty(resultado) && resultado.length > 0)
-                objRsponseFunction = new Object();
-                objRsponseFunction.result = completeResultSet;
-                objRsponseFunction.search = resultSearch;
-                var r = armarArreglosSS(completeResultSet, resultSearch);
-                objRsponseFunction.array = r.array;
-                objRespuesta.objRsponseFunction = objRsponseFunction;
-            } catch (e) {
-                objRespuesta.error = true;
-                objRespuesta.tipoError = 'RORV007';
-                objRespuesta.descripcion = 'function searchSavedPro: ' + e.message;
-                log.error('RORV007', 'function searchSavedPro: ' + e.message);
-            }
-            return objRespuesta;
-        }
-
-        function armarArreglosSS(resultSet, resultSearch) {
-            var array = [];
-            var respuesta = new Object({});
-            respuesta.error = false;
-            respuesta.msj = "";
-            //log.debug('armarArreglosSS', 'resultSet: ' + JSON.stringify(resultSet));
-            //log.debug('armarArreglosSS', 'resultSearch: ' + JSON.stringify(resultSearch));
-            try {
-
-                for (var i = 0; i < resultSet.length; i++) {
-                    var obj = new Object({});
-                    obj.indice = i;
-                    for (var j = 0; j < resultSearch.columns.length; j++) {
-                        var nombreColumna = resultSearch.columns[j].name;
-                        //log.debug('armarArreglosSS','nombreColumna inicial: '+ nombreColumna);
-                        if (nombreColumna.indexOf("formula") !== -1 || !isEmpty(resultSearch.columns[j].join)) {
-                            nombreColumna = resultSearch.columns[j].label;
-
-                            //if (nombreColumna.indexOf("Formula"))
-                        }
-                        //log.debug('armarArreglosSS','nombreColumna final: '+ nombreColumna);
-                        if (Array.isArray(resultSet[i].getValue({ name: resultSearch.columns[j] }))) {
-                            //log.debug('armarArreglosSS', 'resultSet[i].getValue({ name: nombreColumna }): ' + JSON.stringify(resultSet[i].getValue({ name: nombreColumna })));
-                            var a = resultSet[i].getValue({ name: resultSearch.columns[j] });
-                            //log.debug('armarArreglosSS', 'a: ' + JSON.stringify(a));
-                            obj[nombreColumna] = a[0].value;
-                        } else {
-                            //log.debug('armarArreglosSS', 'resultSet[i].getValue({ name: nombreColumna }): ' + JSON.stringify(resultSet[i].getValue({ name: nombreColumna })));
-                            obj[nombreColumna] = resultSet[i].getValue({ name: resultSearch.columns[j] });
-                        }
-                    }
-                    //log.debug('armarArreglosSS', 'obj: ' + JSON.stringify(obj));
-                    array.push(obj);
-                }
-                //log.debug('armarArreglosSS', 'arrayArmado cantidad: ' + array.length);
-                respuesta.array = array;
-
-            } catch (e) {
-                respuesta.error = true;
-                respuesta.tipoError = "RARR001";
-                respuesta.msj = "Excepción: " + e;
-                log.error('RARR001', 'armarArreglosSS Excepción: ' + e);
-            }
-
-            return respuesta;
-        }
-
-        function operadorBusqueda(operadorString) {
-            var operator = '';
-            switch (operadorString) {
-
-                case 'IS':
-                    operator = search.Operator.IS;
-                    break;
-
-                case 'AFTER':
-                    operator = search.Operator.AFTER;
-                    break;
-
-                case 'ALLOF':
-                    operator = search.Operator.ALLOF;
-                    break;
-
-                case 'ANY':
-                    operator = search.Operator.ANY;
-                    break;
-                case 'ANYOF':
-                    operator = search.Operator.ANYOF;
-                    break;
-
-                case 'BEFORE':
-                    operator = search.Operator.BEFORE;
-                    break;
-
-                case 'BETWEEN':
-                    operator = search.Operator.BETWEEN;
-                    break;
-
-                case 'CONTAINS':
-                    operator = search.Operator.CONTAINS;
-                    break;
-
-                case 'DOESNOTCONTAIN':
-                    operator = search.Operator.DOESNOTCONTAIN;
-                    break;
-
-                case 'DOESNOTSTARTWITH':
-                    operator = search.Operator.DOESNOTSTARTWITH;
-                    break;
-
-                case 'EQUALTO':
-                    operator = search.Operator.EQUALTO;
-                    break;
-
-                case 'GREATERTHAN':
-                    operator = search.Operator.GREATERTHAN;
-                    break;
-
-                case 'GREATERTHANOREQUALTO':
-                    operator = search.Operator.GREATERTHANOREQUALTO;
-                    break;
-
-                case 'HASKEYWORDS':
-                    operator = search.Operator.HASKEYWORDS;
-                    break;
-
-                case 'ISEMPTY':
-                    operator = search.Operator.ISEMPTY;
-                    break;
-
-                case 'ISNOT':
-                    operator = search.Operator.ISNOT;
-                    break;
-
-                case 'ISNOTEMPTY':
-                    operator = search.Operator.ISNOTEMPTY;
-                    break;
-
-                case 'LESSTHAN':
-                    operator = search.Operator.LESSTHAN;
-                    break;
-
-                case 'LESSTHANOREQUALTO':
-                    operator = search.Operator.LESSTHANOREQUALTO;
-                    break;
-
-                case 'NONEOF':
-                    operator = search.Operator.NONEOF;
-                    break;
-
-                case 'NOTAFTER':
-                    operator = search.Operator.NOTAFTER;
-                    break;
-
-                case 'NOTALLOF':
-                    operator = search.Operator.NOTALLOF;
-                    break;
-
-                case 'NOTBEFORE':
-                    operator = search.Operator.NOTBEFORE;
-                    break;
-
-                case 'NOTBETWEEN':
-                    operator = search.Operator.NOTBETWEEN;
-                    break;
-
-                case 'NOTEQUALTO':
-                    operator = search.Operator.NOTEQUALTO;
-                    break;
-
-                case 'NOTGREATERTHAN':
-                    operator = search.Operator.NOTGREATERTHAN;
-                    break;
-
-                case 'NOTGREATERTHANOREQUALTO':
-                    operator = search.Operator.NOTGREATERTHANOREQUALTO;
-                    break;
-
-                case 'NOTLESSTHAN':
-                    operator = search.Operator.NOTLESSTHAN;
-                    break;
-
-                case 'NOTLESSTHANOREQUALTO':
-                    operator = search.Operator.NOTLESSTHANOREQUALTO;
-                    break;
-
-                case 'NOTON':
-                    operator = search.Operator.NOTON;
-                    break;
-
-                case 'NOTONORAFTER':
-                    operator = search.Operator.NOTONORAFTER;
-                    break;
-
-                case 'NOTONORBEFORE':
-                    operator = search.Operator.NOTONORBEFORE;
-                    break;
-
-                case 'NOTWITHIN':
-                    operator = search.Operator.NOTWITHIN;
-                    break;
-
-                case 'ON':
-                    operator = search.Operator.ON;
-                    break;
-
-                case 'ONORAFTER':
-                    operator = search.Operator.ONORAFTER;
-                    break;
-
-                case 'ONORBEFORE':
-                    operator = search.Operator.ONORBEFORE;
-                    break;
-
-                case 'STARTSWITH':
-                    operator = search.Operator.STARTSWITH;
-                    break;
-
-                case 'WITHIN':
-                    operator = search.Operator.WITHIN;
-                    break;
-            }
-            return operator;
-        }
+     
 
         //JSALAZAR: FUNCION QUE OBTIENE LOS IMPORTES NETOS DE LAS BILLS QUE ESTÁN CON L54 - JURISDICCIÓN ÚNICA NO VACÍO
         function obtener_arreglo_netos_vendorbill_jurisdiccion(entidad, billsPagar, subsidiaria, esONG) {
@@ -8687,7 +6949,7 @@
                 var jurisdiccionesNoValidas = "";
                 infoArrayJurisdiccionesEntregaValidas.jurisdiccionesErroneas = false;
                 infoArrayJurisdiccionesEntregaValidas.mensajeError = "";
-                var infoJurisdEntregaProveedor = [];
+              
 
                 if (!isEmpty(arrayJurisdiccionesEntregaUnificado) && arrayJurisdiccionesEntregaUnificado.length > 0 && !isEmpty(arrayConfigDetalle) && arrayConfigDetalle.length > 0 && !isEmpty(jurisdiccionesProveedor) && jurisdiccionesProveedor.length > 0) {
                     /* for (var i = 0; i < arrayJurisdiccionesEntregaUnificado.length; i++) {
@@ -8759,7 +7021,7 @@
                     } else {
                         if (!isEmpty(jurisdiccion) && !isEmpty(id_proveedor)) {
                             var resultadoCodigosRetencionPadronIIBB = arregloCodigosRetencionIIBB.filter(function (obj) {
-                                return (obj.jurisdiccion === jurisdiccion && obj.idProveedor === id_proveedor && obj.periodo === id_posting_period);
+                                return (obj.jurisdiccion === jurisdiccion && obj.idProveedor === id_proveedor && obj.periodo === id_posting_period && isEmpty(obj.montosEmbargos) );
                             });
                         }
                     }
@@ -9036,61 +7298,7 @@
             }
         }
 
-        function obtenerDatosJurisdiccionCordoba(infoRet, esAliados) {
 
-            try {
-
-                log.debug('obtenerDatosJurisdiccionCordoba', 'INICIO - obtenerDatosJurisdiccionCordoba');
-                log.debug('obtenerDatosJurisdiccionCordoba', 'Parámetros: infoRet: ' + JSON.stringify(infoRet) + ' - esAliados: ' + esAliados);
-
-                var objRespuestaDataCordoba = {};
-                objRespuestaDataCordoba.error = false;
-
-                if (!isEmpty(infoRet)) {
-                    objRespuestaDataCordoba.codigo = infoRet.codigo;
-                    objRespuestaDataCordoba.cuenta = infoRet.cuenta;
-                    objRespuestaDataCordoba.codigoJurisdiccionDireccionEntrega = "";
-                    objRespuestaDataCordoba.idJurisdiccionDireccionEntrega = "";
-                    objRespuestaDataCordoba.importe_factura_pagar = infoRet.importe_factura_pagar;
-                    objRespuestaDataCordoba.condicion = infoRet.condicion;
-                    objRespuestaDataCordoba.condicionID = infoRet.condicionID;
-                    objRespuestaDataCordoba.jurisdiccion = infoRet.jurisdiccion;
-                    objRespuestaDataCordoba.porcentajeRetencion = parseFloat(parseFloat(convertToInteger(infoRet.alicuotaRetencionEspecial), 10) / (100 * Math.pow(10, countDecimales(infoRet.alicuotaRetencionEspecial))), 10).toString();
-                    objRespuestaDataCordoba.certExencion = infoRet.certExencion;
-                    objRespuestaDataCordoba.tipoExencion = infoRet.tipoExencion;
-                    objRespuestaDataCordoba.fcaducidadExencion = infoRet.fcaducidadExencion;
-                    objRespuestaDataCordoba.jurisdiccionCodigo = infoRet.jurisdiccionCodigo;
-                    objRespuestaDataCordoba.estadoInscripcionPadron = infoRet.estadoInscripcionPadron;
-                    objRespuestaDataCordoba.coeficienteRetencion = infoRet.coeficienteRetencion;
-                    objRespuestaDataCordoba.esPadron = infoRet.esPadron;
-                    objRespuestaDataCordoba.porcentaje_alicuota_utilizar = infoRet.porcentaje_alicuota_utilizar;
-                    objRespuestaDataCordoba.alicuota_especial = infoRet.alicuota_especial;
-                    objRespuestaDataCordoba.idConvenioLocal = infoRet.idConvenioLocal;
-                    objRespuestaDataCordoba.idConvenioMultilateral = infoRet.idConvenioMultilateral;
-                    objRespuestaDataCordoba.idResponsableInscripto = infoRet.idResponsableInscripto;
-                    objRespuestaDataCordoba.idMonotrotributista = infoRet.idMonotrotributista;
-                    objRespuestaDataCordoba.porcentajeEspecialCoeficienteCero = infoRet.porcentajeEspecialCoeficienteCero;
-                    objRespuestaDataCordoba.porcentajeAlicUtilSedeNoTucuman = infoRet.porcentajeAlicUtilSedeNoTucuman;
-                    objRespuestaDataCordoba.jurisdiccionTexto = infoRet.jurisdiccionTexto;
-                    objRespuestaDataCordoba.alicuotaRetencionEspecial = infoRet.alicuotaRetencionEspecial;
-                    objRespuestaDataCordoba.importe_total_factura_aliados = infoRet.importe_total_factura_aliados;
-                    objRespuestaDataCordoba.esRetencionAliados = esAliados;
-                    objRespuestaDataCordoba.porcentajeEspecialUtilizarBI = infoRet.porcentajeEspecialUtilizarBI;
-                    objRespuestaDataCordoba.criterioPorcentajeEspecial = infoRet.criterioPorcentajeEspecial;
-                } else {
-                    objRespuestaDataCordoba.error = true;
-                    log.debug('obtenerDatosJurisdiccionCordoba', 'Error - obtenerDatosJurisdiccionCordoba - No existe la información de la retención a duplicar o la información de la jurisdicción de entrega está vacía');
-                }
-
-                log.debug('obtenerDatosJurisdiccionCordoba', 'RETURN - objRespuestaDataCordoba: ' + JSON.stringify(objRespuestaDataCordoba));
-                log.debug('obtenerDatosJurisdiccionCordoba', 'FIN - obtenerDatosJurisdiccionCordoba');
-                return objRespuestaDataCordoba;
-            } catch (e) {
-                objRespuestaDataCordoba.error = true;
-                log.error('obtenerDatosJurisdiccionCordoba', 'obtenerDatosJurisdiccionCordoba - Error Excepción - Netsuite Error: ' + e.message);
-                return null;
-            }
-        }
 
         function obtener_jurisdicciones_entrega_facturas(resultsNetosVBLineas) {
 
@@ -9336,6 +7544,10 @@
                         informacionCodigosVBLineas[i].nombreJurisdFacturacion = completeResultSet[i].getText({
                             name: resultSearch.columns[22]
                         });//INDICA EL NOMBRE DE LA JURISDICCION DE FACTURACIÓN A NIVEL DE LÍNEA
+
+                        informacionCodigosVBLineas[i].tipoProducto = completeResultSet[i].getValue({
+                            name: resultSearch.columns[24]
+                        });//INDICA EL NOMBRE DE LA JURISDICCION DE FACTURACIÓN A NIVEL DE LÍNEA
                     }
                 } else {
                     log.debug('obtener_arreglo_codigos_ret_vendorbill_lineas', 'obtener_arreglo_codigos_ret_vendorbill_lineas - No se encuentro informacion para las bills recibidas por parametro');
@@ -9545,6 +7757,10 @@
                         informacionNetosVBLineas[i].aplicaCalcRetPorInscrip = convertToBoolean(completeResultSet[i].getValue({
                             name: resultSearch.columns[16]
                         }));
+
+                        informacionNetosVBLineas[i].tipoProducto = completeResultSet[i].getValue({
+                            name: resultSearch.columns[17]
+                        });
                     }
                 } else {
                     log.debug('obtener_arreglo_netos_vendorbill_lineas', 'obtener_arreglo_netos_vendorbill_lineas - No se encuentro informacion para las bills recibidas por parametro');
@@ -9573,7 +7789,7 @@
                             return (obj.idInterno == resultsNetosLineas[i].idInterno && obj.importeTotal == resultsNetosLineas[i].importeBruto && obj.codRetencionGanancias == resultsNetosLineas[i].codRetencionGanancias && 
                                 obj.codRetencionSuss == resultsNetosLineas[i].codRetencionSuss && obj.lineNumber == resultsNetosLineas[i].lineNumber && obj.importeNeto == resultsNetosLineas[i].importe &&
                                 obj.jurisdUtilizacion == resultsNetosLineas[i].jurisdUtilizacion && obj.jurisdOrigen == resultsNetosLineas[i].jurisdOrigen && obj.jurisdiccionEntregaID == resultsNetosLineas[i].jurisdiccionEntregaID &&
-                                obj.jurisdFacturacion == resultsNetosLineas[i].jurisdFacturacion);
+                                obj.jurisdFacturacion == resultsNetosLineas[i].jurisdFacturacion && obj.tipoProducto == resultsNetosLineas[i].tipoProducto);
                         });
 
                         log.debug('unificar_importes_lineas_facturas', 'LINE 9292 - infoLinea: ' + JSON.stringify(infoLinea));
@@ -9706,658 +7922,6 @@
             }
         }
 
-        //JSALAZAR: FUNCION QUE OBTIENE LOS CODIGOS DE RETENCION POR LÍNEAS QUE APLICAN LAS BILLS RECIBIDAS POR PARAMETRO EN MONEDA LOCAL - DEVUELVE UN ARRAY
-        function obtener_arreglo_codigos_ret_vendorbill_moneda_local_lineas(entidad, billsPagar, subsidiaria, esONG) {
-
-            try {
-                log.debug('obtener_arreglo_codigos_ret_vendorbill_moneda_local_lineas', 'INICIO - obtener_arreglo_codigos_ret_vendorbill_moneda_local_lineas');
-                log.debug('obtener_arreglo_codigos_ret_vendorbill_moneda_local_lineas', 'Parámetros - entidad: ' + entidad + ' - billsPagar: ' + billsPagar + ' - subsidiaria: ' + subsidiaria + ' - es ONG: ' + esONG);
-
-                var informacionCodigosVBLineasMonedaLocal = [];
-                var filtros = [];
-                var filtro = {};
-
-                //FILTRO PROVEEDOR
-                if (!utilidades.isEmpty(entidad)) {
-                    var filtro = {};
-                    filtro.name = 'entity';
-                    filtro.operator = 'IS';
-                    filtro.values = entidad;
-                    filtros.push(filtro);
-                }
-
-                //FILTRO BILLS A PAGAR
-                if (!utilidades.isEmpty(billsPagar)) {
-                    var filtro = {};
-                    filtro.name = 'internalid';
-                    filtro.operator = 'ANYOF';
-                    filtro.values = billsPagar;
-                    filtros.push(filtro);
-                }
-
-                //FILTRO SUBSIDIARIA
-                if (!utilidades.isEmpty(subsidiaria)) {
-                    var filtro = {};
-                    filtro.name = 'subsidiary';
-                    filtro.operator = 'IS';
-                    filtro.values = subsidiaria;
-                    filtros.push(filtro);
-                }
-
-                var objResultSet = utilidades.searchSavedPro('customsearch_l54_bill_cod_ret_mon_lo_lin', filtros);
-
-                if (objResultSet.error) {
-                    log.error('obtener_arreglo_codigos_ret_vendorbill_moneda_local_lineas', 'Error Consultando searchSavedPro - customsearch_l54_bill_cod_ret_mon_lo_lin - Error: ' + objResultSet.descripcion);
-                    return null;
-                }
-
-                var resultSet = objResultSet.objRsponseFunction.result;
-                var resultSearch = objResultSet.objRsponseFunction.search;
-                //log.debug(proceso, "SET: " + JSON.stringify(resultSet));
-                //log.debug(proceso, "SEARCH: " + JSON.stringify(resultSearch));
-
-                if (!utilidades.isEmpty(resultSet) && resultSet.length > 0) {
-                    for (var i = 0; i < resultSet.length; i++) {
-                        informacionCodigosVBLineasMonedaLocal[i] = {};
-
-                        informacionCodigosVBLineasMonedaLocal[i].idInterno = resultSet[i].getValue({
-                            name: resultSearch.columns[1]
-                        });//ID INTERNO
-
-                        informacionCodigosVBLineasMonedaLocal[i].importeTotal = parseFloat(resultSet[i].getValue({
-                            name: resultSearch.columns[2]
-                        }), 10).toFixedOK(2);//IMPORTE TOTAL
-
-                        informacionCodigosVBLineasMonedaLocal[i].codigoRetGanancias = resultSet[i].getValue({
-                            name: resultSearch.columns[3]
-                        });//CODIGO RETENCION GANANCIAS
-
-                        informacionCodigosVBLineasMonedaLocal[i].codigoRetIVA = resultSet[i].getValue({
-                            name: resultSearch.columns[4]
-                        });//CODIGO RETENCION IVA
-
-                        informacionCodigosVBLineasMonedaLocal[i].codigoRetSUSS = resultSet[i].getValue({
-                            name: resultSearch.columns[5]
-                        });//CODIGO RETENCION SUSS
-
-                        informacionCodigosVBLineasMonedaLocal[i].esFacturaM = resultSet[i].getValue({
-                            name: resultSearch.columns[6]
-                        });//INDICA SI ES UNA TRANSACCION M
-
-                        informacionCodigosVBLineasMonedaLocal[i].calcularSobreIVA = resultSet[i].getValue({
-                            name: resultSearch.columns[8]
-                        });//INDICA SI LA BASE DE CÁLCULO SE CALCULA SOBRE IVA
-
-                        informacionCodigosVBLineasMonedaLocal[i].codRetencionGananciasLinea = resultSet[i].getValue({
-                            name: resultSearch.columns[9]
-                        });//INDICA EL CÓDIGO DE LA RETENCIÓN DE GANANCIAS A NIVEL DE LÍNEA
-
-                        informacionCodigosVBLineasMonedaLocal[i].nombreRetencionGanancias = resultSet[i].getText({
-                            name: resultSearch.columns[9]
-                        });//INDICA EL NOMBRE DE LA RETENCIÓN DE GANANCIAS A NIVEL DE LÍNEA
-
-                        informacionCodigosVBLineasMonedaLocal[i].codRetencionSussLinea = resultSet[i].getValue({
-                            name: resultSearch.columns[10]
-                        });//INDICA EL CÓDIGO DE LA RETENCIÓN DE SUSS A NIVEL DE LÍNEA
-
-                        informacionCodigosVBLineasMonedaLocal[i].nombreRetencionSuss = resultSet[i].getText({
-                            name: resultSearch.columns[10]
-                        });//INDICA EL NOMBRE DE LA RETENCIÓN DE SUSS A NIVEL DE LÍNEA
-
-                        informacionCodigosVBLineasMonedaLocal[i].lineNumber = resultSet[i].getValue({
-                            name: resultSearch.columns[11]
-                        });//INDICA EL NÚMERO DE LÍNEA DEL ARTÍCULO
-
-                        informacionCodigosVBLineasMonedaLocal[i].importeNeto = parseFloat(resultSet[i].getValue({
-                            name: resultSearch.columns[13]
-                        }), 10).toFixedOK(2);//INDICA EL IMPORTE NETO DE LA LÍNEA
-                    }
-                } else {
-                    log.debug('obtener_arreglo_codigos_ret_vendorbill_moneda_local_lineas', 'obtener_arreglo_codigos_ret_vendorbill_moneda_local_lineas - No se encuentro informacion para las bills recibidas por parametro');
-                }
-
-                log.debug('obtener_arreglo_codigos_ret_vendorbill_moneda_local_lineas', 'RETURN - informacionCodigosVBLineasMonedaLocal: ' + JSON.stringify(informacionCodigosVBLineasMonedaLocal));
-                log.debug('obtener_arreglo_codigos_ret_vendorbill_moneda_local_lineas', 'FIN - obtener_arreglo_codigos_ret_vendorbill_moneda_local_lineas');
-                return informacionCodigosVBLineasMonedaLocal;
-
-            } catch (e) {
-                log.error('obtener_arreglo_codigos_ret_vendorbill_moneda_local_lineas', 'obtener_arreglo_codigos_ret_vendorbill_moneda_local_lineas - Error Excepción - Netsuite Error: ' + e.message);
-                return null;
-            }
-        }
-
-        //JSALAZAR: FUNCION QUE PERMITE OBTENER LOS IMPORTES NETOS POR LÍNEAS DE LAS BILLS EN SU MONEDA LOCAL - DEVUELVE UN ARRAY
-        function obtener_arreglo_netos_vendorbill_moneda_local_lineas(entidad, billsPagar, subsidiaria, sinJurisdiccionUnica, esONG) {
-
-            try {
-                log.debug('obtener_arreglo_netos_vendorbill_moneda_local_lineas', 'INICIO - obtener_arreglo_netos_vendorbill_moneda_local_lineas');
-                log.debug('obtener_arreglo_netos_vendorbill_moneda_local_lineas', 'Parámetros - entidad: ' + entidad + ' - billsPagar: ' + billsPagar + ' - subsidiaria: ' + subsidiaria + ' - sinJurisdiccionUnica: ' + sinJurisdiccionUnica + ' - esONG: ' + esONG);
-
-                var informacionNetosVBLineasMonedaLocal = [];
-                var filtros = [];
-                var filtro = {};
-
-                //FILTRO PROVEEDOR
-                if (!utilidades.isEmpty(entidad)) {
-                    var filtro = {};
-                    filtro.name = 'entity';
-                    filtro.operator = 'IS';
-                    filtro.values = entidad;
-                    filtros.push(filtro);
-                }
-
-                //FILTRO BILLS A PAGAR
-                if (!utilidades.isEmpty(billsPagar)) {
-                    var filtro = {};
-                    filtro.name = 'internalid';
-                    filtro.operator = 'ANYOF';
-                    filtro.values = billsPagar;
-                    filtros.push(filtro);
-                }
-
-                //FILTRO SUBSIDIARIA
-                if (!utilidades.isEmpty(subsidiaria)) {
-                    var filtro = {};
-                    filtro.name = 'subsidiary';
-                    filtro.operator = 'IS';
-                    filtro.values = subsidiaria;
-                    filtros.push(filtro);
-                }
-
-                if (sinJurisdiccionUnica) {
-                    var filtro = {};
-                    filtro.name = 'custbody_l54_jurisdiccion_unica';
-                    filtro.operator = 'ANYOF';
-                    filtro.values = '@NONE@';
-                    filtros.push(filtro);
-                }
-
-                var objResultSet = utilidades.searchSavedPro('customsearch_l54_bill_net_amt_mon_lo_lin', filtros);
-
-                if (objResultSet.error) {
-                    log.error('obtener_arreglo_netos_vendorbill_moneda_local_lineas', 'Error Consultando searchSavedPro - customsearch_l54_bill_net_amt_mon_lo_lin - Error: ' + objResultSet.descripcion);
-                    return null;
-                }
-
-                var resultSet = objResultSet.objRsponseFunction.result;
-                var resultSearch = objResultSet.objRsponseFunction.search;
-                //log.debug(proceso, "SET: " + JSON.stringify(resultSet));
-                //log.debug(proceso, "SEARCH: " + JSON.stringify(resultSearch));
-
-                if (!utilidades.isEmpty(resultSet) && resultSet.length > 0) {
-                    for (var i = 0; i < resultSet.length; i++) {
-                        informacionNetosVBLineasMonedaLocal[i] = new Object();
-
-                        informacionNetosVBLineasMonedaLocal[i].idInterno = resultSet[i].getValue({
-                            name: resultSearch.columns[1]
-                        });//ID INTERNO BILL
-
-                        informacionNetosVBLineasMonedaLocal[i].importe = parseFloat(resultSet[i].getValue({
-                            name: resultSearch.columns[2]
-                        }), 10).toFixedOK(2);//IMPORTE NETO
-
-                        informacionNetosVBLineasMonedaLocal[i].codRetencionGananciasLinea = resultSet[i].getValue({
-                            name: resultSearch.columns[3]
-                        });//INDICA EL CÓDIGO DE LA RETENCIÓN DE GANANCIAS A NIVEL DE LÍNEA
-
-                        informacionNetosVBLineasMonedaLocal[i].nombreRetencionGanancias = resultSet[i].getText({
-                            name: resultSearch.columns[3]
-                        });//INDICA EL NOMBRE DE LA RETENCIÓN DE GANANCIAS A NIVEL DE LÍNEA
-
-                        informacionNetosVBLineasMonedaLocal[i].codRetencionSussLinea = resultSet[i].getValue({
-                            name: resultSearch.columns[4]
-                        });//INDICA EL CÓDIGO DE LA RETENCIÓN DE SUSS A NIVEL DE LÍNEA
-
-                        informacionNetosVBLineasMonedaLocal[i].nombreRetencionSuss = resultSet[i].getText({
-                            name: resultSearch.columns[4]
-                        });//INDICA EL NOMBRE DE LA RETENCIÓN DE SUSS A NIVEL DE LÍNEA
-
-                        informacionNetosVBLineasMonedaLocal[i].lineNumber = resultSet[i].getValue({
-                            name: resultSearch.columns[5]
-                        });//INDICA EL NÚMERO DE LÍNEA DEL ARTÍCULO
-
-                        informacionNetosVBLineasMonedaLocal[i].importeBruto = parseFloat(resultSet[i].getValue({
-                            name: resultSearch.columns[6]
-                        }), 10).toFixedOK(2);//INDICA EL IMPORTE BRUTO DE LA LÍNEA
-                    }
-                } else {
-                    log.debug('obtener_arreglo_netos_vendorbill_moneda_local_lineas', 'obtener_arreglo_netos_vendorbill_moneda_local_lineas - No se encuentro informacion para las bills recibidas por parametro');
-                }
-
-                log.debug('obtener_arreglo_netos_vendorbill_moneda_local_lineas', 'RETURN - informacionNetosVBLineasMonedaLocal: ' + JSON.stringify(informacionNetosVBLineasMonedaLocal));
-                log.debug('obtener_arreglo_netos_vendorbill_moneda_local_lineas', 'FIN - obtener_arreglo_netos_vendorbill_moneda_local_lineas');
-                return informacionNetosVBLineasMonedaLocal;
-
-            } catch (e) {
-                log.error('obtener_arreglo_netos_vendorbill_moneda_local_lineas', 'obtener_arreglo_netos_vendorbill_moneda_local_lineas - Error Excepción - Netsuite Error: ' + e.message);
-                return null;
-            }
-        }
-
-        function getInfoFacturasRetLineas(id_proveedor, subsidiaria, codigoRetencion, tipoRetencion) {
-
-            try {
-
-                log.debug('getInfoFacturasRetLineas', 'INICIO - getInfoFacturasRetLineas');
-                log.debug('getInfoFacturasRetLineas', 'Parámetros - id_proveedor: ' + id_proveedor + ' - subsidiaria: ' + subsidiaria + ' - codigoRetencion: ' + JSON.stringify(codigoRetencion) + ' - tipoRetencion: ' + tipoRetencion);
-
-                var informacionFacturas = [];
-                var filtros = [];
-                var filtro = {};
-
-                //FILTRO PROVEEDOR
-                if (!utilidades.isEmpty(id_proveedor)) {
-                    var filtro = {};
-                    filtro.name = 'entity';
-                    filtro.operator = 'IS';
-                    filtro.values = id_proveedor;
-                    filtros.push(filtro);
-                }
-
-                //FILTRO SUBSIDIARIA
-                if (!utilidades.isEmpty(subsidiaria)) {
-                    var filtro = {};
-                    filtro.name = 'subsidiary';
-                    filtro.operator = 'IS';
-                    filtro.values = subsidiaria;
-                    filtros.push(filtro);
-                }
-
-                if (!utilidades.isEmpty(codigoRetencion)) {
-                    var filtro = {};
-                    filtro.name = 'custcol_l54_codigo_retencion_' + tipoRetencion;
-                    filtro.operator = 'ANYOF';
-                    filtro.values = codigoRetencion;
-                    filtros.push(filtro);
-                }
-
-                var objResultSet = utilidades.searchSavedPro('customsearch_l54_obt_inf_lin_cod_ret', filtros);
-
-                if (objResultSet.error) {
-                    log.error('getInfoFacturasRetLineas', 'Error Consultando searchSavedPro - getInfoFacturasRetLineas - Error: ' + objResultSet.descripcion);
-                    return null;
-                }
-
-                var resultSet = objResultSet.objRsponseFunction.result;
-                var resultSearch = objResultSet.objRsponseFunction.search;
-                //log.debug(proceso, "SET: " + JSON.stringify(resultSet));
-                //log.debug(proceso, "SEARCH: " + JSON.stringify(resultSearch));
-
-                if ((!isEmpty(resultSet)) && (resultSet.length > 0)) {
-                    for (var i = 0; i < resultSet.length; i++) {
-
-                        informacionFacturas[i] = {};
-
-                        informacionFacturas[i].idInterno = resultSet[i].getValue({
-                            name: resultSearch.columns[1]
-                        });
-
-                        informacionFacturas[i].codRetencionGananciasLinea = resultSet[i].getValue({
-                            name: resultSearch.columns[2]
-                        });//CODIGO RETENCION GANANCIAS LÍNEA
-
-                        informacionFacturas[i].nombreRetencionGanancias = resultSet[i].getText({
-                            name: resultSearch.columns[2]
-                        });//NOMBRE RETENCION GANANCIAS LÍNEA
-
-                        informacionFacturas[i].codRetencionSussLinea = resultSet[i].getValue({
-                            name: resultSearch.columns[3]
-                        });//CODIGO RETENCION SUSS LÍNEA
-
-                        informacionFacturas[i].nombreRetencionSuss = resultSet[i].getText({
-                            name: resultSearch.columns[3]
-                        });//NOMBRE RETENCION SUSS LÍNEA
-
-                        informacionFacturas[i].lineNumber = resultSet[i].getValue({
-                            name: resultSearch.columns[4]
-                        });//NÚMERO DE LÍNEA
-                    }
-                } else {
-                    log.debug('getInfoFacturasRetLineas', 'getInfoFacturasRetLineas - No se encontró informacion de importe de pagos pasados para los parametros indicados');
-                }
-
-                log.debug('getInfoFacturasRetLineas', 'RETURN - informacionFacturas: ' + JSON.stringify(informacionFacturas));
-                log.debug('getInfoFacturasRetLineas', 'FIN - getInfoFacturasRetLineas');
-                return informacionFacturas;
-
-            } catch (e) {
-                log.error('getInfoFacturasRetLineas', 'Error - getInfoFacturasRetLineas - Excepcion Error: ' + e.message);
-                return null;
-            }
-        }
-
-        function getInfoFacturasRetGeneral(id_proveedor, subsidiaria, codigoRetencion, tipoRetencion) {
-
-            try {
-
-                log.debug('getInfoFacturasRetGeneral', 'INICIO - getInfoFacturasRetGeneral');
-                log.debug('getInfoFacturasRetGeneral', 'Parámetros - id_proveedor: ' + id_proveedor + ' - subsidiaria: ' + subsidiaria + ' - codigoRetencion: ' + JSON.stringify(codigoRetencion) + ' - tipoRetencion: ' + tipoRetencion);
-
-                var informacionFacturas = [];
-                var filtros = [];
-                var filtro = {};
-
-                //FILTRO PROVEEDOR
-                if (!utilidades.isEmpty(id_proveedor)) {
-                    var filtro = {};
-                    filtro.name = 'entity';
-                    filtro.operator = 'IS';
-                    filtro.values = id_proveedor;
-                    filtros.push(filtro);
-                }
-
-                //FILTRO SUBSIDIARIA
-                if (!utilidades.isEmpty(subsidiaria)) {
-                    var filtro = {};
-                    filtro.name = 'subsidiary';
-                    filtro.operator = 'IS';
-                    filtro.values = subsidiaria;
-                    filtros.push(filtro);
-                }
-
-                if (!utilidades.isEmpty(codigoRetencion)) {
-                    var filtro = {};
-                    filtro.name = 'custbody_l54_codigo_ret_' + tipoRetencion;
-                    filtro.operator = 'ANYOF';
-                    filtro.values = codigoRetencion;
-                    filtros.push(filtro);
-                }
-
-                var objResultSet = utilidades.searchSavedPro('customsearch_l54_obt_inf_gen_cod_ret', filtros);
-
-                if (objResultSet.error) {
-                    log.error('getInfoFacturasRetGeneral', 'Error Consultando searchSavedPro - getInfoFacturasRetGeneral - Error: ' + objResultSet.descripcion);
-                    return null;
-                }
-
-                var resultSet = objResultSet.objRsponseFunction.result;
-                var resultSearch = objResultSet.objRsponseFunction.search;
-                //log.debug(proceso, "SET: " + JSON.stringify(resultSet));
-                //log.debug(proceso, "SEARCH: " + JSON.stringify(resultSearch));
-
-                if ((!isEmpty(resultSet)) && (resultSet.length > 0)) {
-                    for (var i = 0; i < resultSet.length; i++) {
-
-                        informacionFacturas[i] = {};
-
-                        informacionFacturas[i].idInterno = resultSet[i].getValue({
-                            name: resultSearch.columns[1]
-                        });
-
-                        informacionFacturas[i].codigoRetGanancias = resultSet[i].getValue({
-                            name: resultSearch.columns[2]
-                        });//CODIGO RETENCION GANANCIAS
-
-                        informacionFacturas[i].nombreRetencionGanancias = resultSet[i].getText({
-                            name: resultSearch.columns[2]
-                        });//NOMBRE RETENCION GANANCIAS
-
-                        informacionFacturas[i].codigoRetSUSS = resultSet[i].getValue({
-                            name: resultSearch.columns[3]
-                        });//CODIGO RETENCION SUSS
-
-                        informacionFacturas[i].nombreRetencionSuss = resultSet[i].getText({
-                            name: resultSearch.columns[3]
-                        });//NOMBRE RETENCION SUSS
-
-                        informacionFacturas[i].codigoRetIVA = resultSet[i].getValue({
-                            name: resultSearch.columns[4]
-                        });//CODIGO RETENCION IVA
-
-                        informacionFacturas[i].nombreRetencionIVA = resultSet[i].getText({
-                            name: resultSearch.columns[4]
-                        });//NOMBRE RETENCION IVA
-                    }
-                } else {
-                    log.debug('getInfoFacturasRetGeneral', 'getInfoFacturasRetGeneral - No se encontró informacion de importe de pagos pasados para los parametros indicados');
-                }
-
-                log.debug('getInfoFacturasRetGeneral', 'RETURN - informacionFacturas: ' + JSON.stringify(informacionFacturas));
-                log.debug('getInfoFacturasRetGeneral', 'FIN - getInfoFacturasRetGeneral');
-                return informacionFacturas;
-
-            } catch (e) {
-                log.error('getInfoFacturasRetGeneral', 'Error - getInfoFacturasRetGeneral - Excepcion Error: ' + e.message);
-                return null;
-            }
-        }
-
-        // Función que permite unificar los codigos de retención de pagos pasados de líneas y de cabeceras.
-        function unificar_resultados_pagos_pasados_cod_ret_facturas(resultPagosPasadosCodRetAux, resultPagosPasadosCodRetLineas, resultPagosPasadosCodRetGeneral) {
-
-            try {
-
-                log.debug('unificar_resultados_pagos_pasados_cod_ret_facturas', 'INICIO - unificar_resultados_pagos_pasados_cod_ret_facturas');
-                log.debug('unificar_resultados_pagos_pasados_cod_ret_facturas', 'Parámetros - resultPagosPasadosCodRetAux: ' + JSON.stringify(resultPagosPasadosCodRetAux) + ' - resultPagosPasadosCodRetLineas: ' + JSON.stringify(resultPagosPasadosCodRetLineas) + ' - resultPagosPasadosCodRetGeneral' + JSON.stringify(resultPagosPasadosCodRetGeneral));
-
-                var arrayBillsInfo = [];
-                var arrayBillsPagosPasados = [];
-
-                //log.debug('unificar_resultados_pagos_pasados_cod_ret_facturas', 'Longitud de resultPagosPasadosCodRetAux: ' + resultPagosPasadosCodRetAux.length + ' - longitud de resultPagosPasadosCodRetLineas: ' + resultPagosPasadosCodRetLineas.length + ' - longitud de resultPagosPasadosCodRetGeneral: ' + resultPagosPasadosCodRetGeneral.length);
-
-                // --- INICIO - unifico los códigos de retenciones de lineas y de cabecera en un solo array
-                if (!utilidades.isEmpty(resultPagosPasadosCodRetLineas) && resultPagosPasadosCodRetLineas.length > 0) {
-                    //log.debug('unificar_resultados_pagos_pasados_cod_ret_facturas', 'LINE 10246 - INGRESO A resultPagosPasadosCodRetLineas.length > 0');
-                    if (!utilidades.isEmpty(resultPagosPasadosCodRetGeneral) && resultPagosPasadosCodRetGeneral.length > 0) {
-                        //log.debug('unificar_resultados_pagos_pasados_cod_ret_facturas', 'LINE 10248 - INGRESO A resultPagosPasadosCodRetGeneral.length > 0');
-                        for (var i = 0; i < resultPagosPasadosCodRetGeneral.length; i++) {
-                            var infoFacturaPagoPasadoLinea = resultPagosPasadosCodRetLineas.filter(function (obj) {
-                                return (resultPagosPasadosCodRetGeneral[i].idInterno == obj.idInterno);
-                            });
-
-                            //log.debug('unificar_resultados_pagos_pasados_cod_ret_facturas', 'LINE 10254 - infoFacturaPagoPasadoLinea: ' + JSON.stringify(infoFacturaPagoPasadoLinea) + ' - indice i: ' + i);
-                            if (!utilidades.isEmpty(infoFacturaPagoPasadoLinea) && infoFacturaPagoPasadoLinea.length > 0) {
-                                for (var j = 0; j < infoFacturaPagoPasadoLinea.length; j++) {
-                                    var objInfo = {};
-                                    objInfo.idInterno = infoFacturaPagoPasadoLinea[j].idInterno;
-                                    objInfo.lineNumber = infoFacturaPagoPasadoLinea[j].lineNumber;
-                                    objInfo.codRetencionGananciasLinea = infoFacturaPagoPasadoLinea[j].codRetencionGananciasLinea;
-                                    objInfo.codRetencionSussLinea = infoFacturaPagoPasadoLinea[j].codRetencionSussLinea;
-                                    objInfo.nombreRetencionGanancias = infoFacturaPagoPasadoLinea[j].nombreRetencionGanancias;
-                                    objInfo.nombreRetencionSuss = infoFacturaPagoPasadoLinea[j].nombreRetencionSuss;
-                                    objInfo.esRetencionPorLinea = true;
-                                    objInfo.codigoRetGanancias = '';
-                                    objInfo.codigoRetSUSS = '';
-                                    objInfo.codigoRetIVA = '';
-                                    objInfo.nombreRetencionIVA = '';
-                                    arrayBillsInfo.push(objInfo);
-                                }
-                            } else {
-                                var objInfo = {};
-                                objInfo.idInterno = resultPagosPasadosCodRetGeneral[i].idInterno;
-                                objInfo.lineNumber = '';
-                                objInfo.codRetencionGananciasLinea = '';
-                                objInfo.codRetencionSussLinea = '';
-                                objInfo.nombreRetencionGanancias = resultPagosPasadosCodRetGeneral[i].nombreRetencionGanancias;
-                                objInfo.nombreRetencionSuss = resultPagosPasadosCodRetGeneral[i].nombreRetencionSuss;
-                                objInfo.esRetencionPorLinea = false;
-                                objInfo.codigoRetGanancias = resultPagosPasadosCodRetGeneral[i].codigoRetGanancias;
-                                objInfo.codigoRetSUSS = resultPagosPasadosCodRetGeneral[i].codigoRetSUSS;
-                                objInfo.codigoRetIVA = resultPagosPasadosCodRetGeneral[i].codigoRetIVA;
-                                objInfo.nombreRetencionIVA = resultPagosPasadosCodRetGeneral[i].nombreRetencionIVA;
-                                arrayBillsInfo.push(objInfo);
-                            }
-                        }
-
-                        for (var j = 0; j < resultPagosPasadosCodRetLineas.length; j++) {
-                            var coincidenciaFactura = arrayBillsInfo.filter(function (obj) {
-                                return (obj.idInterno == resultPagosPasadosCodRetLineas[j].idInterno && obj.lineNumber == resultPagosPasadosCodRetLineas[j].lineNumber);
-                            });
-
-                            /* log.debug('unificar_resultados_pagos_pasados_cod_ret_facturas', 'LINE 11075 - coincidenciaFactura: ' + JSON.stringify(coincidenciaFactura) + ' - indice j: ' + j);
-                            log.debug('unificar_resultados_pagos_pasados_cod_ret_facturas', 'LINE 11076 - resultPagosPasadosCodRetLineas: ' + JSON.stringify(resultPagosPasadosCodRetLineas) + ' - indice j: ' + j); */
-
-                            if (utilidades.isEmpty(coincidenciaFactura) || coincidenciaFactura.length == 0) {
-                                var objInfo = {};
-                                objInfo.idInterno = resultPagosPasadosCodRetLineas[j].idInterno;
-                                objInfo.lineNumber = resultPagosPasadosCodRetLineas[j].lineNumber;
-                                objInfo.codRetencionGananciasLinea = resultPagosPasadosCodRetLineas[j].codRetencionGananciasLinea;
-                                objInfo.codRetencionSussLinea = resultPagosPasadosCodRetLineas[j].codRetencionSussLinea;
-                                objInfo.nombreRetencionGanancias = resultPagosPasadosCodRetLineas[j].nombreRetencionGanancias;
-                                objInfo.nombreRetencionSuss = resultPagosPasadosCodRetLineas[j].nombreRetencionSuss;
-                                objInfo.esRetencionPorLinea = true;
-                                objInfo.codigoRetGanancias = '';
-                                objInfo.codigoRetSUSS = '';
-                                objInfo.codigoRetIVA = '';
-                                objInfo.nombreRetencionIVA = '';
-                                arrayBillsInfo.push(objInfo);
-                            }
-                        }
-                    } else {
-                        //log.debug('unificar_resultados_pagos_pasados_cod_ret_facturas', 'LINE 11095 - no existen códigos de retención de cabecera, seteo los códigos de línea.');
-                        for (var j = 0; j < resultPagosPasadosCodRetLineas.length; j++) {
-                            var objInfo = {};
-                            objInfo.idInterno = resultPagosPasadosCodRetLineas[j].idInterno;
-                            objInfo.lineNumber = resultPagosPasadosCodRetLineas[j].lineNumber;
-                            objInfo.codRetencionGananciasLinea = resultPagosPasadosCodRetLineas[j].codRetencionGananciasLinea;
-                            objInfo.codRetencionSussLinea = resultPagosPasadosCodRetLineas[j].codRetencionSussLinea;
-                            objInfo.nombreRetencionGanancias = resultPagosPasadosCodRetLineas[j].nombreRetencionGanancias;
-                            objInfo.nombreRetencionSuss = resultPagosPasadosCodRetLineas[j].nombreRetencionSuss;
-                            objInfo.esRetencionPorLinea = true;
-                            objInfo.codigoRetGanancias = '';
-                            objInfo.codigoRetSUSS = '';
-                            objInfo.codigoRetIVA = '';
-                            objInfo.nombreRetencionIVA = '';
-                            arrayBillsInfo.push(objInfo);
-                        }
-                    }
-                } else {
-                    //log.debug('unificar_resultados_pagos_pasados_cod_ret_facturas', 'LINE 11113 - no existen códigos de retención de líneas, seteo los códigos de cabecera.');
-                    for (var i = 0; i < resultPagosPasadosCodRetGeneral.length; i++) {
-                        var objInfo = {};
-                        objInfo.idInterno = resultPagosPasadosCodRetGeneral[i].idInterno;
-                        objInfo.lineNumber = '';
-                        objInfo.codRetencionGananciasLinea = '';
-                        objInfo.codRetencionSussLinea = '';
-                        objInfo.nombreRetencionGanancias = resultPagosPasadosCodRetGeneral[i].nombreRetencionGanancias;
-                        objInfo.nombreRetencionSuss = resultPagosPasadosCodRetGeneral[i].nombreRetencionSuss;
-                        objInfo.esRetencionPorLinea = false;
-                        objInfo.codigoRetGanancias = resultPagosPasadosCodRetGeneral[i].codigoRetGanancias;
-                        objInfo.codigoRetSUSS = resultPagosPasadosCodRetGeneral[i].codigoRetSUSS;
-                        objInfo.codigoRetIVA = resultPagosPasadosCodRetGeneral[i].codigoRetIVA;
-                        objInfo.nombreRetencionIVA = resultPagosPasadosCodRetGeneral[i].nombreRetencionIVA;
-                        arrayBillsInfo.push(objInfo);
-                    }
-                }
-                // --- FIN - unifico los códigos de retenciones de lineas y de cabecera en un solo array
-                //log.debug('unificar_resultados_pagos_pasados_cod_ret_facturas', 'arrayBillsInfo - valor: ' + JSON.stringify(arrayBillsInfo));
-
-                if (!utilidades.isEmpty(resultPagosPasadosCodRetAux) && resultPagosPasadosCodRetAux.length > 0) {
-                    if (!utilidades.isEmpty(arrayBillsInfo) && arrayBillsInfo.length > 0) {
-                        for (var i = 0; i < arrayBillsInfo.length; i++) {
-                            var infoFacturasPagas = resultPagosPasadosCodRetAux.filter(function (obj) {
-                                return (arrayBillsInfo[i].idInterno == obj.idInterno);
-                            });
-
-                            //log.debug('unificar_resultados_pagos_pasados_cod_ret_facturas', 'infoFacturasPagas - valor: ' + JSON.stringify(infoFacturasPagas));
-
-                            if (!utilidades.isEmpty(infoFacturasPagas) && infoFacturasPagas.length > 0) {
-                                for (var j = 0; j < infoFacturasPagas.length; j++) {
-                                    var objInfo = {};
-                                    objInfo.idInterno = infoFacturasPagas[j].idInterno;
-                                    objInfo.importe = parseFloat(infoFacturasPagas[j].importe, 10);
-                                    objInfo.lineNumber = arrayBillsInfo[i].lineNumber;
-                                    objInfo.codRetencionGananciasLinea = arrayBillsInfo[i].codRetencionGananciasLinea;
-                                    objInfo.codRetencionSussLinea = arrayBillsInfo[i].codRetencionSussLinea;
-                                    objInfo.nombreRetencionGanancias = arrayBillsInfo[i].nombreRetencionGanancias;
-                                    objInfo.nombreRetencionSuss = arrayBillsInfo[i].nombreRetencionSuss;
-                                    objInfo.esRetencionPorLinea = arrayBillsInfo[i].esRetencionPorLinea;
-                                    objInfo.codigoRetGanancias = arrayBillsInfo[i].codigoRetGanancias;
-                                    objInfo.codigoRetSUSS = arrayBillsInfo[i].codigoRetSUSS;
-                                    objInfo.codigoRetIVA = arrayBillsInfo[i].codigoRetIVA;
-                                    objInfo.nombreRetencionIVA = arrayBillsInfo[i].nombreRetencionIVA;
-                                    objInfo.importeNetoLinea = '';
-                                    objInfo.importeBrutoLinea = '';
-                                    arrayBillsPagosPasados.push(objInfo);
-                                }
-                            }
-                        }
-                    }
-                }
-
-                log.debug('unificar_resultados_pagos_pasados_cod_ret_facturas', 'RETURN - arrayBillsPagosPasados: ' + JSON.stringify(arrayBillsPagosPasados));
-                log.debug('unificar_resultados_pagos_pasados_cod_ret_facturas', 'FIN - unificar_resultados_pagos_pasados_cod_ret_facturas');
-                return arrayBillsPagosPasados;
-
-            } catch (e) {
-                log.error('unificar_resultados_pagos_pasados_cod_ret_facturas', 'Error - unificar_resultados_pagos_pasados_cod_ret_facturas - Excepcion Error: ' + e.message);
-                return null;
-            }
-        }
-
-        function getIdFacturasRepetidas(resultPagosPasadosCodRet) {
-
-            try {
-
-                log.debug('getIdFacturasRepetidas', 'INICIO - getIdFacturasRepetidas');
-                log.debug('getIdFacturasRepetidas', 'Parámetros - resultPagosPasadosCodRet: ' + JSON.stringify(resultPagosPasadosCodRet));
-                var arrayIdFacturas = [];
-                var repetido = false;
-
-                for (var j = 0; j < resultPagosPasadosCodRet.length; j++) {
-                    repetido = false;
-                    for (var i = 0; i < arrayIdFacturas.length; i++) {
-                        if (resultPagosPasadosCodRet[j].idInterno == arrayIdFacturas[i]) {
-                            repetido = true;
-                            break;
-                        }
-                    }
-
-                    if (i == arrayIdFacturas.length && !repetido) {
-                        arrayIdFacturas.push(resultPagosPasadosCodRet[j].idInterno);
-                    }
-                }
-
-                log.debug('getIdFacturasRepetidas', 'FIN - getIdFacturasRepetidas');
-                log.debug('getIdFacturasRepetidas', 'RETURN - arrayIdFacturas: ' + JSON.stringify(arrayIdFacturas));
-                return arrayIdFacturas;
-
-            } catch (e) {
-                log.error('getIdFacturasRepetidas', 'Error - getIdFacturasRepetidas - Excepcion Error: ' + e.message);
-                return null;
-            }
-        }
-
-        function unificar_importes_lineas_facturas_moneda_local(arrayFacturaImpBrutoPagarLinea, arrayFacturasImpNetoPagarLinea) {
-            try {
-                log.debug('unificar_importes_lineas_facturas_moneda_local', 'INICIO - unificar_importes_lineas_facturas_moneda_local');
-                log.debug('unificar_importes_lineas_facturas_moneda_local', 'Parámetros: arrayFacturaImpBrutoPagarLinea: ' + JSON.stringify(arrayFacturaImpBrutoPagarLinea) + ' - arrayFacturasImpNetoPagarLinea: ' + JSON.stringify(arrayFacturasImpNetoPagarLinea));
-
-                var arrayLineasFacturasUnificadas = [];
-
-                if (!utilidades.isEmpty(arrayFacturasImpNetoPagarLinea)) {
-                    for (var i = 0; i < arrayFacturasImpNetoPagarLinea.length; i++) {
-                        var infoLinea = arrayFacturaImpBrutoPagarLinea.filter(function (obj) {
-                            return (obj.idInterno == arrayFacturasImpNetoPagarLinea[i].idInterno && obj.importeTotal == arrayFacturasImpNetoPagarLinea[i].importeBruto && obj.codRetencionGananciasLinea == arrayFacturasImpNetoPagarLinea[i].codRetencionGananciasLinea && obj.codRetencionSussLinea == arrayFacturasImpNetoPagarLinea[i].codRetencionSussLinea && obj.lineNumber == arrayFacturasImpNetoPagarLinea[i].lineNumber && obj.importeNeto == arrayFacturasImpNetoPagarLinea[i].importe);
-                        });
-
-                        log.debug('unificar_importes_lineas_facturas_moneda_local', 'LINE 10466 - infoLinea: ' + JSON.stringify(infoLinea));
-
-                        if (!utilidades.isEmpty(infoLinea) && infoLinea.length > 0) {
-                            var objInfo = {};
-                            objInfo.idInterno = infoLinea[0].idInterno;
-                            objInfo.importeBrutoLinea = parseFloat(infoLinea[0].importeTotal, 10);
-                            objInfo.importeNetoLinea = parseFloat(infoLinea[0].importeNeto, 10);
-                            objInfo.codRetencionGananciasLinea = infoLinea[0].codRetencionGananciasLinea;
-                            objInfo.codRetencionSussLinea = infoLinea[0].codRetencionSussLinea;
-                            objInfo.nombreRetencionGanancias = infoLinea[0].nombreRetencionGanancias;
-                            objInfo.nombreRetencionSuss = infoLinea[0].nombreRetencionSuss;
-                            objInfo.lineNumber = infoLinea[0].lineNumber;
-
-                            arrayLineasFacturasUnificadas.push(objInfo);
-                        }
-                    }
-                }
-
-                log.debug('unificar_importes_lineas_facturas_moneda_local', 'RETURN - arrayLineasFacturasUnificadas: ' + JSON.stringify(arrayLineasFacturasUnificadas));
-                log.debug('unificar_importes_lineas_facturas_moneda_local', 'FIN - unificar_importes_lineas_facturas_moneda_local');
-                return arrayLineasFacturasUnificadas;
-
-            } catch (e) {
-                log.error('unificar_importes_lineas_facturas_moneda_local', 'unificar_importes_lineas_facturas_moneda_local - Error Netsuite Excepción - Error: ' + e.message);
-                return null;
-            }
-        }
 
         function getParametrosMatriz(arrayCodigosRetencion, esRetIIBB) {
 
@@ -10478,7 +8042,7 @@
         }
 
         function getInfoRetencionCalcAnteriores(id_proveedor, id_periodo, codigo_retencion, subsidiaria, esAnualizada, fecha_pago, pagos) {
-            
+
             try {
 
                 log.debug('getInfoRetencionCalcAnteriores', 'INICIO - getInfoRetencionCalcAnteriores');
@@ -11004,324 +8568,11 @@
             }
         }
 
-        //JSALAZAR: FUNCION QUE PERMITE OBTENER LOS IMPORTES NETOS POR LÍNEAS DE LAS BILLS EN SU MONEDA LOCAL - DEVUELVE UN ARRAY
-        function obtener_arreglo_netos_vendorbill_moneda_local_lineas_ong(entidad, billsPagar, subsidiaria, sinJurisdiccionUnica, esONG) {
 
-            try {
-                log.debug('obtener_arreglo_netos_vendorbill_moneda_local_lineas_ong', 'INICIO - obtener_arreglo_netos_vendorbill_moneda_local_lineas_ong');
-                log.debug('obtener_arreglo_netos_vendorbill_moneda_local_lineas_ong', 'Parámetros - entidad: ' + entidad + ' - billsPagar: ' + billsPagar + ' - subsidiaria: ' + subsidiaria + ' - sinJurisdiccionUnica: ' + sinJurisdiccionUnica + ' - esONG: ' + esONG);
 
-                var informacionNetosVBLineasMonedaLocal = [];
-                var filtros = [];
-                var filtro = {};
 
-                //FILTRO PROVEEDOR
-                if (!utilidades.isEmpty(entidad)) {
-                    var filtro = {};
-                    filtro.name = 'entity';
-                    filtro.operator = 'IS';
-                    filtro.values = entidad;
-                    filtros.push(filtro);
-                }
 
-                //FILTRO BILLS A PAGAR
-                if (!utilidades.isEmpty(billsPagar)) {
-                    var filtro = {};
-                    filtro.name = 'internalid';
-                    filtro.operator = 'ANYOF';
-                    filtro.values = billsPagar;
-                    filtros.push(filtro);
-                }
 
-                //FILTRO SUBSIDIARIA
-                if (!utilidades.isEmpty(subsidiaria)) {
-                    var filtro = {};
-                    filtro.name = 'subsidiary';
-                    filtro.operator = 'IS';
-                    filtro.values = subsidiaria;
-                    filtros.push(filtro);
-                }
-
-                if (sinJurisdiccionUnica) {
-                    var filtro = {};
-                    filtro.name = 'custbody_l54_jurisdiccion_unica';
-                    filtro.operator = 'ANYOF';
-                    filtro.values = '@NONE@';
-                    filtros.push(filtro);
-                }
-
-                var objResultSet = utilidades.searchSavedPro('customsearch_l54_bill_net_amt_m_lo_l_ong', filtros);
-
-                if (objResultSet.error) {
-                    log.error('obtener_arreglo_netos_vendorbill_moneda_local_lineas_ong', 'Error Consultando searchSavedPro - customsearch_l54_bill_net_amt_m_lo_l_ong - Error: ' + objResultSet.descripcion);
-                    return null;
-                }
-
-                var resultSet = objResultSet.objRsponseFunction.result;
-                var resultSearch = objResultSet.objRsponseFunction.search;
-                //log.debug(proceso, "SET: " + JSON.stringify(resultSet));
-                //log.debug(proceso, "SEARCH: " + JSON.stringify(resultSearch));
-
-                if (!utilidades.isEmpty(resultSet) && resultSet.length > 0) {
-                    for (var i = 0; i < resultSet.length; i++) {
-                        informacionNetosVBLineasMonedaLocal[i] = new Object();
-
-                        informacionNetosVBLineasMonedaLocal[i].idInterno = resultSet[i].getValue({
-                            name: resultSearch.columns[1]
-                        });//ID INTERNO BILL
-
-                        informacionNetosVBLineasMonedaLocal[i].importe = parseFloat(resultSet[i].getValue({
-                            name: resultSearch.columns[2]
-                        }), 10).toFixedOK(2);//IMPORTE NETO
-
-                        informacionNetosVBLineasMonedaLocal[i].codRetencionGananciasLinea = resultSet[i].getValue({
-                            name: resultSearch.columns[3]
-                        });//INDICA EL CÓDIGO DE LA RETENCIÓN DE GANANCIAS A NIVEL DE LÍNEA
-
-                        informacionNetosVBLineasMonedaLocal[i].nombreRetencionGanancias = resultSet[i].getText({
-                            name: resultSearch.columns[3]
-                        });//INDICA EL NOMBRE DE LA RETENCIÓN DE GANANCIAS A NIVEL DE LÍNEA
-
-                        informacionNetosVBLineasMonedaLocal[i].codRetencionSussLinea = resultSet[i].getValue({
-                            name: resultSearch.columns[4]
-                        });//INDICA EL CÓDIGO DE LA RETENCIÓN DE SUSS A NIVEL DE LÍNEA
-
-                        informacionNetosVBLineasMonedaLocal[i].nombreRetencionSuss = resultSet[i].getText({
-                            name: resultSearch.columns[4]
-                        });//INDICA EL NOMBRE DE LA RETENCIÓN DE SUSS A NIVEL DE LÍNEA
-
-                        informacionNetosVBLineasMonedaLocal[i].lineNumber = resultSet[i].getValue({
-                            name: resultSearch.columns[5]
-                        });//INDICA EL NÚMERO DE LÍNEA DEL ARTÍCULO
-
-                        informacionNetosVBLineasMonedaLocal[i].importeBruto = parseFloat(resultSet[i].getValue({
-                            name: resultSearch.columns[6]
-                        }), 10).toFixedOK(2);//INDICA EL IMPORTE BRUTO DE LA LÍNEA
-                    }
-                } else {
-                    log.debug('obtener_arreglo_netos_vendorbill_moneda_local_lineas_ong', 'obtener_arreglo_netos_vendorbill_moneda_local_lineas_ong - No se encuentro informacion para las bills recibidas por parametro');
-                }
-
-                log.debug('obtener_arreglo_netos_vendorbill_moneda_local_lineas_ong', 'RETURN - informacionNetosVBLineasMonedaLocal: ' + JSON.stringify(informacionNetosVBLineasMonedaLocal));
-                log.debug('obtener_arreglo_netos_vendorbill_moneda_local_lineas_ong', 'FIN - obtener_arreglo_netos_vendorbill_moneda_local_lineas_ong');
-                return informacionNetosVBLineasMonedaLocal;
-
-            } catch (e) {
-                log.error('obtener_arreglo_netos_vendorbill_moneda_local_lineas_ong', 'obtener_arreglo_netos_vendorbill_moneda_local_lineas_ong - Error Excepción - Netsuite Error: ' + e.message);
-                return null;
-            }
-        }
-
-        function obtener_arreglo_codigos_ret_vendorbill_moneda_local_lineas_ong(entidad, billsPagar, subsidiaria, esONG) {
-
-            try {
-                log.debug('obtener_arreglo_codigos_ret_vendorbill_moneda_local_lineas_ong', 'INICIO - obtener_arreglo_codigos_ret_vendorbill_moneda_local_lineas_ong');
-                log.debug('obtener_arreglo_codigos_ret_vendorbill_moneda_local_lineas_ong', 'Parámetros - entidad: ' + entidad + ' - billsPagar: ' + billsPagar + ' - subsidiaria: ' + subsidiaria + ' - es ONG: ' + esONG);
-
-                var informacionCodigosVBLineasMonedaLocal = [];
-                var filtros = [];
-                var filtro = {};
-
-                //FILTRO PROVEEDOR
-                if (!utilidades.isEmpty(entidad)) {
-                    var filtro = {};
-                    filtro.name = 'entity';
-                    filtro.operator = 'IS';
-                    filtro.values = entidad;
-                    filtros.push(filtro);
-                }
-
-                //FILTRO BILLS A PAGAR
-                if (!utilidades.isEmpty(billsPagar)) {
-                    var filtro = {};
-                    filtro.name = 'internalid';
-                    filtro.operator = 'ANYOF';
-                    filtro.values = billsPagar;
-                    filtros.push(filtro);
-                }
-
-                //FILTRO SUBSIDIARIA
-                if (!utilidades.isEmpty(subsidiaria)) {
-                    var filtro = {};
-                    filtro.name = 'subsidiary';
-                    filtro.operator = 'IS';
-                    filtro.values = subsidiaria;
-                    filtros.push(filtro);
-                }
-
-                var objResultSet = utilidades.searchSavedPro('customsearch_l54_bill_cod_ret_m_lo_l_ogn', filtros);
-
-                if (objResultSet.error) {
-                    log.error('obtener_arreglo_codigos_ret_vendorbill_moneda_local_lineas_ong', 'Error Consultando searchSavedPro - customsearch_l54_bill_cod_ret_m_lo_l_ogn - Error: ' + objResultSet.descripcion);
-                    return null;
-                }
-
-                var resultSet = objResultSet.objRsponseFunction.result;
-                var resultSearch = objResultSet.objRsponseFunction.search;
-                //log.debug(proceso, "SET: " + JSON.stringify(resultSet));
-                //log.debug(proceso, "SEARCH: " + JSON.stringify(resultSearch));
-
-                if (!utilidades.isEmpty(resultSet) && resultSet.length > 0) {
-                    for (var i = 0; i < resultSet.length; i++) {
-                        informacionCodigosVBLineasMonedaLocal[i] = {};
-
-                        informacionCodigosVBLineasMonedaLocal[i].idInterno = resultSet[i].getValue({
-                            name: resultSearch.columns[1]
-                        });//ID INTERNO
-
-                        informacionCodigosVBLineasMonedaLocal[i].importeTotal = parseFloat(resultSet[i].getValue({
-                            name: resultSearch.columns[2]
-                        }), 10).toFixedOK(2);//IMPORTE TOTAL
-
-                        informacionCodigosVBLineasMonedaLocal[i].codigoRetGanancias = resultSet[i].getValue({
-                            name: resultSearch.columns[3]
-                        });//CODIGO RETENCION GANANCIAS
-
-                        informacionCodigosVBLineasMonedaLocal[i].codigoRetIVA = resultSet[i].getValue({
-                            name: resultSearch.columns[4]
-                        });//CODIGO RETENCION IVA
-
-                        informacionCodigosVBLineasMonedaLocal[i].codigoRetSUSS = resultSet[i].getValue({
-                            name: resultSearch.columns[5]
-                        });//CODIGO RETENCION SUSS
-
-                        informacionCodigosVBLineasMonedaLocal[i].esFacturaM = resultSet[i].getValue({
-                            name: resultSearch.columns[6]
-                        });//INDICA SI ES UNA TRANSACCION M
-
-                        informacionCodigosVBLineasMonedaLocal[i].calcularSobreIVA = resultSet[i].getValue({
-                            name: resultSearch.columns[8]
-                        });//INDICA SI LA BASE DE CÁLCULO SE CALCULA SOBRE IVA
-
-                        informacionCodigosVBLineasMonedaLocal[i].codRetencionGananciasLinea = resultSet[i].getValue({
-                            name: resultSearch.columns[9]
-                        });//INDICA EL CÓDIGO DE LA RETENCIÓN DE GANANCIAS A NIVEL DE LÍNEA
-
-                        informacionCodigosVBLineasMonedaLocal[i].nombreRetencionGanancias = resultSet[i].getText({
-                            name: resultSearch.columns[9]
-                        });//INDICA EL NOMBRE DE LA RETENCIÓN DE GANANCIAS A NIVEL DE LÍNEA
-
-                        informacionCodigosVBLineasMonedaLocal[i].codRetencionSussLinea = resultSet[i].getValue({
-                            name: resultSearch.columns[10]
-                        });//INDICA EL CÓDIGO DE LA RETENCIÓN DE SUSS A NIVEL DE LÍNEA
-
-                        informacionCodigosVBLineasMonedaLocal[i].nombreRetencionSuss = resultSet[i].getText({
-                            name: resultSearch.columns[10]
-                        });//INDICA EL NOMBRE DE LA RETENCIÓN DE SUSS A NIVEL DE LÍNEA
-
-                        informacionCodigosVBLineasMonedaLocal[i].lineNumber = resultSet[i].getValue({
-                            name: resultSearch.columns[11]
-                        });//INDICA EL NÚMERO DE LÍNEA DEL ARTÍCULO
-
-                        informacionCodigosVBLineasMonedaLocal[i].importeNeto = parseFloat(resultSet[i].getValue({
-                            name: resultSearch.columns[13]
-                        }), 10).toFixedOK(2);//INDICA EL IMPORTE NETO DE LA LÍNEA
-                    }
-                } else {
-                    log.debug('obtener_arreglo_codigos_ret_vendorbill_moneda_local_lineas_ong', 'obtener_arreglo_codigos_ret_vendorbill_moneda_local_lineas_ong - No se encuentro informacion para las bills recibidas por parametro');
-                }
-
-                log.debug('obtener_arreglo_codigos_ret_vendorbill_moneda_local_lineas_ong', 'RETURN - informacionCodigosVBLineasMonedaLocal: ' + JSON.stringify(informacionCodigosVBLineasMonedaLocal));
-                log.debug('obtener_arreglo_codigos_ret_vendorbill_moneda_local_lineas_ong', 'FIN - obtener_arreglo_codigos_ret_vendorbill_moneda_local_lineas_ong');
-                return informacionCodigosVBLineasMonedaLocal;
-
-            } catch (e) {
-                log.error('obtener_arreglo_codigos_ret_vendorbill_moneda_local_lineas_ong', 'obtener_arreglo_codigos_ret_vendorbill_moneda_local_lineas_ong - Error Excepción - Netsuite Error: ' + e.message);
-                return null;
-            }
-        }
-
-        function getInfoFacturasRetLineasONG(id_proveedor, subsidiaria, codigoRetencion, tipoRetencion) {
-
-            try {
-
-                log.debug('getInfoFacturasRetLineasONG', 'INICIO - getInfoFacturasRetLineasONG');
-                log.debug('getInfoFacturasRetLineasONG', 'Parámetros - id_proveedor: ' + id_proveedor + ' - subsidiaria: ' + subsidiaria + ' - codigoRetencion: ' + JSON.stringify(codigoRetencion) + ' - tipoRetencion: ' + tipoRetencion);
-
-                var informacionFacturas = [];
-                var filtros = [];
-                var filtro = {};
-
-                //FILTRO PROVEEDOR
-                if (!utilidades.isEmpty(id_proveedor)) {
-                    var filtro = {};
-                    filtro.name = 'entity';
-                    filtro.operator = 'IS';
-                    filtro.values = id_proveedor;
-                    filtros.push(filtro);
-                }
-
-                //FILTRO SUBSIDIARIA
-                if (!utilidades.isEmpty(subsidiaria)) {
-                    var filtro = {};
-                    filtro.name = 'subsidiary';
-                    filtro.operator = 'IS';
-                    filtro.values = subsidiaria;
-                    filtros.push(filtro);
-                }
-
-                if (!utilidades.isEmpty(codigoRetencion)) {
-                    var filtro = {};
-                    filtro.name = 'custcol_l54_codigo_retencion_' + tipoRetencion;
-                    filtro.operator = 'ANYOF';
-                    filtro.values = codigoRetencion;
-                    filtros.push(filtro);
-                }
-
-                var objResultSet = utilidades.searchSavedPro('customsearch_l54_obt_inf_lin_cod_ret_ong', filtros);
-
-                if (objResultSet.error) {
-                    log.error('getInfoFacturasRetLineasONG', 'Error Consultando searchSavedPro - customsearch_l54_obt_inf_lin_cod_ret_ong - Error: ' + objResultSet.descripcion);
-                    return null;
-                }
-
-                var resultSet = objResultSet.objRsponseFunction.result;
-                var resultSearch = objResultSet.objRsponseFunction.search;
-                //log.debug(proceso, "SET: " + JSON.stringify(resultSet));
-                //log.debug(proceso, "SEARCH: " + JSON.stringify(resultSearch));
-
-                if ((!isEmpty(resultSet)) && (resultSet.length > 0)) {
-                    for (var i = 0; i < resultSet.length; i++) {
-
-                        informacionFacturas[i] = {};
-
-                        informacionFacturas[i].idInterno = resultSet[i].getValue({
-                            name: resultSearch.columns[1]
-                        });
-
-                        informacionFacturas[i].codRetencionGananciasLinea = resultSet[i].getValue({
-                            name: resultSearch.columns[2]
-                        });//CODIGO RETENCION GANANCIAS LÍNEA
-
-                        informacionFacturas[i].nombreRetencionGanancias = resultSet[i].getText({
-                            name: resultSearch.columns[2]
-                        });//NOMBRE RETENCION GANANCIAS LÍNEA
-
-                        informacionFacturas[i].codRetencionSussLinea = resultSet[i].getValue({
-                            name: resultSearch.columns[3]
-                        });//CODIGO RETENCION SUSS LÍNEA
-
-                        informacionFacturas[i].nombreRetencionSuss = resultSet[i].getText({
-                            name: resultSearch.columns[3]
-                        });//NOMBRE RETENCION SUSS LÍNEA
-
-                        informacionFacturas[i].lineNumber = resultSet[i].getValue({
-                            name: resultSearch.columns[4]
-                        });//NÚMERO DE LÍNEA
-                    }
-                } else {
-                    log.debug('getInfoFacturasRetLineasONG', 'getInfoFacturasRetLineasONG - No se encontró informacion de importe de pagos pasados para los parametros indicados');
-                }
-
-                log.debug('getInfoFacturasRetLineasONG', 'RETURN - informacionFacturas: ' + JSON.stringify(informacionFacturas));
-                log.debug('getInfoFacturasRetLineasONG', 'FIN - getInfoFacturasRetLineasONG');
-                return informacionFacturas;
-
-            } catch (e) {
-                log.error('getInfoFacturasRetLineasONG', 'Error - getInfoFacturasRetLineasONG - Excepcion Error: ' + e.message);
-                return null;
-            }
-        }
 
         //Parsea una fecha String a Objeto Fecha de JavaScript. Con el parametro OffSet se puede mover N cantidad de dias.
         function parseDate(fecha, offsetInDays) {
@@ -11341,32 +8592,14 @@
             }
         }
 
-        //Convierte un Objeto Fecha JavaScript en un String con el formato del usuario actual
-        function formatDate(fecha) {
 
-            if (!utilidades.isEmpty(fecha)) {
-                return format.format({
-                    value: fecha,
-                    type: format.Type.DATE,
-                    timezone: format.Timezone.AMERICA_BUENOS_AIRES
-                });
-            }
-        }
 
         //Identifica si una Fecha String es una fecha valida para ser convertida
         function isDate(fecha) {
             return fecha instanceof Date && !isNaN(fecha.valueOf())
         }
 
-        function getCompanyDate(fecha) {
-            var currentDateTime = new Date(fecha);
-            var companyTimeZone = config.load({ type: config.Type.COMPANY_INFORMATION }).getText({ fieldId: 'timezone' });
-            var timeZoneOffSet = (companyTimeZone.indexOf('(GMT)') == 0) ? 0 : Number(companyTimeZone.substr(4, 6).replace(/\+|:00/gi, '').replace(/:30/gi, '.5'));
-            var UTC = currentDateTime.getTime() + (currentDateTime.getTimezoneOffset() * 60000);
-            var companyDateTime = UTC + (timeZoneOffSet * 60 * 60 * 1000);
 
-            return new Date(companyDateTime);
-        }
 
         function getDate(fecha, zonaHoraria) { //Toma una fecha ubicada en otra zona horaria y la mueve a GMT0. Con zonaHoraria se puede cambiar por otra diferente a GMT0
             var utc = new Date(fecha); //GMT 0
@@ -11413,6 +8646,20 @@
             }
 
             return importe_final;
+        }
+
+        function normalizeValue(value) {
+            if (value == null || value === "") {
+                return 1; // por defecto
+            }
+            if (typeof value === "string") {
+                let num = Number(value.replace("%", "").trim()) / 100;
+                return 1 - num;
+            }
+            if (typeof value === "number") {
+                return 1 - value;
+            }
+            return 1; 
         }
 
         return {

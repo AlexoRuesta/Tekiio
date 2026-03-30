@@ -4,9 +4,9 @@
  *@NAmdConfig /SuiteScripts/L54 - configuration.json
  *@NModuleScope Public
  */
- define(["N/currentRecord", "N/ui/dialog", "N/search", "N/record", "N/url"],
+ define(["N/currentRecord", "N/ui/dialog", "N/search", "N/record", "N/url", "N/task"],
 
-    function (currentRecord, dialog, search, record, url) {
+    function (currentRecord, dialog, search, record, url, task) {
        
 
         var isEmpty = function (val) { return val == null || val == undefined || val == "" };
@@ -210,10 +210,109 @@
             window.open(parameters + "&custpage_subsidiary=" + custpage_subsidiary + "&custpage_asset_type=" + custpage_asset_type + "&custpage_period_init=" + custpage_period_init + "&custpage_period_end=" + custpage_period_end, '_blank')
         }
 
+        const proyectado = (parameters) => {
+            var obj = currentRecord.get();
+
+            var custpage_subsidiary = obj.getValue({
+                    fieldId: 'custpage_subsidiary'
+                }),
+                custpage_asset_type = obj.getValue({
+                    fieldId: 'custpage_asset_type'
+                }),
+                custpage_period_init = obj.getValue({
+                    fieldId: 'custpage_period_init'
+                }),
+                custpage_period_end = obj.getValue({
+                    fieldId: 'custpage_period_end'
+                });
+
+            if (!custpage_subsidiary) {
+                alert('Por favor, complete todos los campos obligatorios.');
+                return;
+            }
+
+            dialog.alert({
+                title: "Aviso",
+                message: "Se enviará un correo al cliente con los reportes al Finalizar."
+            }).then(function () {
+                // Si confirma, ejecutamos el redirect
+                window.onbeforeunload = null; // Por si NetSuite lo reinstala
+                window.location.href = parameters +
+                    "&custpage_subsidiary=" + custpage_subsidiary +
+                    "&custpage_asset_type=" + custpage_asset_type +
+                    "&custpage_period_init=" + custpage_period_init +
+                    "&custpage_period_end=" + custpage_period_end;
+            }).catch(function () {
+                // Si cancela, no hacemos nada
+                console.log("El usuario canceló la acción de generar el proyectado.");
+            });
+        }
+
+        const deleteAudit = (parameters) => {
+            var obj = currentRecord.get();
+
+            var custpage_subsidiary = obj.getValue({
+                    fieldId: 'custpage_subsidiary'
+                }),
+                custpage_asset_type = obj.getValue({
+                    fieldId: 'custpage_asset_type'
+                }),
+                custpage_period_init = obj.getValue({
+                    fieldId: 'custpage_period_init'
+                }),
+                custpage_period_end = obj.getValue({
+                    fieldId: 'custpage_period_end'
+                });
+
+            if (!custpage_subsidiary) {
+                alert('Por favor, complete todos los campos obligatorios.');
+                return;
+            }
+
+            let input = {
+                    custpage_period_init: custpage_period_init,
+                    custpage_period_end: custpage_period_end
+            }
+
+            dialog.alert({
+                title: "Aviso",
+                message: "Se enviará un correo al cliente con los reportes al Finalizar."
+            }).then(function () {
+                // Si confirma, ejecutamos el redirect
+                // window.onbeforeunload = null; // Por si NetSuite lo reinstala
+                // window.location.href = parameters +
+                //     "&custpage_subsidiary=" + custpage_subsidiary +
+                //     "&custpage_asset_type=" + custpage_asset_type +
+                //     "&custpage_period_init=" + custpage_period_init +
+                //     "&custpage_period_end=" + custpage_period_end;
+
+                let params = {
+                    custscript_l54_eliminacion_axi_sub: custpage_subsidiary,
+                    custscript_l54_eliminacion_axi_type: custpage_asset_type,
+                    custscript_l54_eliminacion_axi_input: JSON.stringify(input)
+                }
+
+                log.debug("params:", JSON.stringify(params));
+
+                let scriptTask = task.create({
+                    taskType: task.TaskType.MAP_REDUCE,
+                    scriptId: "customscript_l54_eliminacion_axi",
+                    deploymentId: "customdeploy1",
+                    params
+                });
+                let scriptTaskId = scriptTask.submit();
+            }).catch(function () {
+                // Si cancela, no hacemos nada
+                console.log("El usuario canceló la acción de generar el proyectado.");
+            });
+        }
+
         return {
             pageInit: pageInit,
             saveRecord: saveRecord,
             deleteRecords: deleteRecords,
-            downloadExcel: downloadExcel
+            downloadExcel: downloadExcel,
+            proyectado: proyectado,
+            deleteAudit: deleteAudit
         }
     });
