@@ -89,15 +89,6 @@
           <sameRowAsPrevious>F</sameRowAsPrevious>
         </field>
         <field>
-          <id>[scriptid=customrecord_tk_configuration_general.custrecord_tk_configuration_general_sub]</id>
-          <label>Subsidiarias</label>
-          <visible>T</visible>
-          <mandatory>F</mandatory>
-          <displayType>NORMAL</displayType>
-          <columnBreak>F</columnBreak>
-          <sameRowAsPrevious>F</sameRowAsPrevious>
-        </field>
-        <field>
           <id>[scriptid=customrecord_tk_configuration_general.custrecord_tk_configuration_general_rol]</id>
           <label>Roles</label>
           <visible>T</visible>

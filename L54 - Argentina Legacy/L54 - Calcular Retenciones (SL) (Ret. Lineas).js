@@ -9,6 +9,8 @@
         var proceso = 'onRequest';
         var tipoContSUSS;
         var tipoContGAN;
+        var padronEspecial = new Array();
+        var jurisdiccionEspecial = new Array();
         /**
          * Definition of the Suitelet script trigger point.
          *
@@ -333,6 +335,7 @@
                                                 let importeNetoPagado = 0.0;
                                                 let importeBrutoPagado = 0.0;
                                                 var cantidadFacturasM = 0;
+                                                var montoEmbargoBruto = 0;
 
                                                 var pagoTotalFacturasM = true;
                                                 var datoCuenta = !isEmpty(subsidiariaPago) ? 'subsidiaria' : 'cuenta';
@@ -415,6 +418,8 @@
 
                                                     // obtengo el importe pagado realmente de la factura para sacar su porcentaje sobre el total
                                                     importe_bruto_factura_proveedor_a_pagar = parseFloat(billsPagadas[i - 1].amount, 10);
+                                                    
+                                                    montoEmbargoBruto =  parseFloat(parseFloat(montoEmbargoBruto, 10) + parseFloat(billsPagadas[i - 1].amount, 10), 10)
                                                     
                                                     importe_total_factura_final = importe_bruto_factura_proveedor_a_pagar;
 
@@ -2196,6 +2201,17 @@
                                                                                 codigosRetencionIIBB.infoRet[i].base_calculo_retencion = parseFloat(codigosRetencionIIBB.infoRet[i].importe_factura_pagar, 10);
                                                                                 codigosRetencionIIBB.infoRet[i].base_calculo_retencion_impresion = parseFloat(codigosRetencionIIBB.infoRet[i].base_calculo_retencion, 10);
 
+                                                                                if (isEmpty(codigosRetencionIIBB.infoRet[i].coeficienteBaseImponible) || isNaN(codigosRetencionIIBB.infoRet[i].coeficienteBaseImponible) || codigosRetencionIIBB.infoRet[i].coeficienteBaseImponible == 0.00) {
+                                                                                    codigosRetencionIIBB.infoRet[i].coeficienteBaseImponible = 1;
+                                                                                }
+
+                                                                                var decimalesImporte = countDecimales(parseFloat(codigosRetencionIIBB.infoRet[i].base_calculo_retencion, 10));
+                                                                                var decimalesCoeficienteBaseImponible = countDecimales(parseFloat(codigosRetencionIIBB.infoRet[i].coeficienteBaseImponible, 10));
+                                                                                var decimalesImporteCoeficienteTotal = decimalesImporte + decimalesCoeficienteBaseImponible;
+
+                                                                                codigosRetencionIIBB.infoRet[i].base_calculo_retencion = Math.abs(parseFloat(numberTruncTwoDec(parseFloat(convertToInteger(parseFloat(codigosRetencionIIBB.infoRet[i].base_calculo_retencion, 10)), 10) * parseFloat(convertToInteger(parseFloat(codigosRetencionIIBB.infoRet[i].coeficienteBaseImponible, 10)), 10) / (Math.pow(10, decimalesImporteCoeficienteTotal))), 10));
+                                                                                codigosRetencionIIBB.infoRet[i].base_calculo_retencion_impresion = parseFloat(codigosRetencionIIBB.infoRet[i].base_calculo_retencion, 10);
+
                                                                                 var objRetencionIIBB = getRetencion(entity, 'iibb', codigosRetencionIIBB.infoRet[i].codigo, codigosRetencionIIBB.infoRet[i].base_calculo_retencion, id_posting_period, 0, tasa_cambio_pago, codigosRetencionIIBB.infoRet[i].porcentajeRetencion, true, '', 0, arrayDetallesRetencionIIBB, codigosRetencionIIBB.infoRet[i].baseCalcAcumulada, existeRetJurisdiccionActual);
                                                                                 //var objRetencionIIBB = getRetencion(entity, 'iibb', codigosRetencionIIBB.infoRet[i].codigo, codigosRetencionIIBB.infoRet[i].base_calculo_retencion, id_posting_period, 0, tasa_cambio_pago, porcentajeFinal, true, '', 0);
                                                                                 log.debug('L54 - Calculo Retenciones', 'CALCULARETENCIONES - objRetencionIIBB: ' + JSON.stringify(objRetencionIIBB) + ' ** TIEMPO' + new Date());
@@ -2824,8 +2840,137 @@
             var responseSuitelet = context.response;
             var informacionRespuestaJSON = [];
             informacionRespuestaJSON.push(respuestaRetencionesJSON);
+            /**EMBARGOS ARBA*/
+            // obtenerCodigosRetencionPadronesIIBB(entity, subsidiariaPago)
+            
+            var embargoArba = script.getParameter('custscript_l54_calc_ret_sl_lineas_arba_e');
+
+            const padronEmbargo = padronEspecial.find(({ tipoPadron, periodo }) => tipoPadron === embargoArba && periodo == id_posting_period);
+
+            if(informacionRespuestaJSON[0].esAgenteRetencionIIBB && informacionRespuestaJSON[0].estaInscriptoRegimenIIBB && !isEmpty(padronEmbargo) && jurisdiccionEspecial.jurisdicciones.some(j => j.jurisdiccion === padronEmbargo.jurisdiccion)) {
+                var informacionRespuestaJSON = reconstruirRespuesta(padronEmbargo, informacionRespuestaJSON, subsidiariaPago, tasa_cambio_pago, montoEmbargoBruto);
+            }
+
             log.debug(proceso, 'informacionRespuestaJSON: ' + JSON.stringify(informacionRespuestaJSON));
             responseSuitelet.write({ output: JSON.stringify(informacionRespuestaJSON) });
+        }
+
+        function reconstruirRespuesta(padronEmbargo, informacionRespuestaJSON, subsidiariaPago, tasa_cambio_pago, montoEmbargoBruto) {
+            let retenciones = Object.assign({}, informacionRespuestaJSON[0]),
+                respuestaFinal =[]
+                montoMonedaLocal = padronEmbargo.montosEmbargos;
+
+            if(parseFloat(tasa_cambio_pago, 10) > 1){
+                padronEmbargo.montosEmbargos = parseFloat(parseFloat(padronEmbargo.montosEmbargos, 10)/parseFloat(tasa_cambio_pago, 10), 10);
+                padronEmbargo.montosEmbargos = Number(padronEmbargo.montosEmbargos.toFixed(2));
+                
+            }
+            montoEmbargoBruto = Number(montoEmbargoBruto.toFixed(2));
+                
+            log.debug("montoEmbargoBruto", montoEmbargoBruto)
+            if(parseFloat(montoEmbargoBruto, 10) >= parseFloat(padronEmbargo.montosEmbargos, 10)){
+                
+                var customrecord_l54_retencionSearchObj = search.create({
+                    type: "customrecord_l54_retencion",
+                    filters:
+                    [
+                        ["custrecord_l54_ret_anulado","is","F"], 
+                        "AND", 
+                        ["custrecord_l54_ret_cod_retencion","anyof", padronEmbargo.codigo], 
+                        "AND", 
+                        ["custrecord_l54_ret_jurisdiccion","anyof", padronEmbargo.jurisdiccion],
+                        "AND", 
+                        ["custrecord_l54_ret_subsidiaria","anyof", subsidiariaPago], 
+                        "AND", 
+                        ["custrecord_l54_ret_periodo","anyof", padronEmbargo.periodo],
+                        "AND", 
+                        ["custrecord_l54_ret_ref_proveedor","anyof", padronEmbargo.idProveedor]
+                    ],
+                    columns:
+                    [
+                        search.createColumn({name: "internalid", label: "Internal ID"})
+                    ]
+                });
+
+                var resultSet = customrecord_l54_retencionSearchObj.run();
+
+                var searchResult = resultSet.getRange({
+                    start: 0,
+                    end: 1
+                });
+                
+                if (searchResult.length == 0){
+                    var nuevosMontos = {
+                        imp_retencion_iibb: retenciones.imp_retencion_iibb,
+                        importe_neto_a_abonar: retenciones.importe_neto_a_abonar,
+                        neto_bill_aplicados: montoEmbargoBruto,
+                        importe_total_retencion: retenciones.importe_total_retencion,
+                        retencion: []
+                    }
+
+                    let inscripcionName = search.lookupFields({
+                            type: "customrecord_l54_tipo_contribuyente_iibb",
+                            id: padronEmbargo.estadoInscripcionPadron,
+                            columns: ['name']
+                        });
+                    nuevosMontos.retencion.push(
+                        {
+                            retencion: "3",
+                            tipo_ret: padronEmbargo.codigo,
+                            jurisdiccion: padronEmbargo.jurisdiccion,
+                            condicion: inscripcionName.name,
+                            neto_bill: montoEmbargoBruto,
+                            base_calculo: montoEmbargoBruto,
+                            base_calculo_imp: montoEmbargoBruto,
+                            imp_retencion: padronEmbargo.montosEmbargos,
+                            monto_suj_ret_moneda_local: montoMonedaLocal,
+                            diferenciaRedondeo: 0,
+                            base_calculo_original: montoEmbargoBruto,
+                            imp_retencion_original: padronEmbargo.montosEmbargos,
+                            condicionID: padronEmbargo.estadoInscripcionPadron,
+                            alicuota: 100,
+                            certExencion: "",
+                            tipoExencion: "",
+                            fcaducidadExencion: "",
+                            numerador_cod: "num_ret_iibb"
+                        }
+                
+                    )
+
+                    var retesEliminados = retenciones.retencion_iibb.filter(item => item.jurisdiccion == padronEmbargo.jurisdiccion);
+                    var retesConservadas = retenciones.retencion_iibb.filter(item => item.jurisdiccion !== padronEmbargo.jurisdiccion);
+                    log.debug("retesEliminados ", JSON.stringify(retesEliminados))
+                    log.debug("retesConservadas ", JSON.stringify(retesConservadas))
+
+                    retesEliminados.forEach(ret => {
+                        nuevosMontos.imp_retencion_iibb = (parseFloat(nuevosMontos.imp_retencion_iibb, 10)- parseFloat(ret.imp_retencion, 10)).toFixedOK(2)
+                        nuevosMontos.importe_total_retencion = (parseFloat(nuevosMontos.importe_total_retencion, 10) - parseFloat(ret.imp_retencion, 10)).toFixedOK(2)
+                    });
+
+                    retesConservadas = retesConservadas.concat(nuevosMontos.retencion)
+                    const acumuladosConservados = retenciones.detalleAcumulados.filter(item => item.jurisdiccion !== padronEmbargo.jurisdiccion);
+
+                    nuevosMontos.retencion.forEach(ret => {
+                        nuevosMontos.imp_retencion_iibb = (parseFloat(nuevosMontos.imp_retencion_iibb, 10) +  parseFloat(ret.imp_retencion, 10)).toFixedOK(2)
+                        nuevosMontos.importe_total_retencion = (parseFloat(nuevosMontos.importe_total_retencion, 10) + parseFloat(ret.imp_retencion, 10)).toFixedOK(2)
+                    });
+
+                    nuevosMontos.importe_neto_a_abonar = (parseFloat(nuevosMontos.neto_bill_aplicados, 10) -  parseFloat(nuevosMontos.importe_total_retencion, 10)).toFixedOK(2)
+
+
+                    retenciones.imp_retencion_iibb = nuevosMontos.imp_retencion_iibb;
+                    retenciones.importe_neto_a_abonar = nuevosMontos.importe_neto_a_abonar;
+                    retenciones.importe_total_retencion = nuevosMontos.importe_total_retencion;
+                    retenciones.retencion_iibb = retesConservadas;
+                    retenciones.listaRetenciones = retesConservadas;
+                    retenciones.detalleAcumulados = acumuladosConservados;
+                    log.debug("nuevosMontos ", JSON.stringify(nuevosMontos))
+                    log.debug("retenciones ", JSON.stringify(retenciones))
+                }
+            }
+            respuestaFinal.push(retenciones)
+
+            return respuestaFinal;
         }
 
 
@@ -2895,6 +3040,7 @@
                                     infoLineasJurisdiccionesIIBB[j].tipoExencion = objEstadoInscripcionJurIIBB.jurisdicciones[i].tipoExencion;
                                     infoLineasJurisdiccionesIIBB[j].fcaducidadExencion = objEstadoInscripcionJurIIBB.jurisdicciones[i].fcaducidadExencion;
                                     infoLineasJurisdiccionesIIBB[j].esJurisdiccionGeneral = objEstadoInscripcionJurIIBB.jurisdicciones[i].esJurisdiccionGeneral;
+                                    infoLineasJurisdiccionesIIBB[j].coeficienteBaseImponible = objEstadoInscripcionJurIIBB.jurisdicciones[i].coeficienteBaseImponible;
                                     infoLineasJurisdiccionesIIBB[j].jurisdiccionCodigo = objEstadoInscripcionJurIIBB.jurisdicciones[i].jurisdiccionCodigo;
                                     infoLineasJurisdiccionesIIBB[j].jurisdiccionSede = objEstadoInscripcionJurIIBB.jurisdicciones[i].jurisdiccionSede;
                                     infoLineasJurisdiccionesIIBB[j].esJurisdEntrega = objEstadoInscripcionJurIIBB.jurisdicciones[i].esJurisdEntrega;
@@ -3947,6 +4093,10 @@
                         var aplicaCalcRetPorInscrip = convertToBoolean(completeResultSet[i].getValue({
                             name: resultSearch.columns[9]
                         }));
+                        
+                        var coeficiente_base_imponible = completeResultSet[i].getValue({
+                            name: resultSearch.columns[10]
+                        });
 
                         if (!isEmpty(fecha_caducidad)) {
                             fecha_caducidad_parseada = parseDate(fecha_caducidad);
@@ -3979,6 +4129,7 @@
                                         estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].jurisdiccionTexto = jurisdiccionTexto;
                                         estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].tipoContribuyente = !isEmpty(estado_regimen) ? estado_regimen : idTipoContribIIBBDefault;
                                         estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].tipoContribuyenteTexto = !isEmpty(estado_regimen_texto) ? estado_regimen_texto : idTipoContribIIBBDefaultText;
+                                        estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].coeficienteBaseImponible = coeficiente_base_imponible;
                                         estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].certExencion = certificado_exencion;
                                         estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].tipoExencion = tipo_exencion;
                                         estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].fcaducidadExencion = fecha_caducidad_parseada;
@@ -4049,6 +4200,7 @@
                                     estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].tipoExencion = "";
                                     estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].fcaducidadExencion = "";
                                     estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].esJurisdiccionGeneral = jurisdiccionGeneral;
+                                    estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].coeficienteBaseImponible = 1;
                                     estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].jurisdiccionCodigo = jurisdiccionEntregaCodigo;
                                     estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].jurisdiccionSede = false;
                                     estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].esJurisdEntrega = true;
@@ -4093,6 +4245,7 @@
                                 estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].jurisdiccionTexto = jurisdiccionTucumanText;
                                 estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].tipoContribuyente = idTipoContribIIBBDefault;
                                 estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].tipoContribuyenteTexto = idTipoContribIIBBDefaultText;
+                                    estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].coeficienteBaseImponible = 1;
                                 estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].certExencion = "";
                                 estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].tipoExencion = "";
                                 estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].fcaducidadExencion = "";
@@ -4107,7 +4260,7 @@
                     }
                 }
             }
-
+            jurisdiccionEspecial = estadoInscripcionProveedor;
             log.debug('FIN - getProveedorInscriptoRegimenIIBB', 'RETURN - estadoInscripcionProveedor: ' + JSON.stringify(estadoInscripcionProveedor));
             return estadoInscripcionProveedor;
         }
@@ -5616,6 +5769,7 @@
                     resultadoCodigos.jurisdiccionEntregaNombre = resultadoCodigoRetencionLinea[0].jurisdiccionEntregaNombre;
                     resultadoCodigos.jurisdFacturacion = resultadoCodigoRetencionLinea[0].jurisdFacturacion;
                     resultadoCodigos.nombreJurisdFacturacion = resultadoCodigoRetencionLinea[0].nombreJurisdFacturacion;
+                    resultadoCodigos.tipoProducto = resultadoCodigoRetencionLinea[0].tipoProducto;
                 }
             }
 
@@ -5694,14 +5848,15 @@
                 infoTerritorialidadLinea.critJurisdFacturacion = paramNoAplicaProvincia;
             }
 
-
+            infoTerritorialidadLinea.tipoProducto = !isEmpty(infoLineaActual) && !isEmpty(infoLineaActual.tipoProducto) ? infoLineaActual.tipoProducto : '';
+            log.debug(" infoTerritorialidadLinea.tipoProducto",  infoTerritorialidadLinea.tipoProducto)
             if (!isEmpty(objRetencion)) {
 
                 if (objRetencion.length > 0) {
                     
                     // Busco si ya esta asociado el codigo de retencion
                     for (var i = 0; i < objRetencion.length && codigoEncontrado == false; i++) {
-                        if (objRetencion[i].jurisdiccion == jurisdiccion && objRetencion[i].critJurisdUtilizacion == infoTerritorialidadLinea.critJurisdUtilizacion &&
+                        if (objRetencion[i].jurisdiccion == jurisdiccion && objRetencion[i].tipoProducto == infoTerritorialidadLinea.tipoProducto && objRetencion[i].critJurisdUtilizacion == infoTerritorialidadLinea.critJurisdUtilizacion &&
                             objRetencion[i].critJurisdOrigen == infoTerritorialidadLinea.critJurisdOrigen && objRetencion[i].critJurisdEntrega == infoTerritorialidadLinea.critJurisdEntrega &&
                             objRetencion[i].critJurisdFacturacion == infoTerritorialidadLinea.critJurisdFacturacion) {
 
@@ -5754,6 +5909,7 @@
                 objRetencion[cantidadElementos].critJurisdOrigen = infoTerritorialidadLinea.critJurisdOrigen;
                 objRetencion[cantidadElementos].critJurisdEntrega = infoTerritorialidadLinea.critJurisdEntrega;
                 objRetencion[cantidadElementos].critJurisdFacturacion = infoTerritorialidadLinea.critJurisdFacturacion;
+                objRetencion[cantidadElementos].tipoProducto = infoTerritorialidadLinea.tipoProducto;
 
             }
 
@@ -5925,6 +6081,10 @@
                         name: resultSearch.columns[10]
                     });//PERIODO
 
+                    var montosEmbargos = completeResultSet[i].getValue({
+                        name: resultSearch.columns[11]
+                    });//PERIODO
+
                     if (!isEmpty(codigoRetencionPadron))
                         arregloCodigosRetencionPadronIIBB[i].codigo = codigoRetencionPadron;
 
@@ -5954,11 +6114,14 @@
                     if (!isEmpty(periodo))
                         arregloCodigosRetencionPadronIIBB[i].periodo = periodo;
 
+                    if (!isEmpty(montosEmbargos))
+                        arregloCodigosRetencionPadronIIBB[i].montosEmbargos = montosEmbargos;
                 }
             } else {
                 log.debug('obtenerCodigosRetencionPadronesIIBB', 'obtenerCodigosRetencionPadronesIIBB - No se encuentro informacion para el tipo de padron y proveedor recibido por parametro');
             }
 
+            padronEspecial = arregloCodigosRetencionPadronIIBB;
             log.debug('obtenerCodigosRetencionPadronesIIBB', 'RETURN - obtenerCodigosRetencionPadronesIIBB: ' + JSON.stringify(arregloCodigosRetencionPadronIIBB));
             log.debug('obtenerCodigosRetencionPadronesIIBB', 'FIN - obtenerCodigosRetencionPadronesIIBB');
             return arregloCodigosRetencionPadronIIBB;
@@ -6036,7 +6199,7 @@
                             let errorCalcRetInscrip = false;
 
                             /* INICIO - SE BUSCA LA CONFIG DE JURISDICCION QUE COINCIDA CON EL TIPO DE CONTRIBUYENTE DE IIBB DEL PROVEEDOR, SI ES JURISDICCION SEDE, EL TIPO DE CONTRIBUYENTE DE IVA Y CRITERIOS DE TERRITORIALIDAD */
-
+                            log.debug("objEstadosIIBB", objEstadosIIBB.jurisdicciones[i])
                             if (objEstadosIIBB.jurisdicciones[i].critJurisdUtilizacion == paramNoAplicaProvincia && objEstadosIIBB.jurisdicciones[i].critJurisdEntrega == paramNoAplicaProvincia && 
                                 objEstadosIIBB.jurisdicciones[i].critJurisdOrigen == paramNoAplicaProvincia && objEstadosIIBB.jurisdicciones[i].critJurisdFacturacion == paramNoAplicaProvincia) {
                                 if (objEstadosIIBB.jurisdicciones[i].aplicaCalcRetPorInscrip) {
@@ -6055,7 +6218,8 @@
                                     return ((obj.jurisdiccionConfigDetalle == objEstadosIIBB.jurisdicciones[i].jurisdiccion) && (obj.tipoContribuyenteIIBB.split(',').indexOf(objEstadosIIBB.jurisdicciones[i].tipoContribuyente) >= 0) &&
                                         (obj.jurisdiccionSede === objEstadosIIBB.jurisdicciones[i].jurisdiccionSede) && (ignorarTipoContribuyenteIVA || obj.tipoContribuyenteIVA.split(',').indexOf(tipoContribuyenteIVA) >= 0) && 
                                         (obj.critJurisdUtilizacion.split(',').indexOf(objEstadosIIBB.jurisdicciones[i].critJurisdUtilizacion) >= 0) && (obj.critJurisdEntrega.split(',').indexOf(objEstadosIIBB.jurisdicciones[i].critJurisdEntrega) >= 0) && 
-                                        (obj.critJurisdOrigen.split(',').indexOf(objEstadosIIBB.jurisdicciones[i].critJurisdOrigen) >= 0) && (obj.critJurisdFacturacion.split(',').indexOf(objEstadosIIBB.jurisdicciones[i].critJurisdFacturacion) >= 0));
+                                        (obj.critJurisdOrigen.split(',').indexOf(objEstadosIIBB.jurisdicciones[i].critJurisdOrigen) >= 0) && (obj.critJurisdFacturacion.split(',').indexOf(objEstadosIIBB.jurisdicciones[i].critJurisdFacturacion) >= 0)
+                                        && (obj.tipoProducto.split(',').indexOf(objEstadosIIBB.jurisdicciones[i].tipoProducto) >= 0));
                                 });
                             }
                             
@@ -6284,6 +6448,7 @@
                                     //Nuevo - ID Tipo Contribuyente IIBB
                                     infoRet.condicionID = objEstadosIIBB.jurisdicciones[i].tipoContribuyente;
                                     infoRet.jurisdiccion = objEstadosIIBB.jurisdicciones[i].jurisdiccion;
+                                    infoRet.coeficienteBaseImponible = objEstadosIIBB.jurisdicciones[i].coeficienteBaseImponible;
                                     // Nuevo - Considerar Procentaje de Retenciones
                                     // infoRet.porcentajeRetencion = parseFloat((parseFloat(codigoRetIIBB.alicuota, 10) / 100), 10).toString();
                                     infoRet.porcentajeRetencion = parseFloat(parseFloat(convertToInteger(codigoRetIIBB.alicuota), 10) / (100 * Math.pow(10, countDecimales(codigoRetIIBB.alicuota))), 10).toString();
@@ -8801,7 +8966,7 @@
                     } else {
                         if (!isEmpty(jurisdiccion) && !isEmpty(id_proveedor)) {
                             var resultadoCodigosRetencionPadronIIBB = arregloCodigosRetencionIIBB.filter(function (obj) {
-                                return (obj.jurisdiccion === jurisdiccion && obj.idProveedor === id_proveedor && obj.periodo === id_posting_period);
+                                return (obj.jurisdiccion === jurisdiccion && obj.idProveedor === id_proveedor && obj.periodo === id_posting_period && isEmpty(obj.montosEmbargos) );
                             });
                         }
                     }
@@ -9011,6 +9176,10 @@
 
                         objInfoConfigDetalle.critJurisdFacturacion = completeResultSet[j].getValue({
                             name: resultSearch.columns[27]
+                        });
+
+                        objInfoConfigDetalle.tipoProducto = completeResultSet[j].getValue({
+                            name: resultSearch.columns[28]
                         });
 
                         arrayConfigDetalle.push(objInfoConfigDetalle);
@@ -9378,6 +9547,10 @@
                         informacionCodigosVBLineas[i].nombreJurisdFacturacion = completeResultSet[i].getText({
                             name: resultSearch.columns[22]
                         });//INDICA EL NOMBRE DE LA JURISDICCION DE FACTURACIÓN A NIVEL DE LÍNEA
+
+                        informacionCodigosVBLineas[i].tipoProducto = completeResultSet[i].getValue({
+                            name: resultSearch.columns[24]
+                        });//INDICA EL NOMBRE DE LA JURISDICCION DE FACTURACIÓN A NIVEL DE LÍNEA
                     }
                 } else {
                     log.debug('obtener_arreglo_codigos_ret_vendorbill_lineas', 'obtener_arreglo_codigos_ret_vendorbill_lineas - No se encuentro informacion para las bills recibidas por parametro');
@@ -9587,6 +9760,10 @@
                         informacionNetosVBLineas[i].aplicaCalcRetPorInscrip = convertToBoolean(completeResultSet[i].getValue({
                             name: resultSearch.columns[16]
                         }));
+
+                        informacionNetosVBLineas[i].tipoProducto = completeResultSet[i].getValue({
+                            name: resultSearch.columns[17]
+                        });
                     }
                 } else {
                     log.debug('obtener_arreglo_netos_vendorbill_lineas', 'obtener_arreglo_netos_vendorbill_lineas - No se encuentro informacion para las bills recibidas por parametro');
@@ -9615,7 +9792,7 @@
                             return (obj.idInterno == resultsNetosLineas[i].idInterno && obj.importeTotal == resultsNetosLineas[i].importeBruto && obj.codRetencionGanancias == resultsNetosLineas[i].codRetencionGanancias && 
                                 obj.codRetencionSuss == resultsNetosLineas[i].codRetencionSuss && obj.lineNumber == resultsNetosLineas[i].lineNumber && obj.importeNeto == resultsNetosLineas[i].importe &&
                                 obj.jurisdUtilizacion == resultsNetosLineas[i].jurisdUtilizacion && obj.jurisdOrigen == resultsNetosLineas[i].jurisdOrigen && obj.jurisdiccionEntregaID == resultsNetosLineas[i].jurisdiccionEntregaID &&
-                                obj.jurisdFacturacion == resultsNetosLineas[i].jurisdFacturacion);
+                                obj.jurisdFacturacion == resultsNetosLineas[i].jurisdFacturacion && obj.tipoProducto == resultsNetosLineas[i].tipoProducto);
                         });
 
                         log.debug('unificar_importes_lineas_facturas', 'LINE 9292 - infoLinea: ' + JSON.stringify(infoLinea));
@@ -9638,6 +9815,7 @@
                             objInfo.jurisdiccionEntregaNombre = infoLinea[0].jurisdiccionEntregaNombre;
                             objInfo.jurisdFacturacion = infoLinea[0].jurisdFacturacion;
                             objInfo.nombreJurisdFacturacion = infoLinea[0].nombreJurisdFacturacion;
+                            objInfo.tipoProducto = infoLinea[0].tipoProducto;
                             arrayLineasFacturasUnificadas.push(objInfo);
                         }
                     }
@@ -9687,6 +9865,7 @@
                                 objInfo.jurisdiccionEntregaNombre = infoFacturaPagar[j].jurisdiccionEntregaNombre;
                                 objInfo.jurisdFacturacion = infoFacturaPagar[j].jurisdFacturacion;
                                 objInfo.nombreJurisdFacturacion = infoFacturaPagar[j].nombreJurisdFacturacion;
+                                objInfo.tipoProducto = infoFacturaPagar[j].tipoProducto;
                                 arrayBills.push(objInfo);
                             }
                         } else {

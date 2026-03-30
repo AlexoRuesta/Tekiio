@@ -24,14 +24,18 @@ define(['N/file', 'N/task', 'N/log', './LIB - Search.js'],
       let fileContent = file.load({ id: fileID }).getContents();
       
       fileContent = JSON.parse(fileContent)
-
+      
       // 2️⃣ Si es día 1, avanzar periodos
       const today = new Date();
+      const custpage_temporality = fileContent.custpage_temporality;
+      
+      if (custpage_temporality == 2 && Number(today.getDate()) != 1) throw 'No es el primer dia del mes.';
+      
       if (Number(today.getDate()) == 1) {
         log.audit('Es día 1 del mes', 'Actualizando periodos...');
 
-        params.custpage_period_init = getNextPeriodId(params.custpage_period_init);
-        params.custpage_period_end  = getNextPeriodId(params.custpage_period_end);
+        fileContent.custpage_period_init = getNextPeriodId(fileContent.custpage_period_init);
+        fileContent.custpage_period_end  = getNextPeriodId(fileContent.custpage_period_end);
 
         log.debug('Nuevos parametros', params);
 
@@ -42,7 +46,7 @@ define(['N/file', 'N/task', 'N/log', './LIB - Search.js'],
         const newFile = file.create({
           name: fileName,
           fileType: file.Type.PLAINTEXT,
-          contents: JSON.stringify(params),
+          contents: JSON.stringify(fileContent),
           folder: folderID
         });
         newFile.save();

@@ -1,5 +1,5 @@
 /**
- *@NApiVersion 2.x
+ *@NApiVersion 2.1
  *@NAmdConfig /SuiteScripts/configuration.json
  *@NScriptType MapReduceScript
  *@NModuleScope Public
@@ -24,6 +24,7 @@ define(['N/record', 'N/search', 'N/runtime', 'N/email', 'N/error', 'N/file', 'N/
                 var st = JSON.stringify(currScript);
 
                 informacion.pagos = currScript.getParameter('custscript_l54_txt_galicia_mr_pagos');
+                informacion.transferencia = currScript.getParameter('custscript_l54_txt_galicia_mr_trans');
                 informacion.usuario = currScript.getParameter('custscript_l54_txt_galicia_mr_userd');
                 informacion.subsidiaria = currScript.getParameter('custscript_l54_txt_galicia_mr_subs');
                 informacion.fechaCabecera = currScript.getParameter('custscript_l54_txt_galicia_mr_fecha');
@@ -108,7 +109,7 @@ define(['N/record', 'N/search', 'N/runtime', 'N/email', 'N/error', 'N/file', 'N/
                 log.audit(proceso, 'Map - INICIO');
 
                 var pago = JSON.parse(context.value);
-
+                var flag = false;
                 var pagoDetalle = pago.values;
 
                 log.debug("Pago.values datos", JSON.stringify(pago.values));
@@ -140,11 +141,36 @@ define(['N/record', 'N/search', 'N/runtime', 'N/email', 'N/error', 'N/file', 'N/
                     obj.pagoNroRegistro = pagoDetalle.custbody_l54_codigo_beneficiario;
                     //obj.pagoEspacioBlanco = pagoDetalle.pagoEspacioBlanco;
 
+                    if (pagoDetalle.formulanumeric == "1") {
+                         let arrTrasnferencias = getTransferencias(obj.pagoID);
+                            log.debug("arrTrasnferencias", arrTrasnferencias);
+
+                        if (arrTrasnferencias.length!= 0) {
+                            for (let i = 0; i < arrTrasnferencias.length; i++) {
+                                const element = arrTrasnferencias[i];
+                                flag = true;
+                                obj.pagoCBU = element.pagoCBU;
+                                obj.pagoImporte = element.pagoImporte;
+                                obj.pagoNombreVendor = element.pagoNombreVendor;
+                                obj.pagoTipoCuenta = element.pagoTipoCuenta;
+                                obj.pagoGaliciaCuenta = !isEmpty(element.pagoGaliciaCuenta) ? "": element.pagoGaliciaCuenta;
+                                obj.pagoCodigoBanco = element.pagoCodigoBanco;
+                                obj.pagoNroRegistro = element.pagoNroRegistro;
+                                 var clave = pagoDetalle.internalid.value + "_" + i;
+                                context.write(clave, JSON.stringify(obj));
+                            }
+                        }
+                        
+                    }
+
                     //log.debug(proceso, 'ID Subsidiaria a enviar al REDUCE: ' + JSON.stringify(subsidiaria));
                     log.debug(proceso, 'Columnas_Objeto : ' + JSON.stringify(obj));
-
-                    var clave = pagoDetalle.internalid.value;
-                    context.write(clave, JSON.stringify(obj));
+                    if(!flag){
+                        log.debug("no entraa")
+                        var clave = pagoDetalle.internalid.value;
+                        context.write(clave, JSON.stringify(obj));
+                    }
+                    
                 }
 
                 log.audit(proceso, 'Map - FIN');
@@ -783,6 +809,112 @@ define(['N/record', 'N/search', 'N/runtime', 'N/email', 'N/error', 'N/file', 'N/
             } catch (e) {
                 log.error('getDate', e.message);
             }
+        }
+
+         function getTransferencias (pagosID) {
+            var informacion = getParams();
+            log.debug("informacion", informacion)
+            let total = 0;
+            let filters = [
+                        ["custrecord_3k_cobranza_trn_payment_id", "ANYOF", pagosID],
+                        "AND",
+                        ["internalid", "ANYOF", JSON.parse(informacion.transferencia)],
+                        "AND",
+                        ["custrecord_3k_cobranza_trn_payment_id.custbody_l54_excluir_gen_arc_bank_arg", "is", 'F'],
+                        "AND",
+                        ["custrecord_3k_cobranza_trn_payment_id.type","anyof","VendPymt"],
+                        "AND", 
+                        ["custrecord_3k_cobranza_trn_payment_id.mainline","is","T"]
+                    ];
+
+            let columns = [ 
+                { name: 'formulatext',formula:'NS_CONCAT({internalid})', summary: 'MAX', alias: 'pagoID' },
+                { name: 'custrecord_3k_cobranza_trn_amount', summary: 'SUM', alias: 'pagoImporte' },
+                { name: 'custrecord_l54_gen_arc_datos_banc_cl_cbu', join: 'custrecord_l54_datos_bancarios_citibank', summary: 'GROUP', alias: 'pagoCBU'},
+                { name: 'custrecord_l54_gen_arc_datos_banc_n_bnf', join: 'custrecord_l54_datos_bancarios_citibank', summary: 'GROUP', alias: 'pagoNombreVendor'},
+                { name: 'custrecord_l54_gen_arc_datos_banc_tp_cta', join: 'custrecord_l54_datos_bancarios_citibank', summary: 'GROUP', alias: 'pagoTipoCuenta'},
+                { name: 'custrecord_l54_gen_arc_datos_banc_cuenta', join: 'custrecord_l54_datos_bancarios_citibank', summary: 'GROUP', alias: 'pagoGaliciaCuenta'},
+                { name: 'custrecord_l54_gen_arc_datos_banc_bcu', join: 'custrecord_l54_datos_bancarios_citibank', summary: 'GROUP', alias: 'pagoCodigoBanco'},
+                { name: 'custrecord_l54_gen_arc_datos_banc_cuit_b', join: 'custrecord_l54_datos_bancarios_citibank', summary: 'GROUP', alias: 'pagoNroRegistro'}
+            ];
+            
+            let array = getSearchCreated("customrecord_3k_cobranza_transferencias", filters, columns);
+
+            //total = array.reduce((acc, p) => acc + parseFloat(p.pagoImporte || 0), 0);
+            log.debug("Mirame", JSON.stringify(array))
+            array.forEach(pago => {
+                let spliTrans = pago.pagoID.split(",");
+                spliTrans.forEach(trasn => {
+                    record.submitFields({
+                        type: 'customrecord_3k_cobranza_transferencias',
+                        id: trasn,
+                        values: {
+                            custrecord_3k_cobranza_trn_include: true
+                        },
+                        options: {
+                            enableSourcing: true,
+                            ignoreMandatoryFields: true
+                        }
+                    });
+                })
+                 
+            });
+            return array;
+        }
+
+        function getSearchCreated(type, filters = [], columns = []) {
+            const arrResult = [];
+            try {
+                // Crear la búsqueda personalizada
+                const customSearch = search.create({
+                    type,
+                    filters,
+                    columns: columns.map(c =>
+                        typeof c === 'object'
+                            ? search.createColumn(c)
+                            : search.createColumn({ 
+                                name: c,
+                                // Aplicar ordenamiento si está especificado
+                                sort: c.sort ? search.Sort[c.sort] : undefined 
+                            })
+                    )
+                });
+
+                // Ejecutar la búsqueda y procesar cada resultado
+                customSearch.run().each(result => {
+                    const row = {};
+                    columns.forEach((c, i) => {
+                        // Determinar el nombre de la columna (alias o nombre original)
+                        const name = typeof c === 'object' && c.alias ? c.alias : c.name || c;
+                        
+                        // Crear objeto de columna para getValue/getText
+                        const colObj = {
+                            name: c.name || c,
+                            join: c.join,
+                            summary: c.summary,
+                            formula: c.formula
+                        };
+
+                        // Decidir si usar getValue (valor interno) o getText (texto mostrable)
+                        if (typeof c === 'object' && c.asText) {
+                            row[name || `col_${i}`] = result.getText(colObj);
+                        } else {
+                            row[name || `col_${i}`] = result.getValue(colObj);
+                        }
+                    });
+                    arrResult.push(row);
+                    return true; // Continuar con el siguiente resultado
+                });
+                return arrResult;
+
+            } catch (e) {
+                log.error('getSearchCreated ERROR', e);
+                throw new Error(`Error in getSearchCreated: ${e.message}`);
+            }
+        }
+
+        function isEmpty(val) {
+            return val === "" || val === undefined || val === "undefined" || val === null || val === "null" || (val.length === 0) || (typeof val == "object" && Object.keys(val).length === 0) || val === "- None -";
         }
 
         return {

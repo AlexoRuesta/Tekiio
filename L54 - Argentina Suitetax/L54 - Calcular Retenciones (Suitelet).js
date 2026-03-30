@@ -14,6 +14,8 @@
         var proceso = "onRequest";
         var tipoContSUSS;
         var tipoContGAN;
+        var padronEspecial = new Array();
+        var jurisdiccionEspecial = new Array();
         /**
          * Definition of the Suitelet script trigger point.
          *
@@ -68,6 +70,8 @@
                     respuestaRetenciones.importe_percepciones = 0.0;
                     respuestaRetenciones.detalleAcumulados = [];
                     respuestaRetenciones.version_calc_ret = "";
+                    respuestaRetenciones.esNoInscriptoIVA = false;
+                    respuestaRetenciones.esNoInscriptoGAN = false;
                     var mensajeJurisdiccionesNotValid = "";
 
                     //var informacionPagoJson = context.request.parameters.informacionPagoJson;
@@ -175,6 +179,14 @@
                                 var estadoExentoIIBB = resultadoDatosImp[0].exentoIIBB;
 
                                 var esONG = resultadoDatosImp[0].esONG;
+                                    
+                                var contribuyenteIVA        = resultadoDatosImp[0].contribuyenteIVANoInscrito,
+                                    parametrizacionIVA      = resultadoDatosImp[0].parametrizacionIVANoInscrito,
+                                    nombreParamIVA          = resultadoDatosImp[0].nombreParamIVANoInscrito,
+                                    contribuyenteGAN        = resultadoDatosImp[0].contribuyenteGANNoInscrito,
+                                    parametrizacionGAN      = resultadoDatosImp[0].parametrizacionGANNoInscrito,
+                                    nombreParamGAN          = resultadoDatosImp[0].nombreParamGANNoInscrito,
+                                    calcularSobreIVANoInscrito= resultadoDatosImp[0].calcularSobreIVANoInscrito;
 
                                 var jurisdiccionEmpresa = resultadoDatosImp[0].jurisdiccionEmpresa;
 
@@ -305,6 +317,8 @@
                                                     calcularRetIIBB = true;
                                                 }
 
+                                                respuestaRetenciones.esNoInscriptoIVA = respuestaRetenciones.esNoInscriptoGAN = objInscriptoRegimen.contribuyenteIVA == contribuyenteIVA ? true : false;
+
                                                 //var resultsNetosVB = obtener_arreglo_netos_vendorbill(entity);
                                                 // Obtener Codigo de Retencion M
                                                 var codigoRetMGananciasConfigurado = false;
@@ -395,6 +409,7 @@
                                                 log.debug("L54 - Calculo Retenciones", "CALCULARETENCIONES  - billsPagar.length: " + billsPagar.length + " ** TIEMPO" + new Date());
 
                                                 var cantidadFacturasM = 0;
+                                                var montoEmbargoBruto = 0;
 
                                                 var pagoTotalFacturasM = true;
                                                 var datoCuenta = !isEmpty(subsidiariaPago) ? "subsidiaria" : "cuenta";
@@ -443,9 +458,9 @@
                                                     importe_bruto_factura_proveedor = 0.00;
 
                                                     if (objCodigos != null) {
-                                                        if (!isEmpty(objCodigos.codigoRetGanancias)) {
-                                                            codigo_retencion_ganancias = objCodigos.codigoRetGanancias;
-                                                            nombre_retencion_ganancias = objCodigos.nombreRetGanancias;
+                                                        if (!isEmpty(objCodigos.codigoRetGanancias) || respuestaRetenciones.esNoInscriptoIVA) {
+                                                            codigo_retencion_ganancias = respuestaRetenciones.esNoInscriptoGAN? parametrizacionGAN : objCodigos.codigoRetGanancias;
+                                                            nombre_retencion_ganancias = respuestaRetenciones.esNoInscriptoGAN ? nombreParamGAN : objCodigos.nombreRetGanancias;
                                                             if (!isEmpty(objCodigos.esFacturaM) && (objCodigos.esFacturaM == "T" || objCodigos.esFacturaM == true)) {
                                                                 esFacturaM = true;
                                                                 cantidadFacturasM++;
@@ -455,9 +470,9 @@
                                                             codigo_retencion_suss = objCodigos.codigoRetSUSS;
                                                             nombre_retencion_suss = objCodigos.nombreRetSUSS;
                                                         }
-                                                        if (!isEmpty(objCodigos.codigoRetIVA)) {
-                                                            codigo_retencion_iva = objCodigos.codigoRetIVA;
-                                                            nombre_retencion_iva = objCodigos.nombreRetIVA;
+                                                        if (!isEmpty(objCodigos.codigoRetIVA) || respuestaRetenciones.esNoInscriptoIVA) {
+                                                            codigo_retencion_iva = respuestaRetenciones.esNoInscriptoIVA ? parametrizacionIVA : objCodigos.codigoRetIVA;
+                                                            nombre_retencion_iva = respuestaRetenciones.esNoInscriptoIVA ? nombreParamIVA : objCodigos.nombreRetIVA;
                                                             if (!isEmpty(objCodigos.esFacturaM) && (objCodigos.esFacturaM == "T" || objCodigos.esFacturaM == true)) {
                                                                 esFacturaM = true;
                                                                 cantidadFacturasM++;
@@ -465,6 +480,8 @@
                                                             if (!isEmpty(objCodigos.calcularSobreIVA) && (objCodigos.calcularSobreIVA == "T" || objCodigos.calcularSobreIVA == true)) {
                                                                 calcularSobreIVA = true;
                                                             }
+                                                            
+                                                            calcularSobreIVA = respuestaRetenciones.esNoInscriptoIVA ? calcularSobreIVANoInscrito : calcularSobreIVA;
                                                         }
                                                         importe_bruto_factura_proveedor = parseFloat(objCodigos.importeTotal, 10);
                                                     }
@@ -472,6 +489,7 @@
                                                     // obtengo el importe pagado realmente de la factura para sacar su porcentaje sobre el total
                                                     importe_bruto_factura_proveedor_a_pagar = parseFloat(billsPagar[i - 1].amount, 10);
 
+                                                    montoEmbargoBruto =  parseFloat(parseFloat(montoEmbargoBruto, 10) + parseFloat(importe_bruto_factura_proveedor_a_pagar, 10), 10)
                                                     importe_total_factura_final = importe_bruto_factura_proveedor_a_pagar;
 
                                                     importe_total_factura_a_pagar = (!isEmpty(objInfoTotalesTransacciones) && !isNaN(objInfoTotalesTransacciones.importeTotal)) ? parseFloat(objInfoTotalesTransacciones.importeTotal, 10) : 0.0;
@@ -639,7 +657,7 @@
                                                         if (!isEmpty(codigo_retencion_ganancias)) {
 
                                                             var resultGanRetManual = paramRetenciones.filter(function (obj) {
-                                                                return (obj.codigo == codigo_retencion_ganancias && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                return ((respuestaRetenciones.esNoInscriptoGAN && obj.codigo == codigo_retencion_ganancias) || (obj.codigo == codigo_retencion_ganancias && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                             });
 
                                                             if (!isEmpty(resultGanRetManual) && resultGanRetManual.length > 0) {
@@ -687,7 +705,7 @@
                                                         if (!isEmpty(codigo_retencion_iva)) {
 
                                                             var resultIVARetManual = paramRetenciones.filter(function (obj) {
-                                                                return (obj.codigo == codigo_retencion_iva && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                return ((respuestaRetenciones.esNoInscriptoIVA && obj.codigo == codigo_retencion_iva) || (obj.codigo == codigo_retencion_iva && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                             });
 
                                                             if (!isEmpty(resultIVARetManual) && resultIVARetManual.length > 0) {
@@ -814,7 +832,7 @@
                                                             log.audit("L54 - Calculo Retenciones", "LINE 495 - mensajeJurisdiccionesNotValid: " + mensajeJurisdiccionesNotValid);
                                                             log.audit("L54 - Calculo Retenciones", "LINE 496 - objEstadoInscripcionJurIIBB: " + JSON.stringify(objEstadoInscripcionJurIIBB.jurisdicciones));
                                                             // Obtengo los Codigos de Retencion de Cada Jurisdiccion
-                                                            codigosRetencionIIBB = obtenerCodigosRetencionIIBB(entity, subsidiariaPago, objEstadoInscripcionJurIIBB, jurisdiccionesAgenteRetencion.idConfGeneral, importe_neto_factura_proveedor_a_pagar_total_ret_iibb, resultsNetosJurisdiccion, arrayFacturasJurisdiccionEntregaUnificado, existeFacturaSinJurisdiccionEntrega, tipoContribuyenteIVA, importe_bruto_total_facturas_iibb, jurisdiccionCordoba, importe_bruto_total_facturas_aliados, importeBrutoPago,id_posting_period);
+                                                            codigosRetencionIIBB = obtenerCodigosRetencionIIBB(entity, subsidiariaPago, objEstadoInscripcionJurIIBB, jurisdiccionesAgenteRetencion.idConfGeneral, importe_neto_factura_proveedor_a_pagar_total_ret_iibb, resultsNetosJurisdiccion, arrayFacturasJurisdiccionEntregaUnificado, existeFacturaSinJurisdiccionEntrega, tipoContribuyenteIVA, importe_bruto_total_facturas_iibb, jurisdiccionCordoba, importe_bruto_total_facturas_aliados, importeBrutoPago,id_posting_period, respuestaRetenciones.esNoInscriptoIVA);
 
                                                             if (!isEmpty(codigosRetencionIIBB) && !isEmpty(codigosRetencionIIBB.warning)) {
                                                                 respuestaRetenciones.warning = true;
@@ -856,7 +874,7 @@
                                                                     for (var i = 0; i < retencion_ganancias.length; i++) {
 
                                                                         var resultGananciaMonotributo = paramRetenciones.filter(function (obj) {
-                                                                            return (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                            return ((respuestaRetenciones.esNoInscriptoGAN && obj.codigo == retencion_ganancias[i].codigo) || (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                                         });
 
                                                                         var esGanMonotributo = false;
@@ -876,7 +894,7 @@
                                                                     var subListAcumulados = [];
                                                         
                                                                     if (!utilidades.isEmpty(arrayCodRetGanancias) && arrayCodRetGanancias.length > 0) {
-                                                                        subListAcumulados = obtenerAcumSinJurisdicciones(entity, id_posting_period, subsidiariaPago, arrayCodRetGanancias); // alex
+                                                                        subListAcumulados = obtenerAcumSinJurisdicciones(entity, id_posting_period, subsidiariaPago, arrayCodRetGanancias);
                                                                     }
 
                                                                     if (!utilidades.isEmpty(arrayCodRetGananciasMonotributos) && arrayCodRetGananciasMonotributos.length > 0){
@@ -950,7 +968,7 @@
                                                                             }
 
                                                                             var resultMinNoImponible = paramRetenciones.filter(function (obj) {
-                                                                                return (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                                return ((respuestaRetenciones.esNoInscriptoGAN && obj.codigo == retencion_ganancias[i].codigo) || (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                                             });
 
                                                                             log.debug("L54 - Calculo Retenciones", "LINE 958 - CALCULARETENCIONES - Retenciones Gan M - resultMinNoImponible: " + JSON.stringify(resultMinNoImponible) + " ** TIEMPO" + new Date());
@@ -1028,7 +1046,7 @@
                                                                         if (!isEmpty(retencion_ganancias[i].codigo)) {
 
                                                                             var resultGananciaMonotributo = paramRetenciones.filter(function (obj) {
-                                                                                return (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                                return ((respuestaRetenciones.esNoInscriptoGAN && obj.codigo == retencion_ganancias[i].codigo) || (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                                             });
 
                                                                             log.debug("L54 - Calculo Retenciones", "LINE 1046 - CALCULARETENCIONES - resultGananciaMonotributo: " + JSON.stringify(resultGananciaMonotributo) + " ** TIEMPO" + new Date());
@@ -1067,7 +1085,7 @@
                                                                                 }
                                                  
                                                                                 var resultMinNoImponible = paramRetenciones.filter(function (obj) {
-                                                                                    return (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                                    return ((respuestaRetenciones.esNoInscriptoGAN && obj.codigo == retencion_ganancias[i].codigo) || (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                                                 });
 
                                                                                 log.debug("L54 - Calculo Retenciones", "LINE 1126 - CALCULARETENCIONES - resultMinNoImponible: " + JSON.stringify(resultMinNoImponible));
@@ -1171,7 +1189,7 @@
                                                                                     log.debug('L54 - Calculo Retenciones', 'LINE 1780 - impPagosPasadosTotal: ' + impPagosPasadosTotal);
                                                         
                                                                                     var resultMinNoImponible = paramRetenciones.filter(function (obj) {
-                                                                                        return (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                                        return ((respuestaRetenciones.esNoInscriptoGAN && obj.codigo == retencion_ganancias[i].codigo) || (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                                                     });
 
                                                                                     log.debug("L54 - Calculo Retenciones", "CALCULARETENCIONES  - resultMinNoImponible: " + JSON.stringify(resultMinNoImponible) + " ** TIEMPO" + new Date());
@@ -1313,13 +1331,13 @@
                                                                     var subListAcumulados = [];
                                                         
                                                                     if (!utilidades.isEmpty(arrayCodRetSUSS) && arrayCodRetSUSS.length > 0) {
-                                                                        subListAcumulados = obtenerAcumSinJurisdicciones(entity, id_posting_period, subsidiariaPago, arrayCodRetSUSS); // alex
+                                                                        subListAcumulados = obtenerAcumSinJurisdicciones(entity, id_posting_period, subsidiariaPago, arrayCodRetSUSS); 
                                                                     }
                                                         
                                                                     log.audit("Governance Monitoring", "LINE 1933 - Remaining Usage = " + script.getRemainingUsage() + ' --- time: ' + new Date());
                                                         
                                                                     if (!utilidades.isEmpty(arrayCodRetSUSSMonotributos) && arrayCodRetSUSSMonotributos.length > 0) {
-                                                                        var subListAcumuladosAux = obtenerAcumSinJurisdicciones(entity, id_posting_period, subsidiariaPago, arrayCodRetSUSSMonotributos); // alex
+                                                                        var subListAcumuladosAux = obtenerAcumSinJurisdicciones(entity, id_posting_period, subsidiariaPago, arrayCodRetSUSSMonotributos);
                                                                         if(subListAcumuladosAux.length != 0){
                                                                             subListAcumulados = subListAcumulados.concat(subListAcumuladosAux);
                                                                         }
@@ -1654,7 +1672,7 @@
                                                                             }
 
                                                                             var resultMinNoImponible = paramRetenciones.filter(function (obj) {
-                                                                                return (obj.codigo == retencion_iva[i].codigo && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                                return ((respuestaRetenciones.esNoInscriptoIVA && obj.codigo == retencion_iva[i].codigo) || (obj.codigo == retencion_iva[i].codigo && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                                             });
 
                                                                             log.debug("L54 - Calculo Retenciones", "CALCULARETENCIONES - Retenciones IVA M - resultMinNoImponible: " + JSON.stringify(resultMinNoImponible) + " ** TIEMPO" + new Date());
@@ -1737,7 +1755,7 @@
                                                                             retencion_iva[i].imp_retenido_anterior = 0.0;
 
                                                                             var resultMinNoImponible = paramRetenciones.filter(function (obj) {
-                                                                                return (obj.codigo == retencion_iva[i].codigo && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                                return ((respuestaRetenciones.esNoInscriptoIVA && obj.codigo == retencion_iva[i].codigo) || (obj.codigo == retencion_iva[i].codigo && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                                             });
 
                                                                             log.debug("L54 - Calculo Retenciones", "CALCULARETENCIONES - resultMinNoImponible: " + JSON.stringify(resultMinNoImponible) + " ** TIEMPO" + new Date());
@@ -1802,7 +1820,7 @@
                                                                                 retencion_iva[i].imp_retenido_anterior = 0.0;
 
                                                                                 var resultMinNoImponible = paramRetenciones.filter(function (obj) {
-                                                                                    return (obj.codigo == retencion_iva[i].codigo && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                                    return ((respuestaRetenciones.esNoInscriptoIVA && obj.codigo == retencion_iva[i].codigo) || (obj.codigo == retencion_iva[i].codigo && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                                                 });
 
                                                                                 log.debug("L54 - Calculo Retenciones", "CALCULARETENCIONES - resultMinNoImponible: " + JSON.stringify(resultMinNoImponible) + " ** TIEMPO" + new Date());
@@ -2194,6 +2212,18 @@
                                                                                 codigosRetencionIIBB.infoRet[i].base_calculo_retencion = parseFloat(codigosRetencionIIBB.infoRet[i].importe_factura_pagar, 10);
                                                                                 codigosRetencionIIBB.infoRet[i].base_calculo_retencion_impresion = parseFloat(codigosRetencionIIBB.infoRet[i].base_calculo_retencion, 10);
 
+                                                                                
+                                                                                if (isEmpty(codigosRetencionIIBB.infoRet[i].coeficienteBaseImponible) || isNaN(codigosRetencionIIBB.infoRet[i].coeficienteBaseImponible) || codigosRetencionIIBB.infoRet[i].coeficienteBaseImponible == 0.00) {
+                                                                                    codigosRetencionIIBB.infoRet[i].coeficienteBaseImponible = 1;
+                                                                                }
+
+                                                                                var decimalesImporte = countDecimales(parseFloat(codigosRetencionIIBB.infoRet[i].base_calculo_retencion, 10));
+                                                                                var decimalesCoeficienteBaseImponible = countDecimales(parseFloat(codigosRetencionIIBB.infoRet[i].coeficienteBaseImponible, 10));
+                                                                                var decimalesImporteCoeficienteTotal = decimalesImporte + decimalesCoeficienteBaseImponible;
+
+                                                                                codigosRetencionIIBB.infoRet[i].base_calculo_retencion = Math.abs(parseFloat(numberTruncTwoDec(parseFloat(convertToInteger(parseFloat(codigosRetencionIIBB.infoRet[i].base_calculo_retencion, 10)), 10) * parseFloat(convertToInteger(parseFloat(codigosRetencionIIBB.infoRet[i].coeficienteBaseImponible, 10)), 10) / (Math.pow(10, decimalesImporteCoeficienteTotal))), 10));
+                                                                                codigosRetencionIIBB.infoRet[i].base_calculo_retencion_impresion = parseFloat(codigosRetencionIIBB.infoRet[i].base_calculo_retencion, 10);
+
                                                                                 var objRetencionIIBB = getRetencion(entity, "iibb", codigosRetencionIIBB.infoRet[i].codigo, codigosRetencionIIBB.infoRet[i].base_calculo_retencion, id_posting_period, 0, tasa_cambio_pago, codigosRetencionIIBB.infoRet[i].porcentajeRetencion, true, "", 0);
                                                                                 //var objRetencionIIBB = getRetencion(entity, "iibb", codigosRetencionIIBB.infoRet[i].codigo, codigosRetencionIIBB.infoRet[i].base_calculo_retencion, id_posting_period, 0, tasa_cambio_pago, porcentajeFinal, true, "", 0);
                                                                                 log.debug("L54 - Calculo Retenciones", "CALCULARETENCIONES - objRetencionIIBB: " + JSON.stringify(objRetencionIIBB) + " ** TIEMPO" + new Date());
@@ -2260,7 +2290,7 @@
                                                                         var objGanancias = new Object();
 
                                                                         var resultInfRetencion = paramRetenciones.filter(function (obj) {
-                                                                            return (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                            return ((respuestaRetenciones.esNoInscriptoGAN && obj.codigo == retencion_ganancias[i].codigo) || (obj.codigo == retencion_ganancias[i].codigo && obj.tipoContGAN.split(",").includes(tipoContGAN) && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                                         });
 
                                                                         log.debug("L54 - Calculo Retenciones", "CALCULARETENCIONES - resultInfRetencion: " + JSON.stringify(resultInfRetencion) + " ** TIEMPO" + new Date());
@@ -2282,7 +2312,7 @@
                                                                             objGanancias.tipo_ret = retencion_ganancias[i].codigo;
                                                                             objGanancias.jurisdiccion = "";
                                                                             //objGanancias.condicion = condicion_ganancias;
-                                                                            objGanancias.condicion = condicionesRetencion.codRetGAN;
+                                                                            objGanancias.condicion = respuestaRetenciones.esNoInscriptoIVA ? contribuyenteGAN : condicionesRetencion.codRetGAN;
                                                                             objGanancias.neto_bill = parseFloat(numberTruncTwoDec(parseFloat(importe_neto_factura_proveedor_a_pagar_total, 10) / parseFloat(tasa_cambio_pago, 10)), 10);
                                                                             objGanancias.base_calculo = parseFloat(numberTruncTwoDec(parseFloat(retencion_ganancias[i].base_calculo_retencion, 10) / parseFloat(tasa_cambio_pago, 10)), 10);
                                                                             objGanancias.base_calculo_imp = parseFloat(numberTruncTwoDec(parseFloat(retencion_ganancias[i].base_calculo_retencion_impresion, 10) / parseFloat(tasa_cambio_pago, 10)), 10);
@@ -2477,7 +2507,7 @@
                                                                         var objIVA = new Object();
 
                                                                         var resultInfRetencion = paramRetenciones.filter(function (obj) {
-                                                                            return (obj.codigo == retencion_iva[i].codigo && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA));
+                                                                            return ((respuestaRetenciones.esNoInscriptoIVA && obj.codigo == retencion_iva[i].codigo) || (obj.codigo == retencion_iva[i].codigo && obj.tipoContIVA.split(",").includes(tipoContribuyenteIVA)));
                                                                         });
 
                                                                         log.debug("L54 - Calculo Retenciones", "CALCULARETENCIONES - resultInfRetencion: " + JSON.stringify(resultInfRetencion) + " ** TIEMPO" + new Date());
@@ -2837,8 +2867,137 @@
             var responseSuitelet = context.response;
             var informacionRespuestaJSON = [];
             informacionRespuestaJSON.push(respuestaRetencionesJSON);
+
+            /**EMBARGOS ARBA*/
+            
+            var embargoArba = script.getParameter('custscript_l54_calcular_ret_suitelet_emb');
+
+            const padronEmbargo = padronEspecial.find(({ tipoPadron, periodo }) => tipoPadron === embargoArba && periodo == id_posting_period);
+
+            if(informacionRespuestaJSON[0].esAgenteRetencionIIBB && informacionRespuestaJSON[0].estaInscriptoRegimenIIBB && !isEmpty(padronEmbargo) && jurisdiccionEspecial.jurisdicciones.some(j => j.jurisdiccion === padronEmbargo.jurisdiccion)) {
+                var informacionRespuestaJSON = reconstruirRespuesta(padronEmbargo, informacionRespuestaJSON, subsidiariaPago, tasa_cambio_pago, montoEmbargoBruto);
+            }
+
             log.debug(proceso, "informacionRespuestaJSON: " + JSON.stringify(informacionRespuestaJSON));
             responseSuitelet.write({ output: JSON.stringify(informacionRespuestaJSON) });
+        }
+
+         function reconstruirRespuesta(padronEmbargo, informacionRespuestaJSON, subsidiariaPago, tasa_cambio_pago, montoEmbargoBruto) {
+            let retenciones = Object.assign({}, informacionRespuestaJSON[0]),
+                respuestaFinal =[]
+                montoMonedaLocal = padronEmbargo.montosEmbargos;
+
+            if(parseFloat(tasa_cambio_pago, 10) > 1){
+                padronEmbargo.montosEmbargos = parseFloat(parseFloat(padronEmbargo.montosEmbargos, 10)/parseFloat(tasa_cambio_pago, 10), 10);
+                padronEmbargo.montosEmbargos = Number(padronEmbargo.montosEmbargos.toFixed(2));
+                
+            }
+            montoEmbargoBruto = Number(montoEmbargoBruto.toFixed(2));
+                
+            log.debug("montoEmbargoBruto", montoEmbargoBruto)
+            if(parseFloat(montoEmbargoBruto, 10) >= parseFloat(padronEmbargo.montosEmbargos, 10)){
+                
+                var customrecord_l54_retencionSearchObj = search.create({
+                    type: "customrecord_l54_retencion",
+                    filters:
+                    [
+                        ["custrecord_l54_ret_anulado","is","F"], 
+                        "AND", 
+                        ["custrecord_l54_ret_cod_retencion","anyof", padronEmbargo.codigo], 
+                        "AND", 
+                        ["custrecord_l54_ret_jurisdiccion","anyof", padronEmbargo.jurisdiccion],
+                        "AND", 
+                        ["custrecord_l54_ret_subsidiaria","anyof", subsidiariaPago], 
+                        "AND", 
+                        ["custrecord_l54_ret_periodo","anyof", padronEmbargo.periodo],
+                        "AND", 
+                        ["custrecord_l54_ret_ref_proveedor","anyof", padronEmbargo.idProveedor]
+                    ],
+                    columns:
+                    [
+                        search.createColumn({name: "internalid", label: "Internal ID"})
+                    ]
+                });
+
+                var resultSet = customrecord_l54_retencionSearchObj.run();
+
+                var searchResult = resultSet.getRange({
+                    start: 0,
+                    end: 1
+                });
+                
+                if (searchResult.length == 0){
+                    var nuevosMontos = {
+                        imp_retencion_iibb: retenciones.imp_retencion_iibb,
+                        importe_neto_a_abonar: retenciones.importe_neto_a_abonar,
+                        neto_bill_aplicados: montoEmbargoBruto,
+                        importe_total_retencion: retenciones.importe_total_retencion,
+                        retencion: []
+                    }
+
+                    let inscripcionName = search.lookupFields({
+                            type: "customrecord_l54_tipo_contribuyente_iibb",
+                            id: padronEmbargo.estadoInscripcionPadron,
+                            columns: ['name']
+                        });
+                    nuevosMontos.retencion.push(
+                        {
+                            retencion: "3",
+                            tipo_ret: padronEmbargo.codigo,
+                            jurisdiccion: padronEmbargo.jurisdiccion,
+                            condicion: inscripcionName.name,
+                            neto_bill: montoEmbargoBruto,
+                            base_calculo: montoEmbargoBruto,
+                            base_calculo_imp: montoEmbargoBruto,
+                            imp_retencion: padronEmbargo.montosEmbargos,
+                            monto_suj_ret_moneda_local: montoMonedaLocal,
+                            diferenciaRedondeo: 0,
+                            base_calculo_original: montoEmbargoBruto,
+                            imp_retencion_original: padronEmbargo.montosEmbargos,
+                            condicionID: padronEmbargo.estadoInscripcionPadron,
+                            alicuota: 100,
+                            certExencion: "",
+                            tipoExencion: "",
+                            fcaducidadExencion: "",
+                            numerador_cod: "num_ret_iibb"
+                        }
+                
+                    )
+
+                    var retesEliminados = retenciones.retencion_iibb.filter(item => item.jurisdiccion == padronEmbargo.jurisdiccion);
+                    var retesConservadas = retenciones.retencion_iibb.filter(item => item.jurisdiccion !== padronEmbargo.jurisdiccion);
+                    log.debug("retesEliminados ", JSON.stringify(retesEliminados))
+                    log.debug("retesConservadas ", JSON.stringify(retesConservadas))
+
+                    retesEliminados.forEach(ret => {
+                        nuevosMontos.imp_retencion_iibb = (parseFloat(nuevosMontos.imp_retencion_iibb, 10)- parseFloat(ret.imp_retencion, 10)).toFixedOK(2)
+                        nuevosMontos.importe_total_retencion = (parseFloat(nuevosMontos.importe_total_retencion, 10) - parseFloat(ret.imp_retencion, 10)).toFixedOK(2)
+                    });
+
+                    retesConservadas = retesConservadas.concat(nuevosMontos.retencion)
+                    const acumuladosConservados = retenciones.detalleAcumulados.filter(item => item.jurisdiccion !== padronEmbargo.jurisdiccion);
+
+                    nuevosMontos.retencion.forEach(ret => {
+                        nuevosMontos.imp_retencion_iibb = (parseFloat(nuevosMontos.imp_retencion_iibb, 10) +  parseFloat(ret.imp_retencion, 10)).toFixedOK(2)
+                        nuevosMontos.importe_total_retencion = (parseFloat(nuevosMontos.importe_total_retencion, 10) + parseFloat(ret.imp_retencion, 10)).toFixedOK(2)
+                    });
+
+                    nuevosMontos.importe_neto_a_abonar = (parseFloat(nuevosMontos.neto_bill_aplicados, 10) -  parseFloat(nuevosMontos.importe_total_retencion, 10)).toFixedOK(2)
+
+
+                    retenciones.imp_retencion_iibb = nuevosMontos.imp_retencion_iibb;
+                    retenciones.importe_neto_a_abonar = nuevosMontos.importe_neto_a_abonar;
+                    retenciones.importe_total_retencion = nuevosMontos.importe_total_retencion;
+                    retenciones.retencion_iibb = retesConservadas;
+                    retenciones.listaRetenciones = retesConservadas;
+                    retenciones.detalleAcumulados = acumuladosConservados;
+                    log.debug("nuevosMontos ", JSON.stringify(nuevosMontos))
+                    log.debug("retenciones ", JSON.stringify(retenciones))
+                }
+            }
+            respuestaFinal.push(retenciones)
+
+            return respuestaFinal;
         }
 
         let extraerAcumuladoPorJurisdiccion = (infoCodigosRetencionIIBB, entity, subsidiariaPago, id_posting_period, tasa_cambio_pago) => {
@@ -3869,6 +4028,27 @@
                     objDatosImpositivos.calcularTI = searchResult[0].getValue({
                         name: resultSet.columns[35]
                     });
+                    objDatosImpositivos.contribuyenteIVANoInscrito = searchResult[0].getValue({
+                        name: resultSet.columns[36]
+                    });
+                    objDatosImpositivos.parametrizacionIVANoInscrito = searchResult[0].getValue({
+                        name: resultSet.columns[37]
+                    });
+                    objDatosImpositivos.nombreParamIVANoInscrito = searchResult[0].getText({
+                        name: resultSet.columns[37]
+                    });
+                    objDatosImpositivos.contribuyenteGANNoInscrito = searchResult[0].getText({
+                        name: resultSet.columns[38]
+                    }); 
+                    objDatosImpositivos.parametrizacionGANNoInscrito = searchResult[0].getValue({
+                        name: resultSet.columns[39]
+                    });
+                    objDatosImpositivos.nombreParamGANNoInscrito = searchResult[0].getText({
+                        name: resultSet.columns[39]
+                    });
+                    objDatosImpositivos.calcularSobreIVANoInscrito = searchResult[0].getValue({
+                        name: resultSet.columns[40]
+                    });
                     arrayDatosImpositivos.push(objDatosImpositivos);
                     log.debug("L54 - Calculo Retenciones", "RETURN - arrayDatosImpositivos: " + JSON.stringify(arrayDatosImpositivos));
                     log.audit("L54 - Calculo Retenciones", "FIN - consultaDatosImpositivos");
@@ -4086,6 +4266,10 @@
                         var jurisdiccionSede = convertToBoolean(completeResultSet[i].getValue({
                             name: resultSearch.columns[8]
                         }));
+                        
+                        var coeficiente_base_imponible = completeResultSet[i].getValue({
+                            name: resultSearch.columns[10]
+                        });
 
                         if (!isEmpty(fecha_caducidad)) {
                             fecha_caducidad_parseada = parseDate(fecha_caducidad);
@@ -4119,6 +4303,7 @@
                                         estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].jurisdiccionTexto = jurisdiccionTexto;
                                         estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].tipoContribuyente = !isEmpty(estado_regimen) ? estado_regimen : idTipoContribIIBBDefault;
                                         estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].tipoContribuyenteTexto = !isEmpty(estado_regimen_texto) ? estado_regimen_texto : idTipoContribIIBBDefaultText;
+                                        estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].coeficienteBaseImponible = coeficiente_base_imponible;
                                         estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].certExencion = certificado_exencion;
                                         estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].tipoExencion = tipo_exencion;
                                         estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].fcaducidadExencion = fecha_caducidad_parseada;
@@ -4186,6 +4371,7 @@
                                     estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].tipoExencion = "";
                                     estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].fcaducidadExencion = "";
                                     estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].esJurisdiccionGeneral = jurisdiccionGeneral;
+                                    estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].coeficienteBaseImponible = 1;
                                     estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].jurisdiccionCodigo = jurisdiccionEntregaCodigo;
                                     estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].jurisdiccionSede = false;
                                     indiceJurisdicciones = parseInt(indiceJurisdicciones, 10) + parseInt(1, 10);
@@ -4224,6 +4410,7 @@
                                 estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].jurisdiccionTexto = jurisdiccionTucumanText;
                                 estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].tipoContribuyente = idTipoContribIIBBDefault;
                                 estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].tipoContribuyenteTexto = idTipoContribIIBBDefaultText;
+                                estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].coeficienteBaseImponible = 1;
                                 estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].certExencion = "";
                                 estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].tipoExencion = "";
                                 estadoInscripcionProveedor.jurisdicciones[indiceJurisdicciones].fcaducidadExencion = "";
@@ -4237,6 +4424,7 @@
                 }
             }
 
+            jurisdiccionEspecial = estadoInscripcionProveedor;
             log.debug("L54 - Calculo Retenciones", "RETURN - estadoInscripcionProveedor: " + JSON.stringify(estadoInscripcionProveedor));
             log.audit("L54 - Calculo Retenciones", "FIN - getProveedorInscriptoRegimenIIBB");
             return estadoInscripcionProveedor;
@@ -4386,6 +4574,8 @@
             proveedorInscripto.inscripto_regimen_suss = inscripto_regimen_suss;
             proveedorInscripto.inscripto_regimen_iva = inscripto_regimen_iva;
 
+            proveedorInscripto.contribuyenteIVA = estadoRegimenIVA;
+            proveedorInscripto.contribuyenteGAN = estadoRegimenGan;
             log.debug("L54 - Calculo Retenciones", "RETURN - proveedorInscripto: " + JSON.stringify(proveedorInscripto));
             log.audit("L54 - Calculo Retenciones", "FIN - getProveedorInscriptoRegimen");
             return proveedorInscripto;
@@ -4499,6 +4689,9 @@
                     });
                     informacionCodigosVB[i].aplicaTotal = completeResultSet[i].getValue({
                         name: resultSearch.columns[14]
+                    });
+                    informacionCodigosVB[i].sobreIVA = completeResultSet[i].getValue({
+                        name: resultSearch.columns[15]
                     });
                 }
             }
@@ -5912,7 +6105,10 @@
                     var periodo = completeResultSet[i].getValue({
                         name: resultSearch.columns[10]
                     });//ALICUOTA RETENCION ESPECIAL 
-                    //* JHB: Agregar columna al saved search
+                    
+                    var montosEmbargos = completeResultSet[i].getValue({
+                        name: resultSearch.columns[11]
+                    });//
 
                     if (!isEmpty(codigoRetencionPadron))
                         arregloCodigosRetencionPadronIIBB[i].codigo = codigoRetencionPadron;
@@ -5942,6 +6138,9 @@
                     
                     if (!isEmpty(periodo))
                         arregloCodigosRetencionPadronIIBB[i].periodo = periodo;
+                    
+                    if (!isEmpty(montosEmbargos))
+                        arregloCodigosRetencionPadronIIBB[i].montosEmbargos = montosEmbargos;
 
                 }
             }
@@ -5949,13 +6148,14 @@
                 log.debug("obtenerCodigosRetencionPadronesIIBB", "obtenerCodigosRetencionPadronesIIBB - No se encuentro informacion para el tipo de padron y proveedor recibido por parametro");
             }
 
+            padronEspecial = arregloCodigosRetencionPadronIIBB;
             log.debug("obtenerCodigosRetencionPadronesIIBB", "RETURN - obtenerCodigosRetencionPadronesIIBB: " + JSON.stringify(arregloCodigosRetencionPadronIIBB));
             log.audit("obtenerCodigosRetencionPadronesIIBB", "FIN - obtenerCodigosRetencionPadronesIIBB");
             return arregloCodigosRetencionPadronIIBB;
         }
 
         //ABRITO 09/11/2018: Método que me devuelve por cada Jurisdiccion de IIBB los Codigos de Retencion a utilizar
-        function obtenerCodigosRetencionIIBB(id_proveedor, subsidiaria, objEstadosIIBB, idConfGeneral, importeNetoTotalFacturas, resultsNetosJurisdiccion, arrayJurisdiccionesEntregaUnificado, existeFacturaSinJurisdiccionEntrega, tipoContribuyenteIVA, importeBrutoFacturasProveedorNormal, jurisdiccionCordoba, importeBrutoFacturasAliados, importeBrutoTotalFacturas,id_posting_period) {
+        function obtenerCodigosRetencionIIBB(id_proveedor, subsidiaria, objEstadosIIBB, idConfGeneral, importeNetoTotalFacturas, resultsNetosJurisdiccion, arrayJurisdiccionesEntregaUnificado, existeFacturaSinJurisdiccionEntrega, tipoContribuyenteIVA, importeBrutoFacturasProveedorNormal, jurisdiccionCordoba, importeBrutoFacturasAliados, importeBrutoTotalFacturas,id_posting_period, ignorarTipoContribuyenteIVA) {
 
             var codigosRetencionIIBB = {};
             codigosRetencionIIBB.error = false;
@@ -6020,7 +6220,7 @@
 
                             var infoConfigDetalle = arrayConfigDetalle.filter(function (obj) {
                                 return ((obj.jurisdiccionConfigDetalle == objEstadosIIBB.jurisdicciones[i].jurisdiccion) && (obj.tipoContribuyenteIIBB.split(",").indexOf(objEstadosIIBB.jurisdicciones[i].tipoContribuyente) >= 0) &&
-                                    (obj.jurisdiccionSede === objEstadosIIBB.jurisdicciones[i].jurisdiccionSede) && (obj.tipoContribuyenteIVA.split(",").indexOf(tipoContribuyenteIVA) >= 0));
+                                    (obj.jurisdiccionSede === objEstadosIIBB.jurisdicciones[i].jurisdiccionSede) && (ignorarTipoContribuyenteIVA || obj.tipoContribuyenteIVA.split(",").indexOf(tipoContribuyenteIVA) >= 0));
                             });
 
                             if (!isEmpty(infoConfigDetalle) && infoConfigDetalle.length > 0) {
@@ -6236,6 +6436,7 @@
                                     //Nuevo - ID Tipo Contribuyente IIBB
                                     infoRet.condicionID = objEstadosIIBB.jurisdicciones[i].tipoContribuyente;
                                     infoRet.jurisdiccion = objEstadosIIBB.jurisdicciones[i].jurisdiccion;
+                                    infoRet.coeficienteBaseImponible = objEstadosIIBB.jurisdicciones[i].coeficienteBaseImponible;
                                     // Nuevo - Considerar Procentaje de Retenciones
                                     // infoRet.porcentajeRetencion = parseFloat((parseFloat(codigoRetIIBB.alicuota, 10) / 100), 10).toString();
                                     infoRet.porcentajeRetencion = parseFloat(parseFloat(convertToInteger(codigoRetIIBB.alicuota), 10) / (100 * Math.pow(10, countDecimales(codigoRetIIBB.alicuota))), 10).toString();
@@ -9337,7 +9538,7 @@
                     } else {
                         if (!isEmpty(jurisdiccion) && !isEmpty(id_proveedor)) {
                             var resultadoCodigosRetencionPadronIIBB = arregloCodigosRetencionIIBB.filter(function (obj) {
-                                return (obj.jurisdiccion === jurisdiccion && obj.idProveedor === id_proveedor && obj.periodo === id_posting_period);
+                                return (obj.jurisdiccion === jurisdiccion && obj.idProveedor === id_proveedor && obj.periodo === id_posting_period && isEmpty(obj.montosEmbargos));
                             });
                         }
                     }

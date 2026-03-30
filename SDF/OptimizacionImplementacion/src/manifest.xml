@@ -11,10 +11,9 @@
       <feature required="true">DEPARTMENTS</feature>
       <feature required="true">ACCOUNTING</feature>
       <feature required="true">WORKFLOW</feature>
-      <feature required="false">SUBSCRIPTIONBILLING</feature>
       <feature required="true">SUBSIDIARIES</feature>
       <feature required="true">ADVRECEIVING</feature>
-      <feature required="true">UNITSOFMEASURE</feature>
+      <feature required="false">UNITSOFMEASURE</feature>
       <feature required="true">CUSTOMTRANSACTIONS</feature>
       <feature required="true">PAYABLES</feature>
       <feature required="true">BILLSCOSTS</feature>
@@ -26,6 +25,16 @@
       <feature required="false">EXTREMELIST</feature>
       <feature required="false">MAILMERGE</feature>
       <feature required="true">CUSTOMRECORDS</feature>
+      <feature required="false">SUBSCRIPTIONBILLING</feature>
     </features>
+    <objects>
+      <object>customscript_l54_obt_inf_cae_fe</object>
+      <object>customscript_l54_obt_info_cae_fe_lotes</object>
+      <object>customscript_l54_act_inf_cae_fe</object>
+      <object>customscript_l54_act_inf_cae_fe_lotes</object>
+      <object>customscript_l54_log_cae_fe_lotes</object>
+      <object>customrecord_l54_conf_middleware</object>
+      <object>customscript_l54_enviar_email_fe_lotes</object>
+    </objects>
   </dependencies>
 </manifest>

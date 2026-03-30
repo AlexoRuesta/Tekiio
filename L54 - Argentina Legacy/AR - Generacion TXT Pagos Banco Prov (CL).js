@@ -1,6 +1,7 @@
 /**
  *@NApiVersion 2.x
  *@NScriptType ClientScript
+ *@NModuleScope Public
  */
  define(['N/currentRecord', 'N/ui/dialog', 'N/search', 'N/runtime'],
 

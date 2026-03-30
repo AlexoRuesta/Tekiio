@@ -3088,6 +3088,7 @@ function callBackPercepcionesIVA(response) {
 		alert("Error Calulando Percepcion en VENTAS , Error : " + err.message);
 	}
 }
+
 function l54beforeSubmitTransaction(type) {
 
 	try
@@ -3532,6 +3533,34 @@ function l54afterSubmitTransaction(type) {
 			}
 		
 			record.setFieldValue("custbody_l54_reg_inf_trans_act", 'T');*/
+			/** Mejora del punto de venta y letra */
+			var boca = record.getFieldValue('custbody_l54_boca'); 
+			var letra = record.getFieldValue('custbody_l54_letra'); 
+			if (isEmpty(boca) || isEmpty(letra)){
+				var locationId = record.getFieldValue("location");
+				var esND = record.getFieldValue("custbody_l54_nd");
+				var tipoTransStr = getTipoTransId(recType);
+				var entity = record.getFieldValue("entity");
+				var puntoVenta = obtenerPuntoVenta();
+
+				record.setFieldValue("custbody_l54_boca", puntoVenta);
+				if (!isEmpty(entity)) {
+
+					const tipoContrCliente = record.getFieldValue("custbody_l54_tipo_contribuyente");
+
+					if (!isEmpty(tipoContrCliente)) {
+						
+						var letras = nlapiLookupField('customrecord_l54_tipo_contribuyente', tipoContrCliente, 'custrecord_l54_tipo_cont_letra');
+						nlapiLogExecution('DEBUG', 'AFTER SUBMIT TRANSACTION', 'fieldLookUpLetra: ' + letras);
+
+						if (!isEmpty(letras)) {
+							record.setFieldValue("custbody_l54_letra", letras);
+						}
+					}
+				}
+				
+			}
+
 			nlapiLogExecution('DEBUG', 'AFTER SUBMIT TRANSACTION', 'FIN AFTER SUBMIT TRANSACTION CREATE');
 			try {
 				var idTmp = nlapiSubmitRecord(record, true);
@@ -3621,6 +3650,8 @@ function l54afterSubmitTransaction(type) {
 				nlapiLogExecution('ERROR', 'AFTER SUBMIT TRANSACTION',  'LINE-3065. Error al actualizar en l54AfterSubmitTransaction (edit), error: ' + e.message);
 			}
 		}
+
+
 	} catch (error) {
 		nlapiLogExecution('ERROR', 'l54afterSubmitTransaction', 'LINE-3102. Excepción General, Detalle: ' + error.message);
 	}
@@ -5386,7 +5417,7 @@ function procesaVendorPayment(type, recType, recId, objRta, infoRetIIBB) {
 						record_journalentry.commitLineItem('line');
 
 						// ASIGNAR NUMERADOR GANANCIAS
-						if (esPagoMasivo == 'F') {
+						if (esPagoMasivo == 'F' && !isEmpty(idsRetIIBB)) {
 							var tipoTransIdGan = getTipoTransId('num_ret_ganancias');
 							//var numeradorArray = devolverNuevoNumero(tipoTransIdGan, bocaId, letraId, subsidiaria);
 							//record.setFieldValue("custbody_l54_ret_gan_numerador", numeradorArray['numeradorPrefijo']);
@@ -5517,7 +5548,7 @@ function procesaVendorPayment(type, recType, recId, objRta, infoRetIIBB) {
 					}
 
 					// Si tiene retenciones de IIBB
-					if (parseFloat(monto_ret_iibb, 10) != 0 && parseFloat(monto_ret_iibb, 10) != '') {
+					if (parseFloat(monto_ret_iibb, 10) != 0 && parseFloat(monto_ret_iibb, 10) != '' && !isEmpty(idsRetIIBB)) {
 
 						// 2015 - IIBB por Jurisdicciones
 						if (esPagoMasivo == 'F')

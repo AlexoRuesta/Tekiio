@@ -238,7 +238,7 @@ define(["N/log", "N/record", "N/search", "N/runtime", "N/file", "N/format", "L54
 		let errorGlobal = false;
 		let errorGeneral = false;
 		let existenRetenciones = false;
-		const mensajeError = "Error Generando TXT de Retenciones";
+		const mensajeError = "Error generando TXT de Retenciones";
 		let descripcionError = "";
 		let tipoComprobanteNS = "";
 		let contenidoTXTSujeto = "";
@@ -844,11 +844,11 @@ define(["N/log", "N/record", "N/search", "N/runtime", "N/file", "N/format", "L54
 																					//var domicilioFiscal = isEmpty(resultadoProveedor.getLineItemValue('addressbook', 'addr1', numeroLinea)) ? valorSiNoPExisteDato : resultadoProveedor.getLineItemValue('addressbook', 'addr1', numeroLinea);
 																					let domicilioFiscal = isEmpty(resultadoProveedor.getSublistValue({
 																					  sublistId: "addressbook",
-																					  fieldId: "addr1",
+																					  fieldId: "addr1_initialvalue", //"addr1",
 																					  line: numeroLinea
 																					})) ? valorSiNoPExisteDato : resultadoProveedor.getSublistValue({
 																					  sublistId: "addressbook",
-																					  fieldId: "addr1",
+																					  fieldId: "addr1_initialvalue",
 																					  line: numeroLinea
 																					});
 																					//Aquí
@@ -861,11 +861,11 @@ define(["N/log", "N/record", "N/search", "N/runtime", "N/file", "N/format", "L54
 																					  //var localidad = isEmpty(resultadoProveedor.getLineItemValue('addressbook', 'city', numeroLinea)) ? valorSiNoPExisteDato : resultadoProveedor.getLineItemValue('addressbook', 'city', numeroLinea);
 																					  let localidad = isEmpty(resultadoProveedor.getSublistValue({
 																						sublistId: "addressbook",
-																						fieldId: "city",
+																						fieldId: "city_initialvalue", // "city",
 																						line: numeroLinea
 																					  })) ? valorSiNoPExisteDato : resultadoProveedor.getSublistValue({
 																						sublistId: "addressbook",
-																						fieldId: "city",
+																						fieldId: "city_initialvalue",
 																						line: numeroLinea
 																					  });
 																					  log.debug("line 870", "localidad: " + localidad);
@@ -931,7 +931,7 @@ define(["N/log", "N/record", "N/search", "N/runtime", "N/file", "N/format", "L54
 																								//var codigoPostal = resultadoProveedor[0].getValue('zipcode');
 																								const valorItemResultProv = resultadoProveedor.getSublistValue({
 																								  sublistId: "addressbook",
-																								  fieldId: "zip",
+																								  fieldId: "zip_initialvalue", //"zip",
 																								  line: numeroLinea
 																								});
 																								const codigoPostal = isEmpty(valorItemResultProv) ? " " : valorItemResultProv;
@@ -1176,7 +1176,7 @@ define(["N/log", "N/record", "N/search", "N/runtime", "N/file", "N/format", "L54
 					var estadoGeneracionTXT = null;
 					estadoGeneracionTXTSujetos = generarTXTSujetos(periodo, tipoOperacion, tipoRegimen, retencionSICORE.sujeto.idSujetoNetSuite, contenidoTXTSujeto, idRegistroLOG, idRetencionNetSuite);
 					if (isEmpty(estadoGeneracionTXTSujetos) || !isEmpty(estadoGeneracionTXTSujetos) && estadoGeneracionTXTSujetos.errorGeneracion == true) {
-					// Error Generando TXT
+					// Error generando TXT
 					error = true;
 					descripcionMensaje = "Error Generando TXT Sujetos Retenidos";
 					if (isEmpty(estadoGeneracionTXTSujetos))
@@ -2210,8 +2210,9 @@ define(["N/log", "N/record", "N/search", "N/runtime", "N/file", "N/format", "L54
 				  if (!isEmpty(numerador)) {
 					const numero_aux = numerador.toString().substr(-8);
 					let numero_comprobante = "";
-					const puntoVenta = resultadoTXTRetencionesSIRCAR[i].getValue({ name: "custrecord_l54_ret_pv_pago_prov" });
-					numero_comprobante = padding_left(puntoVenta.toString(), "0", 4) + padding_left(numero_aux.toString(), "0", 8);
+					let puntoVenta = resultadoTXTRetencionesSIRCAR[i].getValue({ name: "custrecord_l54_ret_pv_pago_prov" });
+					const puntoVenta_aux = puntoVenta.toString().substr(-4);
+					numero_comprobante = padding_left(puntoVenta_aux.toString(), "0", 4) + padding_left(numero_aux.toString(), "0", 8);
 					retencionSIRCAR.retencion.numeroComprobante = padding_right(numero_comprobante, " ", 12);
 					// 5.- Obtengo el cuit del contribuyente
 					const cuit_contribuyente = resultadoTXTRetencionesSIRCAR[i].getValue({ name: columns[4] });
@@ -2421,6 +2422,10 @@ define(["N/log", "N/record", "N/search", "N/runtime", "N/file", "N/format", "L54
 		  var refComprobante = "";
 		  const filtro = [];
 		  let i = 0;
+			let json_TransRef = new Object();
+
+			numeroConstanciaFinalSIRCAR(json_TransRef, subsidiaria, periodo)
+
 		  if (!isEmpty(periodo) && !isEmpty(periodo.fDesde) && !isEmpty(periodo.fHasta)) {
 			//filtro[i++] = new nlobjSearchFilter('trandate', null, 'within', periodo.fDesde, periodo.fHasta);
 			filtro[i++] = search.createFilter({
@@ -2610,162 +2615,26 @@ define(["N/log", "N/record", "N/search", "N/runtime", "N/file", "N/format", "L54
 										// NUEVO 2020 - Formato #2 del TXT SIRCAR
 										percepcionSIRCAR.percepcion.tipoOperacionPercepcion = "1"; // Operacion Efectuada
 										try {
-										  if (codigoComprobante == "102") {
-											const recordTypeTransaction = resultadoTXTPercepcionesSIRCAR.getValue({ name: columns[16] });
-											//nlapiLogExecution('DEBUG', 'percepcionesSIRCAR', 'recordTypeTransaction: ' + recordTypeTransaction + ' - refComprobante: ' + refComprobante);
-											log.debug({
-											  title: "percepcionesSIRCAR",
-											  details: "recordTypeTransaction: " + recordTypeTransaction + " - refComprobante: " + refComprobante
-											});
-											//var recordTransaction = nlapiLoadRecord(recordTypeTransaction, refComprobante);
-											const recordTransaction = record.load({
-											  type: recordTypeTransaction,
-											  id: refComprobante,
-											  isDynamic: true
-											});
-											//var transaccion_referencia = recordTransaction.getFieldValue('createdfrom');
-											let transaccion_referencia = recordTransaction.getValue({
-											  fieldId: "createdfrom"
-											});
-											//nlapiLogExecution('DEBUG', 'percepcionesSIRCAR', 'Se cargó el registro de la NC.');
-											log.debug({
-											  title: "percepcionesSIRCAR",
-											  details: "Se cargó el registro de la NC."
-											});
-											if (isEmpty(transaccion_referencia)) {
-											  //transaccion_referencia = recordTransaction.getFieldValue('custbody_l54_transaccion_referencia');
-											  transaccion_referencia = recordTransaction.getValue({
-												fieldId: "custbody_l54_transaccion_referencia"
-											  });
-											}
-											// Se verifican los datos de la transacción de referencia
-											if (!isEmpty(transaccion_referencia)) {
-											  let errorCargarTransaccion = false;
-											  try {
-												//var resultadoTransRef = nlapiLoadRecord('invoice', transaccion_referencia);
-												var resultadoTransRef = record.load({
-												  type: record.Type.INVOICE,
-												  id: transaccion_referencia,
-												  isDynamic: true
-												});
-												//nlapiLogExecution('DEBUG', 'percepcionesSIRCAR', 'Es invoice');
-												log.debug({
-												  title: "percepcionesSIRCAR",
-												  details: "Es invoice"
-												});
-											  } catch (errorInvoice) {
-												errorCargarTransaccion = true;
-												log.error({
-												  title: "percepcionesSIRCAR",
-												  details: "Error al intentar cargar transacción - errorInvoice:" + errorInvoice.message
-												});
-											  }
-											  if (errorCargarTransaccion) {
-												try {
-												  //var resultadoTransRef = nlapiLoadRecord('returnauthorization', transaccion_referencia);
-												  resultadoTransRef = record.load({
-													type: record.Type.RETURN_AUTHORIZATION,
-													id: transaccion_referencia
-												  });
-												  //nlapiLogExecution('DEBUG', 'percepcionesSIRCAR', 'Es Autorización');
-												  log.debug({
-													title: "percepcionesSIRCAR",
-													details: "Es Autorización"
-												  });
-												} catch (errorAutorizacion) {
-												  //nlapiLogExecution('ERROR', 'percepcionesSIRCAR', 'Error al intentar cargar transacción - errorAutorizacion:' + errorAutorizacion.message);
-												  log.error({
-													title: "percepcionesSIRCAR",
-													details: "Error al intentar cargar transacción - errorAutorizacion: " + errorAutorizacion.message
-												  });
-												}
-											  }
-											  if (!isEmpty(resultadoTransRef)) {
-												//var recordTypeTransRef = resultadoTransRef.getFieldValue('recordtype');
-												const recordTypeTransRef = resultadoTransRef.getValue({
-												  fieldId: "recordtype"
-												});
-												log.debug({
-												  title: "percepcionesSIRCAR",
-												  details: "recordTypeTransRef: " + recordTypeTransRef
-												});
-												if (recordTypeTransRef == "returnauthorization") {
-												  //var idCreatedFromAutorizacion = resultadoTransRef.getFieldValue('createdfrom');
-												  const idCreatedFromAutorizacion = resultadoTransRef.getValue({
-													fieldId: "createdfrom"
-												  });
-												  //var referenciaOfTransRef = nlapiLoadRecord('invoice', idCreatedFromAutorizacion);
-												  const referenciaOfTransRef = record.load({
-													type: record.Type.INVOICE,
-													id: idCreatedFromAutorizacion
-												  });
-												  if (!isEmpty(referenciaOfTransRef)) {
-													var nroConstanciaFinalSircar = numeroConstanciaFinalSIRCAR(referenciaOfTransRef);
-													if (!isEmpty(nroConstanciaFinalSircar) && !nroConstanciaFinalSircar.error) {
-													  percepcionSIRCAR.percepcion.nroConstanciaOriginal = padding_left(nroConstanciaFinalSircar.numeroConstancia, "0", 14);
+											const creado_desde = resultadoTXTPercepcionesSIRCAR.getValue({ name: columns[18] });
+											if (codigoComprobante == "102" && isEmpty(creado_desde)) {
+												if (json_TransRef.hasOwnProperty(refComprobante)) {
+													percepcionSIRCAR.percepcion.nroConstanciaOriginal  = json_TransRef[refComprobante];
+												}else{
+													if (!isEmpty(resultadoTXTPercepcionesSIRCAR.getValue({ name: columns[17] }))) {
+														percepcionSIRCAR.percepcion.nroConstanciaOriginal = resultadoTXTPercepcionesSIRCAR.getValue({ name: columns[17] });
 													} else {
-													  errorGlobal = true;
-													  descripcionError = nroConstanciaFinalSircar.mensaje + refComprobante;
+														errorGlobal = true;
+														descripcionError = "Error consultando la transacción de referencia de la nota de crédito con ID INTERNO: " + refComprobante + ". No se encontró en NetSuite la transacción de referencia de la NC por los campos de cabecera.";
 													}
-												  } else {
-													errorGlobal = true;
-													descripcionError = "Error consultando la transacción de referencia de la nota de crédito con ID INTERNO: " + refComprobante + ". No se encontró en NetSuite la transacción de referencia de la NC asociada a una autorización de devolución.";
-												  }
-												} else {
-												  nroConstanciaFinalSircar = numeroConstanciaFinalSIRCAR(resultadoTransRef);
-												  if (!isEmpty(nroConstanciaFinalSircar) && !nroConstanciaFinalSircar.error) {
-													percepcionSIRCAR.percepcion.nroConstanciaOriginal = padding_left(nroConstanciaFinalSircar.numeroConstancia, "0", 14);
-												  } else {
-													errorGlobal = true;
-													descripcionError = nroConstanciaFinalSircar.mensaje + refComprobante;
-												  }
 												}
-											  } else {
-												errorGlobal = true;
-												descripcionError = "Error consultando la transacción de referencia de la nota de crédito con ID INTERNO: " + refComprobante + ". No se encontró en NetSuite la transacción de referencia de la NC.";
-											  }
-											} else {
-											  const nroTipoDocumentoReferencia = "1";
-											  // Se verifican los campos de cabecera de la nota de crédito que hacen referencia a la transacción de referencia
-											  //var letraDocumentoReferencia = recordTransaction.getFieldValue('custbody_l54_letra_doc_ref');
-											  const letraDocumentoReferencia = recordTransaction.getValue({
-												fieldId: "custbody_l54_letra_doc_ref"
-											  });
-											  //var puntoVentaDocumentoReferencia = recordTransaction.getFieldValue('custbody_l54_pv_doc_ref');
-											  const puntoVentaDocumentoReferencia = recordTransaction.getValue({
-												fieldId: "custbody_l54_pv_doc_ref"
-											  });
-											  //var numeroDocumentoReferencia = recordTransaction.getFieldValue('custbody_l54_nro_doc_ref');
-											  const numeroDocumentoReferencia = recordTransaction.getValue({
-												fieldId: "custbody_l54_nro_doc_ref"
-											  });
-											  if (!isEmpty(letraDocumentoReferencia) && !isEmpty(puntoVentaDocumentoReferencia) && !isEmpty(numeroDocumentoReferencia)) {
-												//var letraDocumentoReferenciaFinal = nlapiLookupField('customrecord_l54_letra_doc', letraDocumentoReferencia, 'name');
-												let letraDocumentoReferenciaFinal = utilidades.getLookupFieldsSafe(search.lookupFields({
-												  type: "customrecord_l54_letra_doc",
-												  id: letraDocumentoReferencia,
-												  columns: "name"
-												}), "name");
-												letraDocumentoReferenciaFinal = letraDocumentoReferenciaFinal.toString().substring(0, 1);
-												//var puntoVentaDocumentoReferenciaFinal = nlapiLookupField('customrecord_l54_bocas', puntoVentaDocumentoReferencia, 'name');
-												let puntoVentaDocumentoReferenciaFinal = utilidades.getLookupFieldsSafe(search.lookupFields({
-												  type: "customrecord_l54_bocas",
-												  id: puntoVentaDocumentoReferencia,
-												  columns: "name"
-												}), "name");
-   
-												puntoVentaDocumentoReferenciaFinal = puntoVentaDocumentoReferenciaFinal.toString().substr(-4);
-												puntoVentaDocumentoReferenciaFinal = padding_left(puntoVentaDocumentoReferenciaFinal, "0", 4);
-												const numeroDocumentoReferenciaFinal = padding_left(numeroDocumentoReferencia, "0", 8);
-												percepcionSIRCAR.percepcion.nroConstanciaOriginal = nroTipoDocumentoReferencia + letraDocumentoReferenciaFinal + puntoVentaDocumentoReferenciaFinal + numeroDocumentoReferenciaFinal;
-											  } else {
-												errorGlobal = true;
-												descripcionError = "Error consultando la transacción de referencia de la nota de crédito con ID INTERNO: " + refComprobante + ". No se encontró en NetSuite la transacción de referencia de la NC por los campos de cabecera.";
-											  }
+											}else{
+												if (!isEmpty(resultadoTXTPercepcionesSIRCAR.getValue({ name: columns[16] }))) {
+														percepcionSIRCAR.percepcion.nroConstanciaOriginal = resultadoTXTPercepcionesSIRCAR.getValue({ name: columns[16] });
+												} else {
+													errorGlobal = true;
+													descripcionError = "Error consultando la transacción de Factura de Venta con ID INTERNO: " + refComprobante + ". No se encontró en NetSuite los campos de cabecera.";
+												}																						
 											}
-										  } else {
-											percepcionSIRCAR.percepcion.nroConstanciaOriginal = padding_left("0", "0", 14);
-										  }
 										} catch (errorConsultaTransaccionReferencia) {
 										  errorGlobal = true;
 										  descripcionError = "EXCEPCION - Error consultando la transacción de referencia de la nota de crédito con ID INTERNO: " + refComprobante + " - Detalles del Error: " + errorConsultaTransaccionReferencia.message;
@@ -2875,9 +2744,6 @@ define(["N/log", "N/record", "N/search", "N/runtime", "N/file", "N/format", "L54
                       percepcionSIRCAR.percepcion.importePercepcion + "," + percepcionSIRCAR.percepcion.cod_regimen + "," + percepcionSIRCAR.percepcion.cod_jurisdiccion + "\r\n";
 					} else {
 					  if (formatoTXTSircar == 2) {
-                      if(resultadoTXTPercepcionesSIRCAR.getValue({ name: columns[10] }) == "914") {
-                        percepcionSIRCAR.percepcion.nroConstanciaOriginal = "0";
-						}
                       contenidoTXT += num_renglon + "," + percepcionSIRCAR.percepcion.codigoComprobante + "," + percepcionSIRCAR.percepcion.letra + "," + percepcionSIRCAR.percepcion.numeroComprobante + "," +
 						  percepcionSIRCAR.percepcion.cuit + "," + percepcionSIRCAR.percepcion.fechaPercepcion + "," + percepcionSIRCAR.percepcion.montoImponible + "," + percepcionSIRCAR.percepcion.alicuota + "," +
 						  percepcionSIRCAR.percepcion.importePercepcion + "," + percepcionSIRCAR.percepcion.cod_regimen + "," + percepcionSIRCAR.percepcion.cod_jurisdiccion + "," +
@@ -10931,6 +10797,226 @@ define(["N/log", "N/record", "N/search", "N/runtime", "N/file", "N/format", "L54
 		percepcionSALTA.contenidoTXT = contenidoTXT;
 		return percepcionSALTA;
 	  }
+	  function generarTXTIvaPerVentas(periodo, email, tipoRegimen, tipoOperacion, ultimapercepcionProcesada, context, idLogErrores, url, separadorDecimal, separadorMiles, subsidiaria) {
+		log.debug({
+		  title: "generarTXTIvaPerVentas",
+		  details: "Inicio - Generación TXT IVA Percepciones Venta"
+		});
+		let idRegistroLOG = idLogErrores;
+		let errorGlobal = false;
+		let errorGeneral = false;
+		let existenPercepciones = false;
+		const mensajeError = "Error Generando TXT de Percepciones";
+		let descripcionError = "";
+		let contenidoTXT = "";
+		const procesoEncolado = false;
+		try {
+		  var percepcionIVAVta = {};
+		  percepcionIVAVta.percepcion = {};
+		  percepcionIVAVta.sujeto = {};
+		  percepcionIVAVta.existenPercepciones = false;
+		  percepcionIVAVta.error = false;
+		  percepcionIVAVta.descripcionError = "";
+		  percepcionIVAVta.procesoEncolado = false;
+		  percepcionIVAVta.idLog = idRegistroLOG;
+		  //percepcionIVAVta.percepcion.importeRetencion = 0;
+		  percepcionIVAVta.contenidoTXT = "";
+		  var refComprobante = "";
+		  var idRetencionNetSuite = "";
+		  // Obtengo la Informacion usando un SavedSearch
+		  let iCont = 0;
+		  const filtroTXTpercepcionesIVAVenta = [];
+		  if (!isEmpty(periodo) && !isEmpty(periodo.fDesde) && !isEmpty(periodo.fHasta))
+			//filtroTXTpercepcionesIVAVenta[iCont++] = new nlobjSearchFilter('trandate', null, 'within', periodo.fDesde, periodo.fHasta);
+			filtroTXTpercepcionesIVAVenta[iCont++] = search.createFilter({
+			  name: "trandate",
+			  operator: search.Operator.WITHIN,
+			  values: [periodo.fDesde, periodo.fHasta]
+			});
+		  if (!isEmpty(subsidiaria))
+			//filtroTXTpercepcionesIVAVenta[iCont++] = new nlobjSearchFilter('subsidiary', null, 'is', subsidiaria);
+			filtroTXTpercepcionesIVAVenta[iCont++] = search.createFilter({
+			  name: "subsidiary",
+			  operator: search.Operator.IS,
+			  values: subsidiaria
+			});
+		  //var search = new nlapiLoadSearch('transaction', 'customsearch_l54_per_iva_vent');
+		  const search1 = search.load({
+			type: "transaction",
+			id: "customsearch_l54_per_iva_vent"
+		  });
+		  search1.filters.push(...filtroTXTpercepcionesIVAVenta);
+		  const searchResults = search1.run();
+		  let resultadoTXTpercepcionesIVAVta = [];
+		  // resultIndex points to record starting current "resultado" in the entire results array
+		  let resultIndex = 0;
+		  const resultStep = 1000; // Number of records returned in one step (maximum is 1000)
+		  let resultado; // temporary variable used to store the result set
+		  do {
+			// fetch one result set
+			//resultado = searchResults.getResults(resultIndex, resultIndex + resultStep);
+			resultado = searchResults.getRange({
+			  start: resultIndex,
+			  end: resultIndex + resultStep
+			});
+			if (!isEmpty(resultado) && resultado.length > 0) {
+			  if (resultIndex == 0)
+				resultadoTXTpercepcionesIVAVta = resultado; //Primera ve inicializa
+			  else
+				resultadoTXTpercepcionesIVAVta = resultadoTXTpercepcionesIVAVta.concat(resultado);
+			}
+			// increase pointer
+			resultIndex = resultIndex + resultStep;
+			// Verifico si debo Encolar el Proceso
+			//checkGovernance(1000);
+			// once no records are returned we already got all of them
+		  } while (!isEmpty(resultado) && resultado.length > 0);
+		  if (!isEmpty(resultadoTXTpercepcionesIVAVta)) {
+			//nlapiLogExecution('DEBUG', 'generarTXTIVAPerVent', 'Cantidad percepciones: ' + resultadoTXTpercepcionesIVAVta.length);
+			log.debug({
+			  title: "generarTXTIvaPerVentas",
+			  details: "Cantidad percepciones: " + resultadoTXTpercepcionesIVAVta.length
+			});
+			for (let i = 0; resultadoTXTpercepcionesIVAVta != null && i < resultadoTXTpercepcionesIVAVta.length; i++) {
+			  existenPercepciones = true;
+			  errorGlobal = false;
+			  descripcionError = "";
+			  idRetencionNetSuite = "";
+			  percepcionIVAVta.percepcion = {};
+			  percepcionIVAVta.sujeto = {};
+			  refComprobante = "";
+			  const result = resultadoTXTpercepcionesIVAVta[i];
+			  const columns = result.columns;
+			  // Obtengo el Codigo de Comprobante
+			  idRetencionNetSuite = "";
+			  //refComprobante = result.getValue(columns[6]);
+			  refComprobante = result.getValue({ name: columns[0] });
+			  const recordType = result.getValue({ name: columns[9] });
+			  log.debug({
+				title: "generarTXTIvaPerVentas",
+				details: "refComprobante o transaction ID: " + refComprobante
+			  });
+			  if (!isEmpty(result.getValue({ name: columns[1] }))) {
+				percepcionIVAVta.percepcion.fecha = result.getValue({ name: columns[1] }); // Fecha de la percepción
+				if (!isEmpty(result.getValue({ name: columns[2] }))) {
+				  percepcionIVAVta.percepcion.tipoComprobante = result.getValue({ name: columns[2] }); // Tipo de Comprobante
+				  if (!isEmpty(result.getValue({ name: columns[3] }))) {
+					percepcionIVAVta.percepcion.nroComprobante = result.getValue({ name: columns[3] }); // Número de Comprobante
+					if (!isEmpty(result.getValue({ name: columns[4] }))) {
+					  percepcionIVAVta.percepcion.name = result.getValue({ name: columns[4] }); // Nombre
+					  if (!isEmpty(result.getValue({ name: columns[5] }))) {
+						percepcionIVAVta.percepcion.cuit = result.getValue({ name: columns[5] }); // CUIT
+						if (!isEmpty(result.getValue({ name: columns[6] })) && parseFloat(result.getValue({ name: columns[6] })) > 0) {
+						  percepcionIVAVta.percepcion.monto = recordType == "creditmemo" ? "-" + result.getValue({ name: columns[6] }) : result.getValue({ name: columns[6] }); // Monto total
+						  if (!isEmpty(result.getValue({ name: columns[7] })) && parseFloat(result.getValue({ name: columns[6] })) > 0) {
+							percepcionIVAVta.percepcion.alicuota = result.getValue({ name: columns[7] }); // Alicuota
+							if (!isEmpty(result.getValue({ name: columns[8] })) && parseFloat(result.getValue({ name: columns[6] })) > 0) {
+							  percepcionIVAVta.percepcion.importePercepcion = recordType == "creditmemo" ? "-" + result.getValue({ name: columns[8] }) : result.getValue({ name: columns[8] }); // Importe Percepción
+							} else {
+							  errorGlobal = true;
+							  descripcionError = "Error Obteniendo el Importe de Percepción";
+							}
+						  } else {
+							errorGlobal = true;
+							descripcionError = "Error Obteniendo la Alícuota";
+						  }
+						} else {
+						  errorGlobal = true;
+						  descripcionError = "Error Obteniendo el Monto de la Transacción";
+						}
+					  } else {
+						errorGlobal = true;
+						descripcionError = "Error Obteniendo el CUIT del Cliente";
+					  }
+					} else {
+					  errorGlobal = true;
+					  descripcionError = "Error Obteniendo el Nombre del Cliente";
+					}
+				  } else {
+					errorGlobal = true;
+					descripcionError = "Error Obteniendo el Número de Comprobante";
+				  }
+				} else {
+				  errorGlobal = true;
+				  descripcionError = "Error Obteniendo el Tipo de Comprobante";
+				}
+			  } else {
+				errorGlobal = true;
+				descripcionError = "Error Obteniendo la Fecha de la Percepción";
+			  }
+			  // Genero el Contenido
+			  if (errorGlobal == false) {
+				if (percepcionIVAVta.percepcion != null) {
+				  // Genero Contenido
+				  if (!isEmpty(contenidoTXT)) {
+					contenidoTXT += "\r\n";
+				  }
+				  //var error = false;
+				  //var descripcionMensaje = "TXT de Retenciones Generado Correctamente";
+				  contenidoTXT += percepcionIVAVta.percepcion.fecha + percepcionIVAVta.percepcion.tipoComprobante + percepcionIVAVta.percepcion.nroComprobante + percepcionIVAVta.percepcion.name + percepcionIVAVta.percepcion.cuit + percepcionIVAVta.percepcion.monto + percepcionIVAVta.percepcion.alicuota + percepcionIVAVta.percepcion.importePercepcion;
+				} else {
+				  errorGeneral = true;
+				  descripcionError = "Error Obteniendo Información de la Percepción";
+				  idRegistroLOG = grabarLogError("EST-LOG-ERROR", periodo, tipoOperacion, tipoRegimen, idRegistroLOG, "Error Generando TXT IVA Percepciones Venta - Error : " + descripcionError, idRetencionNetSuite, refComprobante, subsidiaria);
+				}
+			  } else {
+				// Error Obteniendo Informacion de Percepciones
+				// Grabo el Error en NetSuite
+				errorGeneral = true;
+				log.error({
+				  title: "generarTXTIvaPerVentas",
+				  details: "Error Generando TXT IVA Percepciones Venta: " + descripcionError
+				});
+				idRegistroLOG = grabarLogError("EST-LOG-ERROR", periodo, tipoOperacion, tipoRegimen, idRegistroLOG, "Error Generando TXT IVA Percepciones Venta - Error : " + descripcionError, idRetencionNetSuite, refComprobante, subsidiaria);
+			  }
+			  // Verifico si debo Encolar el Proceso
+			  //checkGovernance(1000);
+			}
+			if (errorGeneral == false) {
+			  if (existenPercepciones == false) {
+				if (!isEmpty(resultadoTXTpercepcionesIVAVta) && resultadoTXTpercepcionesIVAVta.length == 0) {
+				  // No se Encontraron Percepciones para el Periodo
+				  idRegistroLOG = grabarLogError("EST-LOG-OK", periodo, tipoOperacion, tipoRegimen, idRegistroLOG, "Generación de TXT IVA Percepciones Venta Correcta - No se Encontraron Percepciones", idRetencionNetSuite, refComprobante, subsidiaria);
+				} else {
+				  // Error Obteniendo Percepciones
+				  errorGeneral = true;
+				  log.error({
+					title: "generarTXTIvaPerVentas",
+					details: "Error Obteniendo Percepciones IVA Percepciones Venta"
+				  });
+				  idRegistroLOG = grabarLogError("EST-LOG-ERROR", periodo, tipoOperacion, tipoRegimen, idRegistroLOG, "Error Obteniendo Percepciones IVA Percepciones Venta - Error : Error Obteniendo Percepciones", idRetencionNetSuite, refComprobante, subsidiaria);
+				}
+			  }
+			}
+		  }
+		  if (!isEmpty(contenidoTXT)) {
+			contenidoTXT += "\r\n";
+		  }
+		} catch (e) {
+		  log.error({
+			title: "generarTXTIvaPerVentas",
+			details: "Error Generando TXT IVA Percepciones Venta - Error : " + e.message
+		  });
+		  errorGeneral = true;
+		  descripcionError = "Error Generando TXT IVA Percepciones Venta - Error : " + e.message;
+		  idRegistroLOG = grabarLogError("EST-LOG-ERROR", periodo, tipoOperacion, tipoRegimen, idRegistroLOG, descripcionError, idRetencionNetSuite, refComprobante, subsidiaria);
+		}
+		if (errorGeneral == true) {
+		  percepcionIVAVta = grabarError(true, "Error Generando TXT IVA Percepciones Venta", existenPercepciones, procesoEncolado, idRegistroLOG);
+		} else {
+		  percepcionIVAVta = grabarError(false, "Generación de TXT IVA Percepciones Venta Correcta", existenPercepciones, procesoEncolado, idRegistroLOG);
+		  if (procesoEncolado == false) {
+			if (existenPercepciones == true)
+			  idRegistroLOG = grabarLogError("EST-LOG-OK", periodo, tipoOperacion, tipoRegimen, idRegistroLOG, "TXT IVA Percepciones Venta Generadas Correctamente", null, null, subsidiaria);
+		  }
+		}
+		log.debug({
+		  title: "generarTXTIvaPerVentas",
+		  details: "Finalización - Generación TXT IVA Percepciones Venta"
+		});
+		percepcionIVAVta.contenidoTXT = contenidoTXT;
+		return percepcionIVAVta;
+	  }
 	  //[Lista]
 	  function generarTXT_IVATUR(periodo, email, tipoRegimen, tipoOperacion, ultimapercepcionProcesada, context, idLogErrores, url, separadorDecimal, separadorMiles, subsidiaria) {
 		//nlapiLogExecution('DEBUG', 'generarTXT_IVATUR', 'Inicio - Generación TXT IVATUR');
@@ -13047,9 +13133,9 @@ define(["N/log", "N/record", "N/search", "N/runtime", "N/file", "N/format", "L54
 		  });
 		  let errorGeneral = false;
 		  let enviarEmail = false;
-		  let mensajeOK = "La generacion del TXT";
-		  const mensajeOK1 = "Se realizo de Forma Correcta.";
-		  let mensajeError = "Error Generando TXT";
+		  let mensajeOK = "La generación del TXT";
+		  const mensajeOK1 = "Se realizó de forma correcta.";
+		  let mensajeError = "Error generando TXT";
 		  //var mensajeRetNoEncontradas = "No se Encontraron Retenciones para el Periodo";
 		  //var mensajePerNoEncontradas = "No se Encontraron Percepciones para el Periodo";
 		  const mensajeRetNoEncontradas = "No se Encontraron Retenciones para las Fechas Indicadas";
@@ -13145,7 +13231,14 @@ define(["N/log", "N/record", "N/search", "N/runtime", "N/file", "N/format", "L54
 		  });
    
 		  log.debug("generacionTXT", `subsidiaria: ${subsidiaria}`);
+
+
+		  const nuevaResolucion = scriptContext.getParameter({
+			name: "custscript_l54_txt_check"
+		  });
    
+   
+		  log.debug("nuevaResolucion", `nuevaResolucion: ${nuevaResolucion}`);
 		  // var ultimaRetencionProcesada = context.getSetting('SCRIPT', 'custscript_l54_txt_ult_ret_proc');
 		  const ultimaRetencionProcesada = scriptContext.getParameter({
 			name: "custscript_l54_txt_ult_ret_proc_v2"
@@ -13534,7 +13627,11 @@ define(["N/log", "N/record", "N/search", "N/runtime", "N/file", "N/format", "L54
 						// Genero TXT ARBA-Percepciones
 						errorGeneracionTXT = null;
 						//if (!isEmpty(fechaPeriodoNuevoProcesoRetenciones) && fechaPeriodoNuevoProcesoRetenciones != null && comparacionFechas(fechaPeriodoSeleccionado, fechaPeriodoNuevoProcesoRetenciones) == 1)
-						errorGeneracionTXT = generarTXTArbaPerc(periodo, email, tipoRegimen, tipoOperacion, ultimaRetencionProcesada, scriptContext, idLogErrores, url, separadorDecimal, separadorMiles, subsidiaria);
+						if (nuevaResolucion){
+							errorGeneracionTXT = generarTXTArbaPercNuevo(periodo, email, tipoRegimen, tipoOperacion, ultimaRetencionProcesada, scriptContext, idLogErrores, url, separadorDecimal, separadorMiles, subsidiaria);
+						}else{
+							errorGeneracionTXT = generarTXTArbaPerc(periodo, email, tipoRegimen, tipoOperacion, ultimaRetencionProcesada, scriptContext, idLogErrores, url, separadorDecimal, separadorMiles, subsidiaria);
+						}
 						//else
 						//errorGeneracionTXT = generarTXTArbaPercAnterior(periodo, email, tipoRegimen, tipoOperacion, ultimaRetencionProcesada, context, idLogErrores, url, separadorDecimal, separadorMiles ,subsidiaria);
 						// Verifico si Hubo Error en la Eliminacion
@@ -13968,7 +14065,8 @@ define(["N/log", "N/record", "N/search", "N/runtime", "N/file", "N/format", "L54
 							existenRetenciones = errorGeneracionTXT.existenRetenciones;
 							// Si no hubo error Genero el TXT
 							if (!isEmpty(errorGeneracionTXT.contenidoTXT)) {
-							  nombreArchivo = "Retenciones_SIRCAR_SANTAFE_IIBB_" + nombrePeriodoSeleccionado + "_" + fechaAct.toJSON() + ".txt";
+								var nombreJurisdiccionArchivo = isEmpty(jurisdiccionName) ? "TODAS_JURISDICCIONES" : jurisdiccionName.replace(" ", "_");
+							  nombreArchivo = "Retenciones_SIRCAR_" +  nombreJurisdiccionArchivo + "_IIBB_" + nombrePeriodoSeleccionado + "_" + fechaAct.toJSON() + ".txt";
 							  archivoTXT = file.create({
 								name: nombreArchivo,
 								fileType: file.Type.PLAINTEXT,
@@ -14022,7 +14120,8 @@ define(["N/log", "N/record", "N/search", "N/runtime", "N/file", "N/format", "L54
 						  existenRetenciones = errorGeneracionTXT.existenRetenciones;
 						  // Si no hubo error Genero el TXT
 						  if (!isEmpty(errorGeneracionTXT.contenidoTXT)) {
-							nombreArchivo = "Pecepciones_SIRCAR_SataFe_" + nombrePeriodoSeleccionado + "_" + fechaAct.toJSON() + ".txt";
+							var nombreJurisdiccionArchivo = isEmpty(jurisdiccionName) ? "TODAS_JURISDICCIONES" : jurisdiccionName.replace(" ", "_");
+							var nombreArchivo = "Pecepciones_SIRCAR_" + nombreJurisdiccionArchivo + "_" + nombrePeriodoSeleccionado + "_" + fechaAct.toJSON() + ".txt";
 							archivoTXT = file.create({
 							  name: nombreArchivo,
 							  fileType: file.Type.PLAINTEXT,
@@ -14783,6 +14882,33 @@ define(["N/log", "N/record", "N/search", "N/runtime", "N/file", "N/format", "L54
 						enviarEmail = true;
 						log.debug("Proceso Generacion TXT Retenciones ARCA Sufridas", "errorGeneracionTXT: " + errorGeneracionTXT);
 						break;
+					  case 36:
+						log.debug("Proceso Generación TXT Percepcion IVA ventas", "Comienzo Proceso");
+						proceso = "PERCEPCION IVA VTA";
+						errorGeneracionTXT = null;
+						errorGeneracionTXT = generarTXTIvaPerVentas(periodo, email, tipoRegimen, tipoOperacion, ultimaRetencionProcesada, context, idLogErrores, url, separadorDecimal, separadorMiles, subsidiaria);
+						if (((isEmpty(errorGeneracionTXT) || (!isEmpty(errorGeneracionTXT) && errorGeneracionTXT.error == true)))) {
+						  if (!isEmpty(url) && !isEmpty(errorGeneracionTXT) && !isEmpty(errorGeneracionTXT.idLog) && !isEmpty(urlLog)) {
+							idLogErrores = errorGeneracionTXT.idLog;
+						  }
+						  errorGeneral = true;
+						} else {
+						  existenRetenciones = errorGeneracionTXT.existenRetenciones;
+						  if (!isEmpty(errorGeneracionTXT.contenidoTXT)) {
+							nombreArchivo = "PERCEPCION_IVA_VENTA_" + nombrePeriodoSeleccionado + "_" + fechaAct.toJSON() + ".txt";
+							archivoTXT = file.create({
+							  name: nombreArchivo,
+							  fileType: file.Type.PLAINTEXT,
+							  contents: errorGeneracionTXT.contenidoTXT,
+							  folder: idFolderTXT
+							});
+							if (!isEmpty(archivoTXT)) {
+							  idArchivo = archivoTXT.save();
+							}
+						  }
+						}
+						enviarEmail = true;
+						break;
 					  case 37:
 						//nlapiLogExecution('DEBUG', 'Proceso Generación TXT CATAMARCA Retenciones', 'Case 37 - Comienzo Proceso');
 						log.debug("Proceso Generación TXT CATAMARCA Retenciones", "Case 37 - Comienzo Proceso");
@@ -14857,7 +14983,11 @@ define(["N/log", "N/record", "N/search", "N/runtime", "N/file", "N/format", "L54
 						// Genero TXT ARBA-Percepciones
 						var errorGeneracionTXT = null;
 						//if (!isEmpty(fechaPeriodoNuevoProcesoRetenciones) && fechaPeriodoNuevoProcesoRetenciones != null && comparacionFechas(fechaPeriodoSeleccionado, fechaPeriodoNuevoProcesoRetenciones) == 1)
-						errorGeneracionTXT = generarTXTArbaPercAct7(periodo, email, tipoRegimen, tipoOperacion, ultimaRetencionProcesada, context, idLogErrores, url, separadorDecimal, separadorMiles, subsidiaria);
+						if(nuevaResolucion){
+							errorGeneracionTXT = generarTXTArbaPercAct7Nuevo(periodo, email, tipoRegimen, tipoOperacion, ultimaRetencionProcesada, context, idLogErrores, url, separadorDecimal, separadorMiles, subsidiaria);
+						}else{
+							errorGeneracionTXT = generarTXTArbaPercAct7(periodo, email, tipoRegimen, tipoOperacion, ultimaRetencionProcesada, context, idLogErrores, url, separadorDecimal, separadorMiles, subsidiaria);
+						}
 						//else
 						//errorGeneracionTXT = generarTXTArbaPercAnterior(periodo, email, tipoRegimen, tipoOperacion, ultimaRetencionProcesada, context, idLogErrores, url, separadorDecimal, separadorMiles ,subsidiaria);
 						// Verifico si Hubo Error en la Eliminacion
@@ -15082,8 +15212,281 @@ define(["N/log", "N/record", "N/search", "N/runtime", "N/file", "N/format", "L54
 								}
 								enviarEmail = true;
 						  break;
+                    case 45:
+                      log.debug('Proceso Generación TXT COMBUSTIBLES LIQUIDOS Percepciones', 'Comienzo Proceso');
+                      proceso = "Percepción Combustible Líquido";
+                      var errorGeneracionTXT = null;
+      
+                      errorGeneracionTXT = generarTxtCombLiq(periodo, email, tipoRegimen, tipoOperacion, ultimaRetencionProcesada, context, idLogErrores, url, ',', separadorMiles, subsidiaria);
+                      log.debug('scheduledGenerarTXT',
+                        "CASE 45 - generarTXT_CombLiq - resultado de proceso de generación de TXT Combustibles Liquidos Percepciones " + JSON.stringify(errorGeneracionTXT));
+
+                      // Verifico si Hubo Error en la Eliminacion
+                      if (((isEmpty(errorGeneracionTXT) || (!isEmpty(errorGeneracionTXT) && errorGeneracionTXT.error == true)))) {
+                        if (!isEmpty(url) && !isEmpty(errorGeneracionTXT) && !isEmpty(errorGeneracionTXT.idLog) && !isEmpty(urlLog)) {
+                          idLogErrores = errorGeneracionTXT.idLog;
+                        }
+                        errorGeneral = true;
+                        enviarEmail = true;
+                        } else {
+                          if (!isEmpty(errorGeneracionTXT) && errorGeneracionTXT.error == false) {
+                            existenRetenciones = errorGeneracionTXT.existenRetenciones;
+                            // Si no hubo error Genero el TXT
+                            if (!isEmpty(errorGeneracionTXT.contenidoTXT)) {
+                              let nombreArchivo = "Combustibles_Liquidos_" + nombrePeriodoSeleccionado + "_" + fechaAct.toJSON() + ".txt";
+                              archivoTXT = file.create({
+                                name: nombreArchivo,
+                                fileType: file.Type.PLAINTEXT,
+                                contents: errorGeneracionTXT.contenidoTXT,
+                                folder: idFolderTXT
+                              });
+                              if (!isEmpty(archivoTXT)) {
+                                var idArchivo = archivoTXT.save();
+                              }
+        
+                            }
+                            enviarEmail = true;
+                          }
+                        }
+                        log.debug({
+                          title: "Proceso Generación TXT COMBUSTIBLES LIQUIDOS Percepciones",
+                          details: "FIN --- Proceso"
+                        });
+                      enviarEmail = true;
+								break;
+					case 46:
+						//ARBA-Percepciones Actividad 7
+						log.debug('Proceso generación TXT Percepciones ARBA - Método Devengado', 'Comienzo Proceso');
+						proceso = "ARBA-Percepciones - Método Devengado ";
+						// Genero TXT ARBA-Percepciones
+						var errorGeneracionTXT = null;
+						//if (!isEmpty(fechaPeriodoNuevoProcesoRetenciones) && fechaPeriodoNuevoProcesoRetenciones != null && comparacionFechas(fechaPeriodoSeleccionado, fechaPeriodoNuevoProcesoRetenciones) == 1)
+						errorGeneracionTXT = generarTXTArbaPercBanDeveng(periodo, email, tipoRegimen, tipoOperacion, ultimaRetencionProcesada, context, idLogErrores, url, separadorDecimal, separadorMiles, subsidiaria);
+						//else
+						//errorGeneracionTXT = generarTXTArbaPercAnterior(periodo, email, tipoRegimen, tipoOperacion, ultimaRetencionProcesada, context, idLogErrores, url, separadorDecimal, separadorMiles ,subsidiaria);
+						// Verifico si Hubo Error en la Eliminacion
+						if (((isEmpty(errorGeneracionTXT) || (!isEmpty(errorGeneracionTXT) && errorGeneracionTXT.error == true)))) {
+							if (!isEmpty(url) && !isEmpty(errorGeneracionTXT) && !isEmpty(errorGeneracionTXT.idLog) && !isEmpty(urlLog)) {
+								idLogErrores = errorGeneracionTXT.idLog;
+							}
+							errorGeneral = true;
+							} else {
+							existenRetenciones = errorGeneracionTXT.existenRetenciones;
+							// Si no hubo error Genero el TXT
+							if (!isEmpty(errorGeneracionTXT.contenidoTXT)) {
+								// Si es ARBA Percepcion se presenta Mensualemnte entonces la quincena siempre es 0
+								//quincena='0';
+								var nombreArchivo = "AR-" + cuitEmpresaFinal + "-" + anioProceso + mesProceso + quincena + "-D" + codigoActividadPerARBA + "-" + "Lote1" + ".txt";
+								archivoTXT = file.create({
+								name: nombreArchivo,
+								fileType: file.Type.PLAINTEXT,
+								contents: errorGeneracionTXT.contenidoTXT,
+								folder: idFolderTXT
+								});
+							
+								if (!isEmpty(archivoTXT)) {
+								idArchivo = archivoTXT.save();
+								}
+							}
+						}
+						enviarEmail = true;
+                      break;
+
+					  case 47:
+						// IVA PERCEPCIONES SUFRIDAS											
+						log.debug({
+						  title: "Proceso Generacion TXT Percepciones Sufridas IVA Simple",
+						  details: "Comienzo Proceso"
+						});
+						proceso = "PERCEPCIONES Sufridas IVA Simple";
+						// Genero TXT IVA PERCEPCIONES
+						errorGeneracionTXT = null;
+						//if (!isEmpty(fechaPeriodoNuevoProcesoRetenciones) && fechaPeriodoNuevoProcesoRetenciones != null && comparacionFechas(fechaPeriodoSeleccionado, fechaPeriodoNuevoProcesoRetenciones) == 1)
+						errorGeneracionTXT = generarTXTPerSufridasIVASimple(periodo, email, tipoRegimen, tipoOperacion, ultimaRetencionProcesada, scriptContext, idLogErrores, url, separadorDecimal, separadorMiles, subsidiaria);
+						if (((isEmpty(errorGeneracionTXT) || (!isEmpty(errorGeneracionTXT) && errorGeneracionTXT.error == true)))) {
+						  if (!isEmpty(url) && !isEmpty(errorGeneracionTXT) && !isEmpty(errorGeneracionTXT.idLog) && !isEmpty(urlLog)) {
+							idLogErrores = errorGeneracionTXT.idLog;
+						  }
+						  errorGeneral = true;
+						  enviarEmail = true;
+						} else {
+						  if (!isEmpty(errorGeneracionTXT) && errorGeneracionTXT.error == false) {
+							existenRetenciones = errorGeneracionTXT.existenRetenciones;
+							// Si no hubo error Genero el TXT
+							if (!isEmpty(errorGeneracionTXT.contenidoTXT)) {
+							  nombreArchivo = "Percepciones_Suf_IVA_Simple_" + nombrePeriodoSeleccionado + "_" + fechaAct.toJSON() + ".csv";
+							  archivoTXT = file.create({
+								name: nombreArchivo,
+								fileType: file.Type.CSV,
+								contents: errorGeneracionTXT.contenidoTXT,
+								folder: idFolderTXT
+							  });
+							  if (!isEmpty(archivoTXT)) {
+								idArchivo = archivoTXT.save();
+							  }
+							}
+							enviarEmail = true;
+						  }
+						}
+						enviarEmail = true;
+						break;
+
+						case 48:
+						// IVA PERCEPCIONES SUFRIDAS											
+						log.debug({
+						  title: "Proceso Generacion TXT Retenciones Sufridas IVA Simple",
+						  details: "Comienzo Proceso"
+						});
+						proceso = "RETENCIONES Sufridas IVA Simple";
+						// Genero TXT IVA PERCEPCIONES
+						errorGeneracionTXT = null;
+						//if (!isEmpty(fechaPeriodoNuevoProcesoRetenciones) && fechaPeriodoNuevoProcesoRetenciones != null && comparacionFechas(fechaPeriodoSeleccionado, fechaPeriodoNuevoProcesoRetenciones) == 1)
+						errorGeneracionTXT = generarTXTRetSufridasIVASimple(periodo, email, tipoRegimen, tipoOperacion, ultimaRetencionProcesada, scriptContext, idLogErrores, url, separadorDecimal, separadorMiles, subsidiaria);
+						if (((isEmpty(errorGeneracionTXT) || (!isEmpty(errorGeneracionTXT) && errorGeneracionTXT.error == true)))) {
+						  if (!isEmpty(url) && !isEmpty(errorGeneracionTXT) && !isEmpty(errorGeneracionTXT.idLog) && !isEmpty(urlLog)) {
+							idLogErrores = errorGeneracionTXT.idLog;
+						  }
+						  errorGeneral = true;
+						  enviarEmail = true;
+						} else {
+						  if (!isEmpty(errorGeneracionTXT) && errorGeneracionTXT.error == false) {
+							existenRetenciones = errorGeneracionTXT.existenRetenciones;
+							// Si no hubo error Genero el TXT
+							if (!isEmpty(errorGeneracionTXT.contenidoTXT)) {
+							  nombreArchivo = "Retenciones_Suf_IVA_Simple_" + nombrePeriodoSeleccionado + "_" + fechaAct.toJSON() + ".csv";
+							  archivoTXT = file.create({
+								name: nombreArchivo,
+								fileType: file.Type.CSV,
+								contents: errorGeneracionTXT.contenidoTXT,
+								folder: idFolderTXT
+							  });
+							  if (!isEmpty(archivoTXT)) {
+								idArchivo = archivoTXT.save();
+							  }
+							}
+							enviarEmail = true;
+						  }
+						}
+						enviarEmail = true;
+						break;
+
+						case 49:
+						// IVA PERCEPCIONES SUFRIDAS											
+						log.debug({
+						  title: "Proceso Generacion TXT Percepciones Aduaneras IVA Simple",
+						  details: "Comienzo Proceso"
+						});
+						proceso = "Percepciones Aduaneras IVA Simple";
+						// Genero TXT IVA PERCEPCIONES
+						errorGeneracionTXT = null;
+						//if (!isEmpty(fechaPeriodoNuevoProcesoRetenciones) && fechaPeriodoNuevoProcesoRetenciones != null && comparacionFechas(fechaPeriodoSeleccionado, fechaPeriodoNuevoProcesoRetenciones) == 1)
+						errorGeneracionTXT = generarTXTPerAduanerasIVASimple(periodo, email, tipoRegimen, tipoOperacion, ultimaRetencionProcesada, scriptContext, idLogErrores, url, separadorDecimal, separadorMiles, subsidiaria);
+						if (((isEmpty(errorGeneracionTXT) || (!isEmpty(errorGeneracionTXT) && errorGeneracionTXT.error == true)))) {
+						  if (!isEmpty(url) && !isEmpty(errorGeneracionTXT) && !isEmpty(errorGeneracionTXT.idLog) && !isEmpty(urlLog)) {
+							idLogErrores = errorGeneracionTXT.idLog;
+						  }
+						  errorGeneral = true;
+						  enviarEmail = true;
+						} else {
+						  if (!isEmpty(errorGeneracionTXT) && errorGeneracionTXT.error == false) {
+							existenRetenciones = errorGeneracionTXT.existenRetenciones;
+							// Si no hubo error Genero el TXT
+							if (!isEmpty(errorGeneracionTXT.contenidoTXT)) {
+							  nombreArchivo = "Percepciones_Adu_IVA_Simple_" + nombrePeriodoSeleccionado + "_" + fechaAct.toJSON() + ".csv";
+							  archivoTXT = file.create({
+								name: nombreArchivo,
+								fileType: file.Type.CSV,
+								contents: errorGeneracionTXT.contenidoTXT,
+								folder: idFolderTXT
+							  });
+							  if (!isEmpty(archivoTXT)) {
+								idArchivo = archivoTXT.save();
+							  }
+							}
+							enviarEmail = true;
+						  }
+						}
+						enviarEmail = true;
+						break;
+
+						case 50:
+						// Retenciones - Régimen Genera y Regímenes Especiales									
+						log.debug({
+						  title: "Proceso Generacion TXT Retenciones - Régimen Genera y Regímenes Especiales",
+						  details: "Comienzo Proceso"
+						});
+						proceso = "Retenciones - Régimen Genera y Regímenes Especiales";
+						// Genero TXT IVA PERCEPCIONES
+						errorGeneracionTXT = null;
+						//if (!isEmpty(fechaPeriodoNuevoProcesoRetenciones) && fechaPeriodoNuevoProcesoRetenciones != null && comparacionFechas(fechaPeriodoSeleccionado, fechaPeriodoNuevoProcesoRetenciones) == 1)
+						errorGeneracionTXT = generarTXTRetRegimenes(periodo, email, tipoRegimen, tipoOperacion, ultimaRetencionProcesada, scriptContext, idLogErrores, url, separadorDecimal, separadorMiles, subsidiaria);
+						if (((isEmpty(errorGeneracionTXT) || (!isEmpty(errorGeneracionTXT) && errorGeneracionTXT.error == true)))) {
+						  if (!isEmpty(url) && !isEmpty(errorGeneracionTXT) && !isEmpty(errorGeneracionTXT.idLog) && !isEmpty(urlLog)) {
+							idLogErrores = errorGeneracionTXT.idLog;
+						  }
+						  errorGeneral = true;
+						  enviarEmail = true;
+						} else {
+						  if (!isEmpty(errorGeneracionTXT) && errorGeneracionTXT.error == false) {
+							existenRetenciones = errorGeneracionTXT.existenRetenciones;
+							// Si no hubo error Genero el TXT
+							if (!isEmpty(errorGeneracionTXT.contenidoTXT)) {
+							  nombreArchivo = "Retenciones_Regimenes" + nombrePeriodoSeleccionado + "_" + fechaAct.toJSON() + ".txt";
+							  archivoTXT = file.create({
+								name: nombreArchivo,
+								fileType: file.Type.PLAINTEXT,
+								contents: errorGeneracionTXT.contenidoTXT,
+								folder: idFolderTXT
+							  });
+							  if (!isEmpty(archivoTXT)) {
+								idArchivo = archivoTXT.save();
+							  }
+							}
+							enviarEmail = true;
+						  }
+						}
+						enviarEmail = true;
+						break;
+						case 51:
+						// Retenciones - Régimen Genera y Regímenes Especiales									
+						log.debug({
+						  title: "Proceso Generacion TXT Retenciones - Régimen Genera y Regímenes Especiales",
+						  details: "Comienzo Proceso"
+						});
+						proceso = "Retenciones - Régimen Genera y Regímenes Especiales";
+						// Genero TXT IVA PERCEPCIONES
+						errorGeneracionTXT = null;
+						//if (!isEmpty(fechaPeriodoNuevoProcesoRetenciones) && fechaPeriodoNuevoProcesoRetenciones != null && comparacionFechas(fechaPeriodoSeleccionado, fechaPeriodoNuevoProcesoRetenciones) == 1)
+						errorGeneracionTXT = generarTXTRetBaja(periodo, email, tipoRegimen, tipoOperacion, ultimaRetencionProcesada, scriptContext, idLogErrores, url, separadorDecimal, separadorMiles, subsidiaria);
+						if (((isEmpty(errorGeneracionTXT) || (!isEmpty(errorGeneracionTXT) && errorGeneracionTXT.error == true)))) {
+						  if (!isEmpty(url) && !isEmpty(errorGeneracionTXT) && !isEmpty(errorGeneracionTXT.idLog) && !isEmpty(urlLog)) {
+							idLogErrores = errorGeneracionTXT.idLog;
+						  }
+						  errorGeneral = true;
+						  enviarEmail = true;
+						} else {
+						  if (!isEmpty(errorGeneracionTXT) && errorGeneracionTXT.error == false) {
+							existenRetenciones = errorGeneracionTXT.existenRetenciones;
+							// Si no hubo error Genero el TXT
+							if (!isEmpty(errorGeneracionTXT.contenidoTXT)) {
+							  nombreArchivo = "Retenciones_Regimenes" + nombrePeriodoSeleccionado + "_" + fechaAct.toJSON() + ".txt";
+							  archivoTXT = file.create({
+								name: nombreArchivo,
+								fileType: file.Type.PLAINTEXT,
+								contents: errorGeneracionTXT.contenidoTXT,
+								folder: idFolderTXT
+							  });
+							  if (!isEmpty(archivoTXT)) {
+								idArchivo = archivoTXT.save();
+							  }
+							}
+							enviarEmail = true;
+						  }
+						}
+						enviarEmail = true;
+						break;
 					  default:
-						log.error({
+					  	log.error({
 						  title: "Proceso Generacion TXT",
 						  details: "Error Generando TXT - Tipo TXT a Generar Invalido"
 						});
@@ -15149,12 +15552,12 @@ define(["N/log", "N/record", "N/search", "N/runtime", "N/file", "N/format", "L54
 			  if (!isEmpty(nombrePeriodoSeleccionado))
 				mensajeError = mensajeError + " para el Periodo " + nombrePeriodoSeleccionado + " ";
 			  if (!isEmpty(periodo) && !isEmpty(periodo.fDesde))
-				mensajeError = mensajeError + " Fecha Desde : " + periodo.fDesde + " ";
+				mensajeError = mensajeError + " Fecha Desde: " + periodo.fDesde + " ";
 			  if (!isEmpty(periodo) && !isEmpty(periodo.fHasta))
-				mensajeError = mensajeError + " Fecha Hasta : " + periodo.fHasta + " ";
+				mensajeError = mensajeError + " Fecha Hasta: " + periodo.fHasta + " ";
 			  let descripcionMensajeFinal = mensajeError;
 			  if (!isEmpty(url) && !isEmpty(idLogErrores))
-				descripcionMensajeFinal = "<html><head></head><body><br>" + mensajeError + "<br> Puede Observar el Detalle de Errores desde el Siguiente link <br> <a href=\"" + url + "/app/common/custom/custrecordentry.nl?rectype=" + urlLog + "&id=" + idLogErrores + "\"> Informacion Proceso </a></body></html>";
+				descripcionMensajeFinal = "<html><head></head><body><br>" + mensajeError + "<br> Puede observar el detalle de errores desde el siguiente link <br> <a href=\"" + url + "/app/common/custom/custrecordentry.nl?rectype=" + urlLog + "&id=" + idLogErrores + "\"> Informacion Proceso </a></body></html>";
 			  if (!isEmpty(email)) {
 				var asunto = "Generación TXT para la cuenta con el CUIT: " + cuitEmpresa;
 				if (!isEmpty(subsidiaria)) {
@@ -15177,9 +15580,9 @@ define(["N/log", "N/record", "N/search", "N/runtime", "N/file", "N/format", "L54
 			  if (!isEmpty(nombrePeriodoSeleccionado))
 				mensajeOK = mensajeOK + " para el Periodo " + nombrePeriodoSeleccionado + " ";
 			  if (!isEmpty(periodo) && !isEmpty(periodo.fDesde))
-				mensajeOK = mensajeOK + " Fecha Desde : " + periodo.fDesde + " ";
+				mensajeOK = mensajeOK + " Fecha Desde: " + periodo.fDesde + " ";
 			  if (!isEmpty(periodo) && !isEmpty(periodo.fHasta))
-				mensajeOK = mensajeOK + " Fecha Hasta : " + periodo.fHasta + " ";
+				mensajeOK = mensajeOK + " Fecha Hasta: " + periodo.fHasta + " ";
 			  mensajeOK = mensajeOK + mensajeOK1 + " <br> " + mensajeAdicional;
 			  if (!isEmpty(email)) {
 				if (!isEmpty(subsidiaria)) {
@@ -19334,40 +19737,70 @@ define(["N/log", "N/record", "N/search", "N/runtime", "N/file", "N/format", "L54
 	  }
    
 	  //[Listo=>Roger]
-	  function numeroConstanciaFinalSIRCAR(objRecord) {
-		const response = { error: false, mensaje: "", numeroConstancia: "" };
+	  function numeroConstanciaFinalSIRCAR(json_TransRef, subsidiaria, periodo) {
 		try {
-		  const nroTipoDocumentoReferencia = "1";
-		  const letraTransaccionReferencia = objRecord.getValue("custbody_l54_letra");
-		  const bocaTransaccionReferencia = objRecord.getValue("custbody_l54_boca");
-		  let bocaTransaccionReferenciaFinal = "";
-		  let letraTransaccionReferenciaFinal = "";
-		  if (!isEmpty(bocaTransaccionReferencia) && !isEmpty(letraTransaccionReferencia)) {
-			letraTransaccionReferenciaFinal = utilidades.getLookupFieldsSafe(search.lookupFields({
-			  type: "customrecord_l54_letra_doc",
-			  id: letraTransaccionReferencia,
-			  columns: ["name"]
-			}), "name");
-			letraTransaccionReferenciaFinal = letraTransaccionReferenciaFinal.toString().substring(0, 1);
-			bocaTransaccionReferenciaFinal = utilidades.getLookupFieldsSafe(search.lookupFields({
-			  type: "customrecord_l54_bocas",
-			  id: bocaTransaccionReferencia,
-			  columns: ["name"]
-			}), "name");
-			bocaTransaccionReferenciaFinal = bocaTransaccionReferenciaFinal.toString().substr(-4);
-			bocaTransaccionReferenciaFinal = padding_left(bocaTransaccionReferenciaFinal, "0", 4);
-			const numeroTransaccionReferencia = !isEmpty(objRecord.getValue("custbody_l54_numero")) ? objRecord.getValue("custbody_l54_numero") : "0";
-			const numeroTransaccionReferenciaFinal = padding_left(numeroTransaccionReferencia, "0", 8);
-			response.numeroConstancia = nroTipoDocumentoReferencia + letraTransaccionReferenciaFinal + bocaTransaccionReferenciaFinal + numeroTransaccionReferenciaFinal;
-		  } else {
-			response.error = true;
-			response.mensaje = "Error consultando el punto de venta y la letra de la transacción de referencia de la nota de crédito con ID INTERNO: ";
-		  }
+			const searchTransRef = search.load({
+				id: "customsearch_l54_per_sircar_trans_ref",
+				type: "transaction" //opc
+			});
+
+			if (!isEmpty(periodo) && !isEmpty(periodo.fDesde) && !isEmpty(periodo.fHasta)) {
+				const filterTrandate = search.createFilter({
+				name: "trandate",
+				operator: search.Operator.WITHIN,
+				values: [periodo.fDesde, periodo.fHasta]
+				});
+				searchTransRef.filters.push(filterTrandate);
+			}
+
+			if (!isEmpty(subsidiaria)) {
+                const filterIdSubsidiaria = search.createFilter({
+                    name: "subsidiary",
+                    operator: search.Operator.ANYOF,
+                    values: subsidiaria
+                });
+                searchTransRef.filters.push(filterIdSubsidiaria);
+            }
+
+			const resultSet = searchTransRef.run();
+			let resultadoTransRef = [];
+			// resultInd points to record starting current "resultado" in the entire results array
+			let resultInd = 0;
+			const resultPaso = 1000; // Number of records returned in one step (maximum is 1000)
+			let resultadoRef; // temporary variable used to store the result set
+			do {
+				// fetch one result set
+				//resultadoRef = resultSet.getResults(resultInd, resultInd + resultPaso);
+				resultadoRef = resultSet.getRange({
+				start: resultInd,
+				end: resultInd + resultPaso
+				});
+				if (!isEmpty(resultadoRef) && resultadoRef.length > 0) {
+				if (resultInd == 0)
+					resultadoTransRef = resultadoRef; //Primera ve inicializa
+				else
+					resultadoTransRef = resultadoTransRef.concat(resultadoRef);
+				}
+				// increase pointer
+				resultInd = resultInd + resultPaso;
+				// Verifico si debo Encolar el Proceso
+				//checkGovernance(1000);
+				// once no records are returned we already got all of them
+			} while (!isEmpty(resultadoRef) && resultadoRef.length > 0);
+
+			if (!isEmpty(resultadoTransRef) && resultadoTransRef.length > 0) {
+				for (var k = 0; k < resultadoTransRef.length; k++) {
+					var col0 = resultadoTransRef[k].getValue({ name: resultSet.columns[0]});
+					var col1 = resultadoTransRef[k].getValue({ name: resultSet.columns[1]});					
+					json_TransRef[col0] = col1;
+					
+				}
+			} else {
+				log.error("Search Percepciones - SIRCAR - Transacciones Referencias", "No hay registros");
+			}
 		} catch (error) {
-		  response.error = true;
-		  response.mensaje = "Error Excepción NetSuite - Detalles: " + error.message;
+			log.error("Error de Netsuite", error.message)
 		}
-		return response;
 	  }
   
 	  function generarTxtPercepSircreb(periodo, email, tipoRegimen, tipoOperacion, ultimaRetencionProcesada, context, idLogErrores, url, separadorDecimal, separadorMiles, subsidiaria) {
@@ -19921,7 +20354,7 @@ define(["N/log", "N/record", "N/search", "N/runtime", "N/file", "N/format", "L54
 		  //////////////
 	  
 		  var search = search.load({
-			  id: "customsearch_l54_ret_sicore",
+			  id: "customsearch_l54_retenciones_tissh_txt",
 			  type: "customrecord_l54_retencion"
 			});
 		  search_.filters.push(...filtro);
@@ -20099,6 +20532,2457 @@ define(["N/log", "N/record", "N/search", "N/runtime", "N/file", "N/format", "L54
 	  
 		retencionSIPRET.contenidoTXT = contenidoTXT;
 		return retencionSIPRET;
+	  }
+	  function generarTxtCombLiq(periodo, email, tipoRegimen, tipoOperacion, ultimaRetencionProcesada, context, idLogErrores, url, separadorDecimal, separadorMiles, subsidiaria){
+		log.debug('generarTxtCombLiq', 'Proceso Generacion TXT' + ' Inicio - Generacion TXT PERC COMB LIQ');
+		var procesoEncolado = false;
+		var idRegistroLOG = idLogErrores;
+		var errorGlobal = false;
+		var errorGeneral = false;
+		var existenPercepciones = false;
+		const mensajeError = "Error Generando TXT de Percepciones";
+		var descripcionError = "";
+		var tipoComprobanteNS = "";
+		var contenidoTXT = "";
+		var refComprobante = "";
+	  
+		try {
+		  var percepcionesCL = new Object();
+		  var resultadoTXTPercepcionesCL = savedSearchUtility("trandate", periodo, "subsidiary", subsidiaria, "transaction", "customsearch_l54_comb_liq").resultados;
+	  
+		  if (!isEmpty(resultadoTXTPercepcionesCL)) {
+			log.debug('generarTXT_CL - Percepciones', 'Cantidad Percepciones:' + resultadoTXTPercepcionesCL.length);
+			var columns = resultadoTXTPercepcionesCL[0].columns;
+			var vendorListAux = resultadoTXTPercepcionesCL.map((line) => {return line.getValue(columns[11])})
+			var vendorList = vendorListAux.reduce((list, line) => { if (!list.includes(line)) list.push(line); return list; }, [])
+			log.audit('vendorList',vendorList)
+			var zonaImpJson = getZonaImpuestos(vendorList);
+	  
+			for (i = 0; i < resultadoTXTPercepcionesCL.length; i++) {
+			  existenPercepciones = true;
+			  errorGlobal = false;
+			  descripcionError = "";
+			  var tipoAgente = resultadoTXTPercepcionesCL[i].getValue(columns[2]);
+			  var denomProv = resultadoTXTPercepcionesCL[i].getValue(columns[3]).replace(/(?:\r\n|\r|\n)/g, "");
+			  var cuitProv = resultadoTXTPercepcionesCL[i].getValue(columns[4]).replace(/-|\./g, "");
+			  var caractProv = resultadoTXTPercepcionesCL[i].getValue(columns[5]);
+			  var tipoComprobante = resultadoTXTPercepcionesCL[i].getValue(columns[6]);
+			  var numComprobante = resultadoTXTPercepcionesCL[i].getValue(columns[7]);
+			  var fechaComprobante = resultadoTXTPercepcionesCL[i].getValue(columns[8]);
+			  var denomTransport =  resultadoTXTPercepcionesCL[i].getValue(columns[9]) || denomProv;
+			  var cuitTransport =  resultadoTXTPercepcionesCL[i].getValue(columns[10]) || cuitProv;
+			  var proviProv = resultadoTXTPercepcionesCL[i].getValue(columns[11]); 
+			  var precioCompra = Math.abs(resultadoTXTPercepcionesCL[i].getValue(columns[12]));
+		  
+			  denomProv = padding_right(denomProv, " ", 80);
+			  denomTransport = padding_right(denomTransport, " ", 80);
+			  precioCompra = padding_left(parseFloat(precioCompra).toFixed(2).formatMoney(2, separadorMiles, separadorDecimal), "0", 18)
+			  proviProv = zonaImpJson[proviProv];
+  
+			  
+			  if(isEmpty(tipoAgente)){
+				errorGlobal = true;
+				descripcionError = "Error Obteniendo el Tipo de Agente";
+			  }else if(isEmpty(denomProv)){
+				errorGlobal = true;
+				descripcionError = "Error Obteniendo la Denominación de Proveedor";
+			  }else if(isEmpty(cuitProv)){
+				errorGlobal = true;
+				descripcionError = "Error Obteniendo el CUIT del Proveedor";
+			  }else if(isEmpty(caractProv)){
+				errorGlobal = true;
+				descripcionError = "Error Obteniendo el Carácter del Proveedor";
+			  }else if(isEmpty(tipoComprobante)){
+				errorGlobal = true;
+				descripcionError = "Error Obteniendo el Tipo de Comprobante";
+			  }else if(isEmpty(numComprobante)){
+				errorGlobal = true;
+				descripcionError = "Error Obteniendo el Número de Comprobante";
+			  }else if(isEmpty(fechaComprobante)){
+				errorGlobal = true;
+				descripcionError = "Error Obteniendo la Fecha de Comprobante";
+			  }else if(isEmpty(denomTransport)){
+				errorGlobal = true;
+				descripcionError = "Error Obteniendo la denominación del Transportista";
+			  }else if(isEmpty(cuitTransport)){
+				errorGlobal = true;
+				descripcionError = "Error Obteniendo el CUIT del Transportista";
+			  }else if(isEmpty(proviProv)){
+				errorGlobal = true;
+				descripcionError = "Error Obteniendo la Provincia del Proveedor";
+			  }else if(isEmpty(precioCompra)){
+				errorGlobal = true;
+				descripcionError = "Error Obteniendo el Precio de Compra";
+			  }else{
+				percepcionesCL = {tipoAgente,denomProv,cuitProv,caractProv,tipoComprobante,numComprobante,fechaComprobante,denomTransport,cuitTransport,proviProv,precioCompra}
+			  }
+  
+			  if (!errorGlobal) {
+				// Genero Contenido
+				if(!isEmpty(percepcionesCL)){
+				  // Genero Contenido
+				  if (!isEmpty(contenidoTXT)) {
+					contenidoTXT += "\r\n";
+				  }
+				  var descripcionMensaje = "TXT Percepciones Generado Correctamente";
+				  contenidoTXT += tipoAgente + ';' + denomProv + ';' + cuitProv + ';' + caractProv + ';' + tipoComprobante + ';' + numComprobante + ';' + fechaComprobante + ';' + denomTransport + ';' + cuitTransport + ';' + proviProv + ';' + precioCompra + ';' ;
+				} else {
+				  errorGeneral = true;
+				  descripcionError = "Error Obteniendo informacion de la Percepcion";
+				  idRegistroLOG = grabarLogError('EST-LOG-ERROR', periodo, tipoOperacion, tipoRegimen, idRegistroLOG, 'Error Generando TXT Percepciones - Error : ' + descripcionError, null, null, subsidiaria);
+				}
+			  } else {
+				// Grabo el Error en NetSuite
+				errorGeneral = true;
+				log.error('Proceso Generacion TXT', descripcionError);
+				log.error('Proceso Generacion TXT', 'Error Generando TXT Percepciones CL'); 
+				idRegistroLOG = grabarLogError('EST-LOG-ERROR', periodo, tipoOperacion, tipoRegimen, idRegistroLOG, 'Error Generando TXT Percepciones - Error : ' + descripcionError, null,null, subsidiaria);
+			  }
+	  
+			  // Verifico si debo Encolar el Proceso
+			  //checkGovernance(1000);
+			}
+			if (errorGeneral == false) {
+	  
+			  if (existenPercepciones == false) {
+	  
+				if (!isEmpty(resultadoTXTPercepcionesCL) && resultadoTXTPercepcionesCL.length == 0) {
+				  // No se Encontraron Percepciones para el Periodo
+				  idRegistroLOG = grabarLogError('EST-LOG-OK', periodo, tipoOperacion, tipoRegimen, idRegistroLOG, 'Generacion de TXT de Percepciones CL Correcta - No se Encontraron Percepciones', null, null, subsidiaria);
+	  
+				} else {
+				  // Error Obteniendo Percepciones
+				  errorGeneral = true;
+				  log.error('Proceso Generacion TXT', 'Error Generando TXT Percepciones CL');
+				  idRegistroLOG = grabarLogError('EST-LOG-ERROR', periodo, tipoOperacion, tipoRegimen, idRegistroLOG, 'Error Generando TXT Percepciones - Error : Error Obteniendo Percepciones', null, null, subsidiaria);
+				}
+			  }
+			}
+		  } else {
+			log.debug('generarTxtPercepCL', 'No se encontraron Percepciones');
+		  }
+		  if (!isEmpty(contenidoTXT)) {
+			contenidoTXT += "\r\n";
+		  }
+	  
+		} catch (e) {
+		  log.error('Proceso Generacion TXT', 'Error Generando TXT Percepciones CL' + e.message);
+		  errorGeneral = true;
+		  descripcionError = "Error Generando TXT Percepciones CL - Error : " + e.message;
+		  idRegistroLOG = grabarLogError('EST-LOG-ERROR', periodo, tipoOperacion, tipoRegimen, idRegistroLOG, descripcionError, null,null, subsidiaria);
+		}
+	  
+		if (errorGeneral == true) {
+		  percepcionesCL = grabarError(true, 'Error Generando TXT de Percepciones CL', existenPercepciones, procesoEncolado, idRegistroLOG);
+		} else {
+		  percepcionesCL = grabarError(false, 'Generacion de TXT de Percepciones CL Correcta', existenPercepciones, procesoEncolado, idRegistroLOG);
+		  if (procesoEncolado == false) {
+			if (existenPercepciones == true)
+			  idRegistroLOG = grabarLogError('EST-LOG-OK', periodo, tipoOperacion, tipoRegimen, idRegistroLOG, 'TXT Percepciones Generadas Correctamente', null, null, subsidiaria);
+		  }
+		}
+	  
+		log.debug('Proceso Generacion TXT - CL', 'Finalizacion - Generación TXT CL Percepciones');
+	  
+		percepcionesCL.contenidoTXT = contenidoTXT;
+		return percepcionesCL;
+	  }
+	  function generarTXTArbaPercBanDeveng(periodo, email, tipoRegimen, tipoOperacion, ultimaRetencionProcesada, context, idLogErrores, url, separadorDecimal, separadorMiles, subsidiaria) {
+   
+		log.debug('Proceso Generacion TXT', 'Inicio - Generacion TXT ARBA Percepciones - - Método Devengado');
+		var procesoEncolado = false;
+		var idRegistroLOG = idLogErrores;
+		var errorGlobal = false;
+		var errorGeneral = false;
+		var existenPercepciones = false;
+		var mensajeError = "Error generando TXT de Percepciones ARBA - Método Devengado";
+		var descripcionError = "";
+		var tipoComprobanteNS = "";
+		var marcaGenerarTXT = true;
+		var errorParcial = false;
+		var contenidoTXT = "";
+	  
+		try {
+		  var percepcionARBA = new Object();
+		  percepcionARBA.retencion = new Object();
+		  percepcionARBA.sujeto = new Object();
+		  percepcionARBA.existenRetenciones = false;
+		  percepcionARBA.error = false;
+		  percepcionARBA.descripcionError = "";
+		  percepcionARBA.procesoEncolado = false;
+		  percepcionARBA.idLog = idRegistroLOG;
+		  percepcionARBA.retencion.importeRetencion = 0;
+		  percepcionARBA.contenidoTXT = "";
+	  
+		  // Grabo Registro de TXT
+		  var estadoGeneracionTXT = null;
+	  
+		  var filtro = new Array();
+		  var i = 0;
+   
+		  if (!isEmpty(periodo) && !isEmpty(periodo.fDesde) && !isEmpty(periodo.fHasta)) {
+			//filtro[i++] = new nlobjSearchFilter('trandate', null, 'within', periodo.fDesde, periodo.fHasta);
+			filtro[i++] = search.createFilter({
+			  name: "trandate",
+			  operator: search.Operator.WITHIN,
+			  values: [periodo.fDesde, periodo.fHasta]
+			});
+		  }
+   
+		  if (!isEmpty(subsidiaria)){
+			//filtro[i++] = new nlobjSearchFilter('subsidiary', null, 'is', subsidiaria);
+			filtro[i++] = search.createFilter({
+			  name: "subsidiary",
+			  operator: search.Operator.IS,
+			  values: subsidiaria
+			});
+		  }
+		   
+		  const search1 = search.load({
+			id: "customsearch_l54_per_arba",
+			type: "transaction"
+		  });
+		  search1.filters.push(...filtro);
+		  const searchResults = search1.run();
+		  let completeResultSet = [];
+		  // resultIndex points to record starting current "resultado" in the entire results array
+		  let resultIndex = 0;
+		  const resultStep = 1000; // Number of records returned in one step (maximum is 1000)
+		  let resultado; // temporary variable used to store the result set
+		  do {
+			// fetch one result set
+			//resultado = searchResults.getResults(resultIndex, resultIndex + resultStep);
+			resultado = searchResults.getRange({
+			  start: resultIndex,
+			  end: resultIndex + resultStep
+			});
+			if (!isEmpty(resultado) && resultado.length > 0) {
+			  if (resultIndex == 0)
+				completeResultSet = resultado; //Primera ve inicializa
+			  else
+				completeResultSet = completeResultSet.concat(resultado);
+			  //nlapiLogExecution('DEBUG', 'generarTXT_ARBA_per', 'resultIndex:' + resultIndex + ',resultado.length:' + resultado.length);
+			  log.debug({
+				title: "generarTXT_ARBA_per_Devengado",
+				details: "resultIndex:" + resultIndex + ", resultado.length: " + resultado.length
+			  });
+			}
+			// increase pointer
+			resultIndex = resultIndex + resultStep;
+			// Verifico si debo Encolar el Proceso
+			//checkGovernance(1000);
+			// once no records are returned we already got all of them
+		  } while (!isEmpty(resultado) && resultado.length > 0);
+   
+	  
+		  if (!isEmpty(completeResultSet)) {
+			log.debug('generarTXT_ARBA - Percepciones - Método Devengado', 'Cantidad Percepciones:' + completeResultSet.length);
+	  
+			for (i = 0; i < completeResultSet.length; i++) {
+			  percepcionARBA.percepcion = new Object();
+			  percepcionARBA.sujeto = new Object();
+			  const resultadoTXTPercepcionesARBA = completeResultSet[i];
+			  const columns = resultadoTXTPercepcionesARBA.columns;
+			  ///////////////////////////////////////////////////////////////////////////////////////////////
+	  
+			  //Armo TXT
+	  
+			  /*
+			  Cuit contribuyente Percibido
+			  Fecha Percepcion
+			  Tipo Comprobante
+			  Letra Comprobante
+			  Numero Sucursal
+			  Numero Emisión
+			  Monto Imponible
+			  Importe de Percepcion
+			  Tipo Operación
+			   */
+	  
+			  existenPercepciones = true;
+			  errorGlobal = false;
+			  descripcionError = "";
+			  var idPercepcionNetSuite = null; // En Percepciones No Hay Referencia a la Tabla Retenciones
+			  var refComprobante = resultadoTXTPercepcionesARBA.getValue({
+				name: "internalid",
+				summary: search.Summary.GROUP
+			  });
+			  if (!isEmpty(refComprobante)) {
+				let nroDocumento = resultadoTXTPercepcionesARBA.getValue({
+				  name: "custbody_54_cuit_entity",
+				  summary: search.Summary.MAX
+				});
+				if (!isEmpty(nroDocumento)) {
+				  // Formateo el Documento
+				  nroDocumento = nroDocumento.replace(/-/g, '');
+				  nroDocumento = nroDocumento.replace(/\./g, '');
+				  // Elimino Blancos
+				  nroDocumento = nroDocumento.replace(/ /g, '&nbsp');
+				  if (!isEmpty(nroDocumento) && nroDocumento.length == 11) {
+					// Formateo el Documento con el Formato Solicitado por ARBA
+					var numeroDocumentoFinal = nroDocumento.substring(0, 2) + '-' + nroDocumento.substring(2, 10) + '-' + nroDocumento.substring(10, 11);
+					percepcionARBA.sujeto.numeroDocSujeto = padding_right(numeroDocumentoFinal, " ", 11);
+					// Obtengo la Fecha de Retencion
+					var fechaPercepcion = resultadoTXTPercepcionesARBA.getValue({
+					  name: "trandate",
+					  summary: search.Summary.GROUP
+					});
+					if (!isEmpty(fechaPercepcion)) {
+					  // Formateo la Fecha
+					  var fechaPercepcionDate = format.parse({
+						value: fechaPercepcion,
+						type: format.Type.DATE
+					  });
+					  if (!isEmpty(fechaPercepcionDate)) {
+						// Obtengo las Componentes de la Fecha
+						var diaPercepcion = fechaPercepcionDate.getDate();
+						var mesPercepcion = parseInt(fechaPercepcionDate.getMonth(), 10) + parseInt(1, 10);
+						var anioPercepcion = fechaPercepcionDate.getFullYear();
+						var fechaPercepcionFinal = padding_left(diaPercepcion, '0', 2) + "/" + padding_left(mesPercepcion, '0', 2) + "/" + anioPercepcion;
+						percepcionARBA.percepcion.fechaPercepcion = fechaPercepcionFinal;
+						// Obtengo el Tipo de Comprobante
+						var codigoComprobante = obtenerCodigoComprobante(refComprobante, 'arba', subsidiaria);
+						if (!isEmpty(codigoComprobante)) {
+							// Obtengo el Tipo de Cambio
+							const tipoCambio = resultadoTXTPercepcionesARBA.getValue({
+							name: "exchangerate",
+							summary: search.Summary.GROUP
+							});
+							if (!isEmpty(tipoCambio)) {
+
+								// Obtengo el Importe de la Percepcion
+								// var importePercepcion = resultadoTXTPercepcionesARBA.getValue('taxamount', null, 'sum');
+								var importePercepcion = resultadoTXTPercepcionesARBA.getValue(columns[19]);
+								/* var cantDecImportePercepcion = countDecimales(importePercepcion);
+								var cantDecTipoCambio = countDecimales(tipoCambio);
+								var cantidadDecimalesFinal = cantDecImportePercepcion + cantDecTipoCambio;
+								var importePercepcionFinal = parseFloat((parseFloat(parseFloat(convertToInteger(importePercepcion), 10) * parseFloat(convertToInteger(tipoCambio), 10), 10) / Math.pow(10, cantidadDecimalesFinal)), 10); */
+								if (!isEmpty(importePercepcion) && !isNaN(importePercepcion) && ((codigoComprobante != 'C' && (parseFloat(importePercepcion, 10) > 0.00)) || ((codigoComprobante == 'C' || codigoComprobante == 'H') && (Math.abs(parseFloat(importePercepcion, 10)) >= 0.00)))) {
+									// Genero el Absoluto
+									importePercepcionFinal = Math.abs(importePercepcion);
+									// Si es Nota de Credito, Va en Negativo
+									var longitudImporte = 11;
+									var caracterRelleno = '';
+									if (codigoComprobante == 'C' || codigoComprobante == 'H') {
+									longitudImporte = parseInt(longitudImporte, 10) - parseInt(1, 10);
+									caracterRelleno = '-';
+									}
+									// percepcionARBA.percepcion.importePercepcion = caracterRelleno + padding_left(parseFloat(parseFloat(importePercepcion, 10) * parseFloat(1, 10), 10).toFixed(2).formatMoney(2, separadorMiles, separadorDecimal), '0', longitudImporte);
+									// percepcionARBA.percepcion.importePercepcion = caracterRelleno + padding_left(parseFloat(numberTruncTwoDec(parseFloat(importePercepcionFinal, 10)), 10).formatMoney(2, separadorMiles, separadorDecimal), '0', longitudImporte);
+									percepcionARBA.percepcion.importePercepcion = caracterRelleno + padding_left(parseFloat(importePercepcion, 10).formatMoney(2, separadorMiles, separadorDecimal), '0', longitudImporte);
+									// Obtengo el Monto Imponible de Percepcion
+									//var montoImponible = resultadoTXTPercepcionesARBA.getValue('custcol_l54_monto_imp_perc', null, 'sum');
+									var montoImponible = resultadoTXTPercepcionesARBA.getValue(columns[17]);
+									/* if (isEmpty(montoImponible) || montoImponible <= 0) {
+									var montoImponible = resultadoTXTPercepcionesARBA.getValue(columns[16]);
+									} */
+
+									if (!isEmpty(montoImponible) && !isNaN(montoImponible) && ((codigoComprobante != 'C' && (parseFloat(montoImponible, 10) > 0.00)) || ((codigoComprobante == 'C' || codigoComprobante == 'H') && (Math.abs(parseFloat(montoImponible, 10)) >= 0.00)))) {
+									// Genero el Absoluto
+									montoImponible = Math.abs(montoImponible);
+									// Si es Nota de Credito, Va en Negativo
+									var longitudMontoImponible = 12;
+									var caracterRellenoMontoImp = '';
+									if (codigoComprobante == 'C' || codigoComprobante == 'H') {
+										longitudMontoImponible = parseInt(longitudMontoImponible, 10) - parseInt(1, 10);
+										caracterRellenoMontoImp = '-';
+									}
+									percepcionARBA.percepcion.montoImponible = caracterRellenoMontoImp + padding_left(parseFloat(montoImponible, 10).formatMoney(2, separadorMiles, separadorDecimal), '0', longitudMontoImponible);
+									log.debug("percepcionARBA.percepcion.montoImponible", percepcionARBA.percepcion.montoImponible)
+									// Obtengo el Tipo de Operacion
+									const tipoOperacionPer = resultadoTXTPercepcionesARBA.getValue({
+										name: "formulatext",
+										summary: search.Summary.GROUP
+									});
+									if (!isEmpty(tipoOperacionPer) && tipoOperacionPer.length == 1) {
+										percepcionARBA.percepcion.tipoOperacionPer = tipoOperacionPer;
+									} else {
+										errorGlobal = true;
+										descripcionError = "Error Obteniendo el Tipo de Operacion";
+									}
+									} else {
+									errorGlobal = true;
+									descripcionError = "El Monto Imponible es Invalido";
+									}
+								} else {
+									errorGlobal = true;
+									descripcionError = "El Importe de Percepcion es Invalido";
+								}
+							} else {
+							errorGlobal = true;
+							descripcionError = "Error Obteniendo Tipo de Cambio de la Percepcion";
+							}
+						} else {
+						  errorGlobal = true;
+						  descripcionError = "Error Obteniendo el Codigo de Comprobante";
+						}
+					  } else {
+						errorGlobal = true;
+						descripcionError = "Error Formateando la Fecha de Percepcion";
+					  }
+					} else {
+					  errorGlobal = true;
+					  descripcionError = "Error Obteniendo Fecha De Percepcion";
+					}
+				  } else {
+					errorGlobal = true;
+					descripcionError = "Numero de Documento del Cliente Invalido";
+				  }
+				} else {
+				  errorGlobal = true;
+				  descripcionError = "Error Obteniendo Numero de Documento del Cliente";
+				}
+			  } else {
+				errorGlobal = true;
+				descripcionError = "Error Obteniendo el Comprobante que Origino la Percepcion";
+			  }
+	  
+			  // Genero el Contenido
+			  if (errorGlobal == false) {
+	  
+				if (percepcionARBA.percepcion != null) {
+	  
+				  // Genero Contenido
+				  if (!isEmpty(contenidoTXT)) {
+					contenidoTXT += "\r\n";
+				  }
+				  var error = false;
+				  var descripcionMensaje = "TXT Percepciones Generado Correctamente"; // aca
+				  contenidoTXT += percepcionARBA.sujeto.numeroDocSujeto + percepcionARBA.percepcion.montoImponible + percepcionARBA.percepcion.importePercepcion + 
+				  percepcionARBA.percepcion.fechaPercepcion + percepcionARBA.percepcion.tipoOperacionPer;
+	  
+				  // Grabo Registro de TXT
+				  /*var estadoGeneracionTXT = null;
+	  
+				  estadoGeneracionTXT = generarTXT(periodo, tipoOperacion, tipoRegimen, contenidoTXT, idRegistroLOG, idPercepcionNetSuite);
+	  
+				  if (isEmpty(estadoGeneracionTXT) || !isEmpty(estadoGeneracionTXT) && estadoGeneracionTXT.errorGeneracion == true) {
+				  // Error generando TXT
+				  error = true;
+				  descripcionMensaje = "Error generando TXT Percepciones";
+				  if (isEmpty(estadoGeneracionTXT))
+				  descripcionMensaje = estadoGeneracionTXT.descripcionError;
+				  errorGeneral = true;
+				  descripcionError = descripcionMensaje;
+				  idRegistroLOG = grabarLogError('EST-LOG-ERROR', periodo, tipoOperacion, tipoRegimen, idRegistroLOG, 'Error generando TXT Percepciones - Error : ' + descripcionError, idPercepcionNetSuite, refComprobante, subsidiaria);
+				  }*/
+	  
+				} else {
+				  errorGeneral = true;
+				  descripcionError = "Error Obteniendo informacion de la Percepcion - Método Devengado";
+				  idRegistroLOG = grabarLogError('EST-LOG-ERROR', periodo, tipoOperacion, tipoRegimen, idRegistroLOG, 'Error generando TXT Percepciones - Método Devengado - Error : ' + descripcionError, idPercepcionNetSuite, refComprobante, subsidiaria);
+				}
+	  
+			  } else {
+				// Error Obteniendo Informacion de Percepciones
+				// Grabo el Error en NetSuite
+				errorGeneral = true;
+				log.error('Proceso Generacion TXT', 'Error generando TXT Percepciones ARCIBA - Método Devengado' + descripcionError);
+				idRegistroLOG = grabarLogError('EST-LOG-ERROR', periodo, tipoOperacion, tipoRegimen, idRegistroLOG, 'Error generando TXT Percepciones - Método Devengado - Error : ' + descripcionError, idPercepcionNetSuite, refComprobante, subsidiaria);
+			  }
+	  
+			  // Verifico si debo Encolar el Proceso
+			  //checkGovernance(1000);
+			}
+			if (errorGeneral == false) {
+	  
+			  if (existenPercepciones == false) {
+	  
+				if (!isEmpty(completeResultSet) && completeResultSet.length == 0) {
+				  // No se Encontraron Percepciones para el Periodo
+				  idRegistroLOG = grabarLogError('EST-LOG-OK', periodo, tipoOperacion, tipoRegimen, idRegistroLOG, 'Generacion de TXT de Percepciones Correcta - No se Encontraron Percepciones', idPercepcionNetSuite, refComprobante, subsidiaria);
+	  
+				} else {
+				  // Error Obteniendo Percepciones
+				  errorGeneral = true;
+				  log.error('Proceso Generacion TXT', 'Error Obteniendo Percepciones ARBA - Método Devengado');
+				  idRegistroLOG = grabarLogError('EST-LOG-ERROR', periodo, tipoOperacion, tipoRegimen, idRegistroLOG, 'Error generando TXT Percepciones - Error : Error Obteniendo Percepciones', idPercepcionNetSuite, refComprobante, subsidiaria);
+				}
+			  }
+			}
+		  }
+	  
+		  if (!isEmpty(contenidoTXT)) {
+			contenidoTXT += "\r\n";
+		  }
+	  
+		} catch (e) {
+		  log.error('Proceso Generacion TXT', 'Error generando TXT ARBA - Método Devengado - Error : ' + e.message);
+		  errorGeneral = true;
+		  descripcionError = "Error generando TXT ARBA - Error : " + e.message;
+		  idRegistroLOG = grabarLogError('EST-LOG-ERROR', periodo, tipoOperacion, tipoRegimen, idRegistroLOG, descripcionError, idPercepcionNetSuite, refComprobante, subsidiaria);
+		}
+	  
+		if (errorGeneral == true) {
+		  percepcionARBA = grabarError(true, 'Error generando TXT de Percepciones - ARBA - Método Devengado', existenPercepciones, procesoEncolado, idRegistroLOG);
+		} else {
+		  percepcionARBA = grabarError(false, 'Generacion de TXT de Percepciones Correcta - ARBA - Método Devengado' , existenPercepciones, procesoEncolado, idRegistroLOG);
+		  if (procesoEncolado == false) {
+			if (existenPercepciones == true)
+			  idRegistroLOG = grabarLogError('EST-LOG-OK', periodo, tipoOperacion, tipoRegimen, idRegistroLOG, 'TXT Percepciones Generadas Correctamente - ARBA - Método Devengado', null, null, subsidiaria);
+		  }
+		}
+	  
+		log.debug('Proceso Generacion TXT - ARBA', 'Finalizacion - Generacion TXT ARBA Percepciones - Método Devengado');
+	  
+		percepcionARBA.contenidoTXT = contenidoTXT;
+		return percepcionARBA;
+	  }
+	  function getZonaImpuestos(vendorList){
+		try{
+		  if(vendorList.length === 0){
+			return {}
+		  }
+		  let zonaImpJson = {}
+		  let customrecord_l54_zona_impuestosSearchObj = search.create({
+			type: "customrecord_l54_zona_impuestos",
+			filters:
+			[
+			],
+			columns:
+			[
+			  search.createColumn({name: "internalid", label: "Internal ID"}),
+			  search.createColumn({name: "custrecord_l54_zona_impuestos_cl", label: "Código Combustibles Líquidos"}),
+			  search.createColumn({name: "name", label: "Name"})
+			]
+		  });
+		  
+		  let resultadoZonaImpuesto = customrecord_l54_zona_impuestosSearchObj.run().getRange({
+			start: 0,
+			end: 100
+		  });
+		  if(resultadoZonaImpuesto.length >0){
+			const columns = resultadoZonaImpuesto[i].columns;
+			for (let i = 0; i < resultadoZonaImpuesto.length; i++) {
+			  let idZonaImp = resultadoZonaImpuesto[i].getValue('internalid');
+			  let codeZonaImp = resultadoZonaImpuesto[i].getValue('custrecord_l54_zona_impuestos_cl');
+			  zonaImpJson[idZonaImp] = codeZonaImp
+			}
+  
+		  }
+		  log.audit('zonaImpJson',zonaImpJson)
+		  //VENDOR MATCH
+		  let vendorZonaImpJson = {}
+		  let vendorSearchObj = search.create({
+			type: "vendor",
+			filters:
+			[
+			  ["isdefaultbilling","is","T"], 
+			  "AND", 
+			  ["internalid","anyof",vendorList], 
+			  "AND", 
+			  ["billingaddress.custrecord_l54_jurisdiccion","noneof","@NONE@"]
+			],
+			columns:
+			[
+			  search.createColumn({name: "internalid", label: "Internal ID"}),
+			  search.createColumn({ name: "custrecord_l54_jurisdiccion", join: "billingAddress", label: "AR - Jurisdicción"})
+			]
+		  });
+		  let resultadoVendor = vendorSearchObj.run().getRange({
+			start: 0,
+			end: 1000
+		  });
+		  for (let i = 0; i < resultadoVendor.length; i++) {
+			let vendorId = resultadoVendor[i].getValue('internalid');
+			let idZonaImp = resultadoVendor[i].getValue({ name: "custrecord_l54_jurisdiccion", join: "billingAddress"});
+			vendorZonaImpJson[vendorId] = zonaImpJson[idZonaImp] || '';
+		  }
+		  log.audit('vendorZonaImpJson',vendorZonaImpJson)
+		  
+		  return vendorZonaImpJson;
+		}catch(e){
+		  log.error('getZonaImpuestos', 'Error generando TXT Percepciones CL' + e.message);
+		  return {};
+		}
+	  }
+
+	  function generarTXTPerSufridasIVASimple(periodo, email, tipoRegimen, tipoOperacion, ultimapercepcionProcesada, context, idLogErrores, url, separadorDecimal, separadorMiles, subsidiaria) {
+		//nlapiLogExecution('DEBUG', 'Proceso Generacion TXT', 'Inicio - Generacion TXT IVA Percepciones Sufridas');
+		log.debug({
+		  title: "Proceso Generacion TXT",
+		  details: "Inicio - Generacion TXT Percepciones Sufridas IVA Simple"
+		});
+		let idRegistroLOG = idLogErrores;
+		let errorGlobal = false;
+		let errorGeneral = false;
+		let existenPercepciones = false;
+		const mensajeError = "Error Generando TXT de Percepciones Sufridas IVA Simple";
+		let descripcionError = "";
+		const tipoComprobanteNS = "";
+		let contenidoTXT = "";
+		const procesoEncolado = false;
+		try {
+		  var percepcionIVA = {};
+		  percepcionIVA.percepcion = {};
+		  percepcionIVA.sujeto = {};
+		  percepcionIVA.existenPercepciones = false;
+		  percepcionIVA.error = false;
+		  percepcionIVA.descripcionError = "";
+		  percepcionIVA.procesoEncolado = false;
+		  percepcionIVA.idLog = idRegistroLOG;
+		  percepcionIVA.percepcion.importePercepcion = 0;
+		  percepcionIVA.contenidoTXT = "";
+		  // Obtengo la Informacion usando un SavedSearch
+		  let iCont = 0;
+		  const filtroTXTpercepcionesIVA = [];
+		  //filtroTXTpercepcionesSIFERE[iCont++] = new nlobjSearchFilter('postingperiod', null, 'is', periodo);
+		  if (!isEmpty(periodo) && !isEmpty(periodo.fDesde) && !isEmpty(periodo.fHasta)) {
+			//filtroTXTpercepcionesIVA[iCont++] = new nlobjSearchFilter('trandate', null, 'within', periodo.fDesde, periodo.fHasta);
+			filtroTXTpercepcionesIVA[iCont++] = search.createFilter({
+			  name: "trandate",
+			  operator: search.Operator.WITHIN,
+			  values: [periodo.fDesde, periodo.fHasta]
+			});
+		  }
+		  if (!isEmpty(subsidiaria))
+			//filtroTXTpercepcionesIVA[iCont++] = new nlobjSearchFilter('subsidiary', null, 'is', subsidiaria);
+			filtroTXTpercepcionesIVA[iCont++] = search.createFilter({
+			  name: "subsidiary",
+			  operator: search.Operator.IS,
+			  values: subsidiaria
+			});
+		  //
+		  //var search = new nlapiLoadSearch('transaction', 'customsearch_l54_per_iva');
+		  const search1 = search.load({
+			id: "customsearch_l54_per_iva_simple",
+			type: "transaction" //opc
+		  });
+		  search1.filters.push(...filtroTXTpercepcionesIVA);
+		  const searchResults = search1.run();
+		  let resultadoTXTpercepcionesIVA = [];
+		  // resultIndex points to record starting current "resultado" in the entire results array
+		  let resultIndex = 0;
+		  const resultStep = 1000; // Number of records returned in one step (maximum is 1000)
+		  let resultado; // temporary variable used to store the result set
+		  do {
+			// fetch one result set
+			//resultado = searchResults.getResults(resultIndex, resultIndex + resultStep);
+			resultado = searchResults.getRange({
+			  start: resultIndex,
+			  end: resultIndex + resultStep
+			});
+			if (!isEmpty(resultado) && resultado.length > 0) {
+			  if (resultIndex == 0)
+				resultadoTXTpercepcionesIVA = resultado; //Primera ve inicializa
+			  else
+				resultadoTXTpercepcionesIVA = resultadoTXTpercepcionesIVA.concat(resultado);
+			  //nlapiLogExecution('DEBUG', 'generarTXT_IVA_per', 'resultIndex:' + resultIndex + ',resultado.length:' + resultado.length);
+			  log.debug({
+				title: "generarTXT_per_sufrida_IVA_Simple",
+				details: "resultIndex: " + resultIndex + ", resultado.length: " + resultado.length
+			  });
+			}
+			// increase pointer
+			resultIndex = resultIndex + resultStep;
+			// Verifico si debo Encolar el Proceso
+			//checkGovernance(1000);
+			// once no records are returned we already got all of them
+		  } while (!isEmpty(resultado) && resultado.length > 0);
+		  if (!isEmpty(resultadoTXTpercepcionesIVA)) {
+			//nlapiLogExecution('DEBUG', 'generarTXT_IVA - Percepciones', 'Cantidad percepciones:' + resultadoTXTpercepcionesIVA.length);
+			log.debug({
+			  title: "generarTXT_per_sufrida_IVA_Simple",
+			  details: "Cantidad percepciones: " + resultadoTXTpercepcionesIVA.length
+			});
+			//
+			for (let i = 0; resultadoTXTpercepcionesIVA != null && i < resultadoTXTpercepcionesIVA.length; i++) {
+			  const columns = resultadoTXTpercepcionesIVA[i].columns;
+			  let numeroComprobante = "";
+			  let errorReferenciaN = false;
+			  let puntoVenta = "";
+			  let letra = "";
+			  existenPercepciones = true;
+			  errorGlobal = false;
+			  descripcionError = "";
+			  var idpercepcionNetSuite = "";
+			  percepcionIVA.percepcion.numeroComprobanteFinal = "";
+			  var refComprobante = resultadoTXTpercepcionesIVA[i].getValue({ name: "internalid", summary: search.Summary.GROUP });
+			  if (!isEmpty(refComprobante)) {
+				const codigoRegimen = resultadoTXTpercepcionesIVA[i].getValue({ name: "custrecord_l54_percepcion_cod_regimen", join: "custcol_l54_percepciones", summary: search.Summary.GROUP });
+				if (!isEmpty(codigoRegimen)) {
+				  //var codigoComprobante = obtenerCodigoComprobante(refComprobante, 'con', subsidiaria);
+				  //var codigoComprobante = resultadoTXTpercepcionesIVA[i].getValue('formulatext', null, 'max');
+				  //if (!isEmpty(codigoComprobante)) {
+				  percepcionIVA.percepcion.codigoRegimen = padding_left(codigoRegimen, "0", 3);
+				  // Obtengo el Numero del Comprobante
+				  const numerador = resultadoTXTpercepcionesIVA[i].getValue({ name: "custbody_l54_numero_entero_prov", summary: search.Summary.MAX });
+				  const esDespachoImportacion = resultadoTXTpercepcionesIVA[i].getValue({ name: columns[11] });
+				  const referenciaNumerador = resultadoTXTpercepcionesIVA[i].getValue({ name: columns[12] });
+				  // if ((!isEmpty(numerador)) || (!isEmpty(esDespachoImportacion) && esDespachoImportacion == 'T' && !isEmpty(referenciaNumerador))) {
+				puntoVenta = resultadoTXTpercepcionesIVA[i].getValue({ name: "custbody_l54_punto_venta_prov", summary: search.Summary.MAX });
+				  if (!isEmpty(esDespachoImportacion) && (esDespachoImportacion == "T" || esDespachoImportacion === true)) {
+					if (!isEmpty(referenciaNumerador)) {
+					  //percepcionIVA.percepcion.numeroComprobanteFinal = padding_left(referenciaNumerador, " ", 16);
+					  percepcionIVA.percepcion.numeroComprobanteFinal = referenciaNumerador;
+					  percepcionIVA.percepcion.numeroComprobanteInicial = "";
+					} else {
+					  errorReferenciaN = true;
+					}
+				  } else {
+					numeroComprobante = numerador.toString().substr(-8);
+					// Tomo el Punto de Venta
+					//var puntoVenta = arrayNumerador[1];
+					// Tomo la Latra del Comprobante
+					//var letra = arrayNumerador[0];
+					letra = resultadoTXTpercepcionesIVA[i].getValue({ name: "custbody_l54_letra", summary: search.Summary.MAX });
+				  }
+				  if (!isEmpty(percepcionIVA.percepcion.numeroComprobanteFinal) || (!isEmpty(numeroComprobante) && !isEmpty(puntoVenta) && !isEmpty(letra) && !errorReferenciaN)) {
+					if (isEmpty(percepcionIVA.percepcion.numeroComprobanteFinal)) {
+					  percepcionIVA.percepcion.numeroComprobanteFinal = padding_left(puntoVenta, "0", 5) + '-' + padding_left(numeroComprobante, "0", 8);
+					  percepcionIVA.percepcion.puntoVenta = padding_left(puntoVenta, "0", 5);
+					  percepcionIVA.percepcion.letraDocumento = padding_right(letra, " ", 1);
+					  //percepcionIVA.percepcion.numeroComprobanteInicial = padding_right(percepcionIVA.percepcion.letraDocumento + "-" + percepcionIVA.percepcion.puntoVenta, " ", 8);
+					  percepcionIVA.percepcion.numeroComprobanteInicial = resultadoTXTpercepcionesIVA[i].getValue({ name: columns[13] });
+					}
+					// Obtengo Tipo de Cambio de la Percepcion
+					const tipoCambio = Math.abs(resultadoTXTpercepcionesIVA[i].getValue({ name: "exchangerate", summary: search.Summary.MAX }));
+					if (!isEmpty(tipoCambio)) {
+					  // Obtengo Fecha de Percepcion
+					  const fechapercepcion = resultadoTXTpercepcionesIVA[i].getValue({ name: "trandate", summary: search.Summary.MAX });
+					  if (!isEmpty(fechapercepcion)) {
+						// Formateo la Fecha
+						//var fechapercepcionDate = nlapiStringToDate(fechapercepcion, 'datetimetz');
+						const fechapercepcionDate = format.parse({
+						  value: fechapercepcion,
+						  type: format.Type.DATE
+						});
+						if (!isEmpty(fechapercepcionDate)) {
+						  // Obtengo las Componentes de la Fecha
+						  const diapercepcion = fechapercepcionDate.getDate();
+						  const mespercepcion = parseInt(fechapercepcionDate.getMonth(), 10) + parseInt(1, 10);
+						  const aniopercepcion = fechapercepcionDate.getFullYear();
+						  const fechapercepcionFinal = aniopercepcion + "-" + padding_left(mespercepcion, "0", 2) + "-" + padding_left(diapercepcion, "0", 2);
+						  percepcionIVA.percepcion.fechapercepcion = fechapercepcionFinal;
+						  // Obtengo el CUIT del Agente de percepcion
+						  let cuitEmpresa = resultadoTXTpercepcionesIVA[i].getValue({ name: "custbody_54_cuit_entity", summary: search.Summary.MAX });
+						  if (!isEmpty(cuitEmpresa)) {
+							// Obtengo el Tamaño del CUIT
+							let cuitEmpresaString = cuitEmpresa.toString();
+							cuitEmpresaString = cuitEmpresaString.replace(/-/g, "");
+							cuitEmpresaString = cuitEmpresaString.toString().replace(/\./g, "");
+							cuitEmpresaString = cuitEmpresaString.replace(/ /g, "&nbsp");
+							cuitEmpresaString = cuitEmpresaString.toString();
+							const tam = cuitEmpresaString.length;
+							if (tam == 11) {
+							  // Agrego los -													
+							  const primerosDigitos = cuitEmpresaString.substr(0, 2);
+							  const segundosDigitos = cuitEmpresaString.substr(2, 8);
+							  const tercerosDigitos = cuitEmpresaString.substr(10, 1);
+							  if (!isEmpty(primerosDigitos) && !isEmpty(segundosDigitos) && !isEmpty(tercerosDigitos)) {
+								log.debug("cuitEmpresaString", cuitEmpresaString)
+								cuitEmpresa = cuitEmpresaString;
+								percepcionIVA.percepcion.cuitEmpresa = cuitEmpresa;
+								// Obtengo el Importe de la Percepcion
+								const importePercepcion = resultadoTXTpercepcionesIVA[i].getValue({ name: "formulacurrency", summary: search.Summary.SUM });
+								if (!isEmpty(importePercepcion) && parseFloat(importePercepcion, 10) != 0.00) {
+								  if (parseFloat(importePercepcion, 10) < 0.00) {
+									percepcionIVA.percepcion.importePercepcion = "-" + parseFloat(Math.abs(parseFloat(importePercepcion, 10)) * parseFloat(1, 10), 10).toFixed(2).formatMoney(2, separadorMiles, ',');
+								  }
+								  else {
+									percepcionIVA.percepcion.importePercepcion = parseFloat(parseFloat(importePercepcion, 10) * parseFloat(1, 10), 10).toFixed(2).formatMoney(2, separadorMiles, ',');
+								  }
+								  //percepcionIVA.percepcion.importePercepcion = padding_left(parseFloat(parseFloat(importePercepcion, 10) * parseFloat(tipoCambio, 10), 10).toFixed(2).formatMoney(2, separadorMiles, separadorDecimal), '0', 16);
+
+								if (isEmpty(resultadoTXTpercepcionesIVA[i].getValue({ name: columns[13] }))) {
+								  
+								  errorGlobal = true;
+								  descripcionError = "Error obteniendo el Tipo de Comprobante";
+								  
+								} 
+								} else {
+								  errorGlobal = true;
+								  descripcionError = "El Importe de Percepcion no debe ser 0.00";
+								}
+							  } else {
+								errorGlobal = true;
+								descripcionError = "Error Aplicando Formato a CUIT de la Empresa";
+							  }
+							} else {
+							  errorGlobal = true;
+							  descripcionError = "CUIT de la Empresa Invalido";
+							}
+						  } else {
+							errorGlobal = true;
+							descripcionError = "Error No se Encuentra Configurado el CUIT de la Empresa";
+						  }
+						} else {
+						  errorGlobal = true;
+						  descripcionError = "Error Formateando la Fecha de la Percepcion";
+						}
+					  } else {
+						errorGlobal = true;
+						descripcionError = "Error Obteniendo Fecha De la Percepcion";
+					  }
+					} else {
+					  errorGlobal = true;
+					  descripcionError = "Error Obteniendo Tipo de Cambio de la Percepcion";
+					}
+				  } else {
+					errorGlobal = true;
+					if (isEmpty(percepcionIVA.percepcion.numeroComprobanteFinal) && errorReferenciaN) {
+					  descripcionError = "Error Obteniendo el valor Referencia Nº del Comprobante";
+					} else {
+					  descripcionError = "Error Obteniendo Letra / Punto de Venta / Numero de Comprobante";
+					}
+				  }
+				  /* } else {
+					errorGlobal = true;
+					descripcionError = "Error Obteniendo Numero de Comprobante";
+				  } */
+				  /*} else {
+				  errorGlobal = true;
+				  descripcionError = "Error Obteniendo el Codigo de Comprobante";
+				  }*/
+				} else {
+				  errorGlobal = true;
+				  descripcionError = "Error Obteniendo el Codigo de Regimen de la Percepcion";
+				}
+			  } else {
+				errorGlobal = true;
+				descripcionError = "Error Obteniendo el Comprobante que Origino la Percepcion";
+			  }
+			  // Genero el Contenido
+			  if (errorGlobal == false) {
+				if (percepcionIVA.percepcion != null) {
+				  // Genero Contenido
+				  if (!isEmpty(contenidoTXT)) {
+					contenidoTXT += "\r\n";
+				  }
+				  const error = false;
+				  const descripcionMensaje = "TXT Percepciones Generado Correctamente";
+				  contenidoTXT += percepcionIVA.percepcion.codigoRegimen + ";" + percepcionIVA.percepcion.cuitEmpresa + ";" + '' + ";" + percepcionIVA.percepcion.fechapercepcion + ";" + 
+					percepcionIVA.percepcion.numeroComprobanteInicial + ";" + percepcionIVA.percepcion.numeroComprobanteFinal + ";" + percepcionIVA.percepcion.importePercepcion;
+					log.debug("contenidoTXT", contenidoTXT)
+				} else {
+				  errorGeneral = true;
+				  descripcionError = "Error Obteniendo informacion de la Percepcion";
+				  idRegistroLOG = grabarLogError("EST-LOG-ERROR", periodo, tipoOperacion, tipoRegimen, idRegistroLOG, "Error Generando TXT Percepciones - Error : " + descripcionError, idpercepcionNetSuite, refComprobante, subsidiaria);
+				}
+			  } else {
+				// Error Obteniendo Informacion de Percepciones
+				// Grabo el Error en NetSuite
+				errorGeneral = true;
+				//nlapiLogExecution('ERROR', 'Proceso Generacion TXT', 'Error Generando TXT Percepciones IVA ' + descripcionError);
+				log.error({
+				  title: "Proceso Generacion TXT",
+				  details: "Error Generando TXT Percepciones IVA  " + descripcionError
+				});
+				idRegistroLOG = grabarLogError("EST-LOG-ERROR", periodo, tipoOperacion, tipoRegimen, idRegistroLOG, "Error Generando TXT Percepciones - Error : " + descripcionError, idpercepcionNetSuite, refComprobante, subsidiaria);
+			  }
+			  // Verifico si debo Encolar el Proceso
+			  //checkGovernance(1000);
+			}
+			if (errorGeneral == false) {
+			  if (existenPercepciones == false) {
+				if (!isEmpty(resultadoTXTpercepcionesIVA) && resultadoTXTpercepcionesIVA.length == 0) {
+				  // No se Encontraron Percepciones para el Periodo
+				  idRegistroLOG = grabarLogError("EST-LOG-OK", periodo, tipoOperacion, tipoRegimen, idRegistroLOG, "Generacion de TXT de Percepciones Correcta - No se Encontraron Percepciones", idpercepcionNetSuite, refComprobante, subsidiaria);
+				} else {
+				  // Error Obteniendo Percepciones
+				  errorGeneral = true;
+				  //nlapiLogExecution('ERROR', 'Proceso Generacion TXT', 'Error Obteniendo Percepciones IVA');
+				  log.error({
+					title: "Proceso Generacion TXT",
+					details: "Error Obteniendo Percepciones IVA"
+				  });
+				  idRegistroLOG = grabarLogError("EST-LOG-ERROR", periodo, tipoOperacion, tipoRegimen, idRegistroLOG, "Error Generando TXT Percepciones - Error : Error Obteniendo Percepciones", idpercepcionNetSuite, refComprobante, subsidiaria);
+				}
+			  }
+			}
+		  }
+		  if (!isEmpty(contenidoTXT)) {
+			contenidoTXT += "\r\n";
+		  }
+		} catch (e) {
+		  //nlapiLogExecution('ERROR', 'Proceso Generacion TXT', 'Error Generando TXT IVA - Percepciones - Error : ' + e.message);
+		  log.error({
+			title: "Proceso Generacion TXT",
+			details: "Error Generando TXT IVA - Percepciones - Error : " + e.message
+		  });
+		  errorGeneral = true;
+		  descripcionError = "Error Generando TXT IVA - Error : " + e.message;
+		  idRegistroLOG = grabarLogError("EST-LOG-ERROR", periodo, tipoOperacion, tipoRegimen, idRegistroLOG, descripcionError, idpercepcionNetSuite, refComprobante, subsidiaria);
+		  //percepcionSICORE.error = true;
+		}
+		if (errorGeneral == true) {
+		  percepcionIVA = grabarError(true, "Error Generando TXT de Percepciones", existenPercepciones, procesoEncolado, idRegistroLOG);
+		} else {
+		  percepcionIVA = grabarError(false, "Generacion de TXT de Percepciones Correcta", existenPercepciones, procesoEncolado, idRegistroLOG);
+		  if (procesoEncolado == false) {
+			if (existenPercepciones == true)
+			  idRegistroLOG = grabarLogError("EST-LOG-OK", periodo, tipoOperacion, tipoRegimen, idRegistroLOG, "TXT Percepciones Generadas Correctamente", null, null, subsidiaria);
+		  }
+		}
+		//nlapiLogExecution('DEBUG', 'Proceso Generacion TXT', 'Finalizacion - Generacion TXT IVA - Percepciones Sufridas');
+		log.debug({
+		  title: "Proceso Generacion TXT",
+		  details: "Finalizacion - Generacion TXT IVA - Percepciones Sufridas"
+		});
+		percepcionIVA.contenidoTXT = contenidoTXT;
+		return percepcionIVA;
+	  }
+
+
+	  function generarTXTRetSufridasIVASimple(periodo, email, tipoRegimen, tipoOperacion, ultimapercepcionProcesada, context, idLogErrores, url, separadorDecimal, separadorMiles, subsidiaria) {
+		//nlapiLogExecution('DEBUG', 'generarTXTIVARet', 'Inicio - Generacion TXT IVA Retenciones Sufridas');
+		log.debug({
+		  title: "generarTXTIVARet",
+		  details: "Inicio - Generacion TXT IVA Retenciones Sufridas"
+		});
+		let idRegistroLOG = idLogErrores;
+		let errorGlobal = false;
+		let errorGeneral = false;
+		let existenRetenciones = false;
+		const mensajeError = "Error Generando TXT de Retenciones";
+		let descripcionError = "";
+		const tipoComprobanteNS = "";
+		let contenidoTXT = "";
+		const procesoEncolado = false;
+		try {
+		  var retencionIVA = {};
+		  retencionIVA.retencion = {};
+		  retencionIVA.sujeto = {};
+		  retencionIVA.existenRetenciones = false;
+		  retencionIVA.error = false;
+		  retencionIVA.descripcionError = "";
+		  retencionIVA.procesoEncolado = false;
+		  retencionIVA.idLog = idRegistroLOG;
+		  retencionIVA.retencion.importeRetencion = 0;
+		  retencionIVA.contenidoTXT = "";
+		  var refComprobante = "";
+		  var idRetencionNetSuite = "";
+		  // Obtengo la Informacion usando un SavedSearch
+		  let iCont = 0;
+		  let iCont2 = 0;
+		  const filtroTXTretencionesIVA = [];
+		  const filtroTXTretencionesIVAPPM = [];
+		  if (!isEmpty(periodo) && !isEmpty(periodo.fDesde) && !isEmpty(periodo.fHasta))
+			//filtroTXTretencionesIVA[iCont++] = new nlobjSearchFilter('trandate', null, 'within', periodo.fDesde, periodo.fHasta);
+			filtroTXTretencionesIVA[iCont++] = search.createFilter({
+			  name: "trandate",
+			  operator: search.Operator.WITHIN,
+			  values: [periodo.fDesde, periodo.fHasta]
+			});
+		  if (!isEmpty(subsidiaria))
+			//filtroTXTretencionesIVA[iCont++] = new nlobjSearchFilter('subsidiary', null, 'is', subsidiaria);
+			filtroTXTretencionesIVA[iCont++] = search.createFilter({
+			  name: "subsidiary",
+			  operator: search.Operator.IS,
+			  values: subsidiaria
+			});
+
+		 if (!isEmpty(periodo) && !isEmpty(periodo.fDesde) && !isEmpty(periodo.fHasta))
+			//filtroTXTretencionesIVA[iCont++] = new nlobjSearchFilter('trandate', null, 'within', periodo.fDesde, periodo.fHasta);
+			filtroTXTretencionesIVAPPM[iCont2++] = search.createFilter({
+			  name: "custrecord_3k_cobranza_ret_fecha_em_pago",
+			  operator: search.Operator.WITHIN,
+			  values: [periodo.fDesde, periodo.fHasta]
+			});
+		  if (!isEmpty(subsidiaria))
+			//filtroTXTretencionesIVA[iCont++] = new nlobjSearchFilter('subsidiary', null, 'is', subsidiaria);
+			filtroTXTretencionesIVAPPM[iCont2++] = search.createFilter({
+			  name: "custrecord_3k_cobranza_ret_subsidiaria",
+			  operator: search.Operator.IS,
+			  values: subsidiaria
+			});
+
+		  //var search = new nlapiLoadSearch('transaction', 'customsearch_l54_ret_iva_sufridas');
+		  const search1 = search.load({
+			type: "transaction", //opc
+			id: "customsearch_l54_ret_iva_simple"
+		  });
+		  search1.filters.push(...filtroTXTretencionesIVA);
+			log.debug({
+			  title: "generarTXTIVARet",
+			  details: filtroTXTretencionesIVAPPM
+			});
+		  const search2 = search.load({
+			type: "customrecord_3k_cobranza_retenciones", //opc
+			id: "customsearch_l54_ret_iva_simple_pm"
+		  });
+		  search2.filters.push(...filtroTXTretencionesIVAPPM);
+
+		  const searchResults = search1.run();
+		  const searchResults2 = search2.run();
+		  let resultadoTXTretencionesIVA = [];
+		  // resultIndex points to record starting current "resultado" in the entire results array
+		  var resultIndex = 0;
+		  const resultStep = 1000; // Number of records returned in one step (maximum is 1000)
+		  let resultado; // temporary variable used to store the result set
+		  do {
+			// fetch one result set
+			//resultado = searchResults.getResults(resultIndex, resultIndex + resultStep);
+			resultado = searchResults.getRange({
+			  start: resultIndex,
+			  end: resultIndex + resultStep
+			});
+			if (!isEmpty(resultado) && resultado.length > 0) {
+			  if (resultIndex == 0)
+				resultadoTXTretencionesIVA = resultado; //Primera ve inicializa
+			  else
+				resultadoTXTretencionesIVA = resultadoTXTretencionesIVA.concat(resultado);
+			  //nlapiLogExecution('DEBUG', 'generarTXT_IVA_ret', 'resultIndex:' + resultIndex + ',resultado.length:' + resultado.length);
+			}
+			// increase pointer
+			resultIndex = resultIndex + resultStep;
+			// Verifico si debo Encolar el Proceso
+			//checkGovernance(1000);
+			// once no records are returned we already got all of them
+		  } while (!isEmpty(resultado) && resultado.length > 0);
+
+		  resultIndex = 0;
+		  let resultado2 ; // temporary variable used to store the result set
+		  	
+		  do {
+			// fetch one result set
+			//resultado = searchResults.getResults(resultIndex, resultIndex + resultStep);
+			resultado2 = searchResults2.getRange({
+			  start: resultIndex,
+			  end: resultIndex + resultStep
+			});
+			if (!isEmpty(resultado2) && resultado2.length > 0) {
+			  if (resultadoTXTretencionesIVA.length == 0)
+				resultadoTXTretencionesIVA = resultado2; //Primera ve inicializa
+			  else
+				resultadoTXTretencionesIVA = resultadoTXTretencionesIVA.concat(resultado2);
+			  //nlapiLogExecution('DEBUG', 'generarTXT_IVA_ret', 'resultIndex:' + resultIndex + ',resultado.length:' + resultado.length);
+			}
+			// increase pointer
+			resultIndex = resultIndex + resultStep;
+			// Verifico si debo Encolar el Proceso
+			//checkGovernance(1000);
+			// once no records are returned we already got all of them
+		  } while (!isEmpty(resultado2) && resultado2.length > 0);
+
+		  if (!isEmpty(resultadoTXTretencionesIVA)) {
+			//nlapiLogExecution('DEBUG', 'generarTXTIVARet', 'Cantidad retenciones: ' + resultadoTXTretencionesIVA.length);
+			log.debug({
+			  title: "generarTXTIVARet",
+			  details: "Cantidad retenciones: " + resultadoTXTretencionesIVA.length
+			});
+			for (let i = 0; resultadoTXTretencionesIVA != null && i < resultadoTXTretencionesIVA.length; i++) {
+			  existenRetenciones = true;
+			  errorGlobal = false;
+			  descripcionError = "";
+			  idRetencionNetSuite = "";
+			  retencionIVA.retencion = {};
+			  retencionIVA.sujeto = {};
+			  refComprobante = "";
+			  const result = resultadoTXTretencionesIVA[i];
+			  //var columns = result.getAllColumns();
+			  const columns = result.columns;
+			  // Obtengo el Codigo de Comprobante
+			  idRetencionNetSuite = "";
+			  //refComprobante = result.getValue(columns[6]);
+			  refComprobante = result.getValue({ name: columns[0] });
+			  log.debug({
+				title: "generarTXTIVARet",
+				details: "refComprobante o transaction ID: " + refComprobante
+			  });
+			  if (!isEmpty(result.getValue(columns[1]))) {
+				retencionIVA.retencion.codigoRegimen = result.getValue({ name: columns[1] }); // Obtengo el Código de Régimen
+				if (!isEmpty(result.getValue(columns[2]))) {
+				  retencionIVA.retencion.cuitProveedor = result.getValue({ name: columns[2] }); // Obtengo el CUIT del Proveedor
+				  if (!isEmpty(result.getValue(columns[3]))) {
+					retencionIVA.retencion.fechaRetencion = result.getValue({ name: columns[3] }); // Obtengo la fecha de retención
+					if (!isEmpty(result.getValue(columns[4]))) {
+					  retencionIVA.retencion.nroCertificado = result.getValue({ name: columns[4] }); // Obtengo el nro del certificado
+					  if (!isEmpty(result.getValue(columns[5]))) {
+						retencionIVA.retencion.montoRetencion = result.getValue({ name: columns[5] }); // Obtengo el monto de la retención
+						if (!isEmpty(result.getValue(columns[11]))) {
+					  		retencionIVA.retencion.numeroComprobante = padding_right(result.getValue({ name: columns[11] }), " ", 8);
+							if (!isEmpty(result.getValue(columns[10]))) {
+								retencionIVA.retencion.tipoComprobante = result.getValue({ name: columns[10] });
+							} else {
+								errorGlobal = true;
+								descripcionError = "Error Obteniendo el Numero de Comprobante";
+							}
+						} else {
+							errorGlobal = true;
+							descripcionError = "Error Obteniendo el Numero de Comprobante";
+						}
+					  } else {
+						errorGlobal = true;
+						descripcionError = "Error Obteniendo el Monto de la Retención";
+					  }
+					} else {
+					  errorGlobal = true;
+					  descripcionError = "Error Obteniendo el Nro del Certificado";
+					}
+				  } else {
+					errorGlobal = true;
+					descripcionError = "Error Obteniendo la Fecha de la Retención";
+				  }
+				} else {
+				  errorGlobal = true;
+				  descripcionError = "Error Obteniendo el CUIT del Proveedor";
+				}
+			  } else {
+				errorGlobal = true;
+				descripcionError = "Error Obteniendo el Código de Régimen";
+			  }
+			  // Genero el Contenido
+			  if (errorGlobal == false) {
+				if (retencionIVA.retencion != null) {
+				  // Genero Contenido
+				  if (!isEmpty(contenidoTXT)) {
+					contenidoTXT += "\r\n";
+				  }
+				  //var error = false;
+				  //var descripcionMensaje = "TXT de Retenciones Generado Correctamente";
+				  contenidoTXT += '767' + ";" + retencionIVA.retencion.codigoRegimen + ";" + retencionIVA.retencion.cuitProveedor + ";" + '' + ";" + retencionIVA.retencion.fechaRetencion + ";" + retencionIVA.retencion.tipoComprobante+ ";" +
+					retencionIVA.retencion.numeroComprobante + ";" + retencionIVA.retencion.nroCertificado + ";" + retencionIVA.retencion.montoRetencion;
+				} else {
+				  errorGeneral = true;
+				  descripcionError = "Error Obteniendo Información de la Retención";
+				  idRegistroLOG = grabarLogError("EST-LOG-ERROR", periodo, tipoOperacion, tipoRegimen, idRegistroLOG, "Error Generando TXT Retenciones - Error : " + descripcionError, idRetencionNetSuite, refComprobante, subsidiaria);
+				}
+			  } else {
+				// Error Obteniendo Informacion de Percepciones
+				// Grabo el Error en NetSuite
+				errorGeneral = true;
+				//nlapiLogExecution('ERROR', 'generarTXTIVARet', 'Error Generando TXT Retenciones IVA ' + descripcionError);
+				log.debug({
+				  title: "generarTXTIVARet",
+				  details: "Error Generando TXT Retenciones IVA " + descripcionError
+				});
+				idRegistroLOG = grabarLogError("EST-LOG-ERROR", periodo, tipoOperacion, tipoRegimen, idRegistroLOG, "Error Generando TXT Retenciones - Error : " + descripcionError, idRetencionNetSuite, refComprobante, subsidiaria);
+			  }
+			  // Verifico si debo Encolar el Proceso
+			  //checkGovernance(1000);
+			}
+			if (errorGeneral == false) {
+			  if (existenRetenciones == false) {
+				if (!isEmpty(resultadoTXTretencionesIVA) && resultadoTXTretencionesIVA.length == 0) {
+				  // No se Encontraron Percepciones para el Periodo
+				  idRegistroLOG = grabarLogError("EST-LOG-OK", periodo, tipoOperacion, tipoRegimen, idRegistroLOG, "Generación de TXT de Retenciones Correcta - No se Encontraron Retenciones", idRetencionNetSuite, refComprobante, subsidiaria);
+				} else {
+				  // Error Obteniendo Percepciones
+				  errorGeneral = true;
+				  //nlapiLogExecution('ERROR', 'generarTXTIVARet', 'Error Obteniendo Retenciones IVA');
+				  log.error({
+					title: "generarTXTIVARet",
+					details: "Error Obteniendo Retenciones IVA"
+				  });
+				  idRegistroLOG = grabarLogError("EST-LOG-ERROR", periodo, tipoOperacion, tipoRegimen, idRegistroLOG, "Error Generando TXT Retenciones - Error : Error Obteniendo Retenciones", idRetencionNetSuite, refComprobante, subsidiaria);
+				}
+			  }
+			}
+		  }
+		  if (!isEmpty(contenidoTXT)) {
+			contenidoTXT += "\r\n";
+		  }
+		} catch (e) {
+		  //nlapiLogExecution('ERROR', 'generarTXTIVARet', 'Error Generando TXT IVA - Retenciones - Error : ' + e.message);
+		  log.error({
+			title: "generarTXTIVARet",
+			details: "Error Generando TXT IVA - Retenciones - Error : " + e.message
+		  });
+		  errorGeneral = true;
+		  descripcionError = "Error Generando TXT IVA Retenciones - Error : " + e.message;
+		  idRegistroLOG = grabarLogError("EST-LOG-ERROR", periodo, tipoOperacion, tipoRegimen, idRegistroLOG, descripcionError, idRetencionNetSuite, refComprobante, subsidiaria);
+		}
+		if (errorGeneral == true) {
+		  retencionIVA = grabarError(true, "Error Generando TXT de Retenciones", existenRetenciones, procesoEncolado, idRegistroLOG);
+		} else {
+		  retencionIVA = grabarError(false, "Generacion de TXT de Retenciones Correcta", existenRetenciones, procesoEncolado, idRegistroLOG);
+		  if (procesoEncolado == false) {
+			if (existenRetenciones == true)
+			  idRegistroLOG = grabarLogError("EST-LOG-OK", periodo, tipoOperacion, tipoRegimen, idRegistroLOG, "TXT Retenciones IVA Generadas Correctamente", null, null, subsidiaria);
+		  }
+		}
+		//nlapiLogExecution('DEBUG', 'generarTXTIVARet', 'Finalización - Generación TXT IVA - Retenciones Sufridas');
+		log.debug({
+		  title: "generarTXTIVARet",
+		  details: "Finalización - Generación TXT IVA - Retenciones Sufridas"
+		});
+		retencionIVA.contenidoTXT = contenidoTXT;
+		return retencionIVA;
+	  }
+
+	  function generarTXTPerAduanerasIVASimple(periodo, email, tipoRegimen, tipoOperacion, ultimapercepcionProcesada, context, idLogErrores, url, separadorDecimal, separadorMiles, subsidiaria) {
+		//nlapiLogExecution('DEBUG', 'generarTXTIVARet', 'Inicio - Generacion TXT IVA Retenciones Sufridas');
+		log.debug({
+		  title: "generarTXTIVARet",
+		  details: "Inicio - Generacion TXT IVA Percepcions Aduaneras"
+		});
+		let idRegistroLOG = idLogErrores;
+		let errorGlobal = false;
+		let errorGeneral = false;
+		let existenRetenciones = false;
+		const mensajeError = "Error Generando TXT de Percepciones Aduaneras";
+		let descripcionError = "";
+		const tipoComprobanteNS = "";
+		let contenidoTXT = "";
+		const procesoEncolado = false;
+		try {
+		  var retencionIVA = {};
+		  retencionIVA.percepciones = {};
+		  retencionIVA.sujeto = {};
+		  retencionIVA.existenRetenciones = false;
+		  retencionIVA.error = false;
+		  retencionIVA.descripcionError = "";
+		  retencionIVA.procesoEncolado = false;
+		  retencionIVA.idLog = idRegistroLOG;
+		  retencionIVA.percepciones.importeRetencion = 0;
+		  retencionIVA.contenidoTXT = "";
+		  var refComprobante = "";
+		  var idRetencionNetSuite = "";
+		  // Obtengo la Informacion usando un SavedSearch
+		  let iCont = 0;
+		  const filtroTXTPercepcionesIVA = [];
+		  if (!isEmpty(periodo) && !isEmpty(periodo.fDesde) && !isEmpty(periodo.fHasta))
+			//filtroTXTPercepcionesIVA[iCont++] = new nlobjSearchFilter('trandate', null, 'within', periodo.fDesde, periodo.fHasta);
+			filtroTXTPercepcionesIVA[iCont++] = search.createFilter({
+			  name: "trandate",
+			  operator: search.Operator.WITHIN,
+			  values: [periodo.fDesde, periodo.fHasta]
+			});
+		  if (!isEmpty(subsidiaria))
+			//filtroTXTPercepcionesIVA[iCont++] = new nlobjSearchFilter('subsidiary', null, 'is', subsidiaria);
+			filtroTXTPercepcionesIVA[iCont++] = search.createFilter({
+			  name: "subsidiary",
+			  operator: search.Operator.IS,
+			  values: subsidiaria
+			});
+		  //var search = new nlapiLoadSearch('transaction', 'customsearch_l54_ret_iva_sufridas');
+		  const search1 = search.load({
+			type: "transaction", //opc
+			id: "customsearch_l54_per_adu_iva_simple"
+		  });
+		  search1.filters.push(...filtroTXTPercepcionesIVA);
+		  const searchResults = search1.run();
+		  let resultadoTXTpercepcionesIVA = [];
+		  // resultIndex points to record starting current "resultado" in the entire results array
+		  let resultIndex = 0;
+		  const resultStep = 1000; // Number of records returned in one step (maximum is 1000)
+		  let resultado; // temporary variable used to store the result set
+		  do {
+			// fetch one result set
+			//resultado = searchResults.getResults(resultIndex, resultIndex + resultStep);
+			resultado = searchResults.getRange({
+			  start: resultIndex,
+			  end: resultIndex + resultStep
+			});
+			if (!isEmpty(resultado) && resultado.length > 0) {
+			  if (resultIndex == 0)
+				resultadoTXTpercepcionesIVA = resultado; //Primera ve inicializa
+			  else
+				resultadoTXTpercepcionesIVA = resultadoTXTpercepcionesIVA.concat(resultado);
+			  //nlapiLogExecution('DEBUG', 'generarTXT_IVA_ret', 'resultIndex:' + resultIndex + ',resultado.length:' + resultado.length);
+			}
+			// increase pointer
+			resultIndex = resultIndex + resultStep;
+			// Verifico si debo Encolar el Proceso
+			//checkGovernance(1000);
+			// once no records are returned we already got all of them
+		  } while (!isEmpty(resultado) && resultado.length > 0);
+		  if (!isEmpty(resultadoTXTpercepcionesIVA)) {
+			//nlapiLogExecution('DEBUG', 'generarTXTIVARet', 'Cantidad retenciones: ' + resultadoTXTpercepcionesIVA.length);
+			log.debug({
+			  title: "generarTXTIVARet",
+			  details: "Cantidad retenciones: " + resultadoTXTpercepcionesIVA.length
+			});
+			for (let i = 0; resultadoTXTpercepcionesIVA != null && i < resultadoTXTpercepcionesIVA.length; i++) {
+			  existenRetenciones = true;
+			  errorGlobal = false;
+			  descripcionError = "";
+			  idRetencionNetSuite = "";
+			  retencionIVA.percepcion = {};
+			  retencionIVA.sujeto = {};
+			  refComprobante = "";
+			  const result = resultadoTXTpercepcionesIVA[i];
+			  //var columns = result.getAllColumns();
+			  const columns = result.columns;
+			  // Obtengo el Codigo de Comprobante
+			  idRetencionNetSuite = "";
+			  //refComprobante = result.getValue(columns[6]);
+			  refComprobante = result.getValue(columns[0]);
+			  log.debug({
+				title: "generarTXTIVARet",
+				details: "refComprobante o transaction ID: " + refComprobante
+			  });
+			  if (!isEmpty(result.getValue(columns[1]))) {
+				retencionIVA.percepcion.codigoRegimen = result.getValue({ name: columns[1] }); // Obtengo el Código de Régimen
+				if (!isEmpty(result.getValue(columns[2]))) {
+					retencionIVA.percepcion.fechaRetencion = result.getValue({ name: columns[2] }); // Obtengo la fecha de retención
+					if (!isEmpty(result.getValue(columns[3]))) {
+					  retencionIVA.percepcion.despacho = result.getValue({ name: columns[3] }); // Obtengo el nro del certificado
+					  if (!isEmpty(result.getValue(columns[4]))) {
+						retencionIVA.percepcion.montoRetencion = result.getValue({ name: columns[4] }).formatMoney(2, separadorMiles, ','); // Obtengo el monto de la retención
+					  } else {
+						errorGlobal = true;
+						descripcionError = "Error Obteniendo el Monto de la Percepcion";
+					  }
+					} else {
+					  errorGlobal = true;
+					  descripcionError = "Error Obteniendo la Liquidacion o Despacho";
+					}
+				  } else {
+					errorGlobal = true;
+					descripcionError = "Error Obteniendo la Fecha de la Retención";
+				  }
+				
+			  } else {
+				errorGlobal = true;
+				descripcionError = "Error Obteniendo el Código de Régimen";
+			  }
+			  // Genero el Contenido
+			  if (errorGlobal == false) {
+				if (retencionIVA.percepcion != null) {
+				  // Genero Contenido
+				  if (!isEmpty(contenidoTXT)) {
+					contenidoTXT += "\r\n";
+				  }
+				  //var error = false;
+				  //var descripcionMensaje = "TXT de Retenciones Generado Correctamente";
+				  contenidoTXT += retencionIVA.percepcion.codigoRegimen + ";" + retencionIVA.percepcion.fechaRetencion + ";" + retencionIVA.percepcion.despacho + ";" +
+					retencionIVA.percepcion.montoRetencion;
+				} else {
+				  errorGeneral = true;
+				  descripcionError = "Error Obteniendo Información de la Percepcion";
+				  idRegistroLOG = grabarLogError("EST-LOG-ERROR", periodo, tipoOperacion, tipoRegimen, idRegistroLOG, "Error Generando TXT Percepcion - Error : " + descripcionError, idRetencionNetSuite, refComprobante, subsidiaria);
+				}
+			  } else {
+				// Error Obteniendo Informacion de Percepciones
+				// Grabo el Error en NetSuite
+				errorGeneral = true;
+				//nlapiLogExecution('ERROR', 'generarTXTIVARet', 'Error Generando TXT Retenciones IVA ' + descripcionError);
+				log.debug({
+				  title: "generarTXTIVARet",
+				  details: "Error Generando TXT Retenciones IVA " + descripcionError
+				});
+				idRegistroLOG = grabarLogError("EST-LOG-ERROR", periodo, tipoOperacion, tipoRegimen, idRegistroLOG, "Error Generando TXT Percepcion - Error : " + descripcionError, idRetencionNetSuite, refComprobante, subsidiaria);
+			  }
+			  // Verifico si debo Encolar el Proceso
+			  //checkGovernance(1000);
+			}
+			if (errorGeneral == false) {
+			  if (existenRetenciones == false) {
+				if (!isEmpty(resultadoTXTpercepcionesIVA) && resultadoTXTpercepcionesIVA.length == 0) {
+				  // No se Encontraron Percepciones para el Periodo
+				  idRegistroLOG = grabarLogError("EST-LOG-OK", periodo, tipoOperacion, tipoRegimen, idRegistroLOG, "Generación de TXT de Percepcion Correcta - No se Encontraron Percepcion", idRetencionNetSuite, refComprobante, subsidiaria);
+				} else {
+				  // Error Obteniendo Percepciones
+				  errorGeneral = true;
+				  //nlapiLogExecution('ERROR', 'generarTXTIVARet', 'Error Obteniendo Retenciones IVA');
+				  log.error({
+					title: "generarTXTIVARet",
+					details: "Error Obteniendo Percepciones IVA"
+				  });
+				  idRegistroLOG = grabarLogError("EST-LOG-ERROR", periodo, tipoOperacion, tipoRegimen, idRegistroLOG, "Error Generando TXT Percepcion - Error : Error Obteniendo Percepciones", idRetencionNetSuite, refComprobante, subsidiaria);
+				}
+			  }
+			}
+		  }
+		  if (!isEmpty(contenidoTXT)) {
+			contenidoTXT += "\r\n";
+		  }
+		} catch (e) {
+		  //nlapiLogExecution('ERROR', 'generarTXTIVARet', 'Error Generando TXT IVA - Retenciones - Error : ' + e.message);
+		  log.error({
+			title: "generarTXTIVARet",
+			details: "Error Generando TXT IVA - Percepciones - Error : " + e.message
+		  });
+		  errorGeneral = true;
+		  descripcionError = "Error Generando TXT IVA Percepciones - Error : " + e.message;
+		  idRegistroLOG = grabarLogError("EST-LOG-ERROR", periodo, tipoOperacion, tipoRegimen, idRegistroLOG, descripcionError, idRetencionNetSuite, refComprobante, subsidiaria);
+		}
+		if (errorGeneral == true) {
+		  retencionIVA = grabarError(true, "Error Generando TXT de Percepciones", existenRetenciones, procesoEncolado, idRegistroLOG);
+		} else {
+		  retencionIVA = grabarError(false, "Generacion de TXT de Percepciones Correcta", existenRetenciones, procesoEncolado, idRegistroLOG);
+		  if (procesoEncolado == false) {
+			if (existenRetenciones == true)
+			  idRegistroLOG = grabarLogError("EST-LOG-OK", periodo, tipoOperacion, tipoRegimen, idRegistroLOG, "TXT Percepciones Aduaneras IVA Generadas Correctamente", null, null, subsidiaria);
+		  }
+		}
+		//nlapiLogExecution('DEBUG', 'generarTXTIVARet', 'Finalización - Generación TXT IVA - Retenciones Sufridas');
+		log.debug({
+		  title: "generarTXTIVARet",
+		  details: "Finalización - Generación TXT IVA - Percepciones Aduaneras"
+		});
+		retencionIVA.contenidoTXT = contenidoTXT;
+		return retencionIVA;
+	  }
+
+	  function generarTXTArbaPercNuevo(periodo, email, tipoRegimen, tipoOperacion, ultimaRetencionProcesada, context, idLogErrores, url, separadorDecimal, separadorMiles, subsidiaria) {
+		//nlapiLogExecution('DEBUG', 'Proceso Generacion TXT', 'Inicio - Generacion TXT ARBA Percepciones');
+		log.debug({
+		  title: "Proceso Generacion TXT",
+		  details: "Inicio - Generacion TXT ARBA Percepciones"
+		});
+		const procesoEncolado = false;
+		let idRegistroLOG = idLogErrores;
+		let errorGlobal = false;
+		let errorGeneral = false;
+		let existenPercepciones = false;
+		const mensajeError = "Error Generando TXT de Percepciones ARBA";
+		let descripcionError = "";
+		const tipoComprobanteNS = "";
+		const marcaGenerarTXT = true;
+		const errorParcial = false;
+		let contenidoTXT = "";
+		try {
+		  var percepcionARBA = {};
+		  percepcionARBA.retencion = {};
+		  percepcionARBA.sujeto = {};
+		  percepcionARBA.existenRetenciones = false;
+		  percepcionARBA.error = false;
+		  percepcionARBA.descripcionError = "";
+		  percepcionARBA.procesoEncolado = false;
+		  percepcionARBA.idLog = idRegistroLOG;
+		  percepcionARBA.retencion.importeRetencion = 0;
+		  percepcionARBA.contenidoTXT = "";
+		  // Grabo Registro de TXT
+		  const estadoGeneracionTXT = null;
+		  const filtro = [];
+		  let i = 0;
+		  if (!isEmpty(periodo) && !isEmpty(periodo.fDesde) && !isEmpty(periodo.fHasta)) {
+			//filtro[i++] = new nlobjSearchFilter('trandate', null, 'within', periodo.fDesde, periodo.fHasta);
+			filtro[i++] = search.createFilter({
+			  name: "trandate",
+			  operator: search.Operator.WITHIN,
+			  values: [periodo.fDesde, periodo.fHasta]
+			});
+		  }
+		  if (!isEmpty(subsidiaria))
+			//filtro[i++] = new nlobjSearchFilter('subsidiary', null, 'is', subsidiaria);
+			filtro[i++] = search.createFilter({
+			  name: "subsidiary",
+			  operator: search.Operator.IS,
+			  values: subsidiaria
+			});
+		  //////////////
+		  //var search = new nlapiLoadSearch('transaction', 'customsearch_l54_per_arba');
+		  const search1 = search.load({
+			id: "customsearch_l54_per_arba",
+			type: "transaction"
+		  });
+		  search1.filters.push(...filtro);
+		  const searchResults = search1.run();
+		  let completeResultSet = [];
+		  // resultIndex points to record starting current "resultado" in the entire results array
+		  let resultIndex = 0;
+		  const resultStep = 1000; // Number of records returned in one step (maximum is 1000)
+		  let resultado; // temporary variable used to store the result set
+		  do {
+			// fetch one result set
+			//resultado = searchResults.getResults(resultIndex, resultIndex + resultStep);
+			resultado = searchResults.getRange({
+			  start: resultIndex,
+			  end: resultIndex + resultStep
+			});
+			if (!isEmpty(resultado) && resultado.length > 0) {
+			  if (resultIndex == 0)
+				completeResultSet = resultado; //Primera ve inicializa
+			  else
+				completeResultSet = completeResultSet.concat(resultado);
+			  //nlapiLogExecution('DEBUG', 'generarTXT_ARBA_per', 'resultIndex:' + resultIndex + ',resultado.length:' + resultado.length);
+			  log.debug({
+				title: "generarTXT_ARBA_per",
+				details: "resultIndex:" + resultIndex + ", resultado.length: " + resultado.length
+			  });
+			}
+			// increase pointer
+			resultIndex = resultIndex + resultStep;
+			// Verifico si debo Encolar el Proceso
+			//checkGovernance(1000);
+			// once no records are returned we already got all of them
+		  } while (!isEmpty(resultado) && resultado.length > 0);
+		  if (!isEmpty(completeResultSet)) {
+			//nlapiLogExecution('DEBUG', 'generarTXT_ARBA - Percepciones', 'Cantidad Percepciones:' + completeResultSet.length);
+			log.debug({
+			  title: "generarTXT_ARBA - Percepciones",
+			  details: "Cantidad Percepciones: " + completeResultSet.length
+			});
+
+          var objList = getTipoTransIdNew();
+          var objNumerador =  getNumeradores(subsidiaria);
+          var objComprobantes = getComprobantes();
+			for (i = 0; i < completeResultSet.length; i++) {
+			  percepcionARBA.percepcion = {};
+			  percepcionARBA.sujeto = {};
+			  const resultadoTXTPercepcionesARBA = completeResultSet[i];
+			  const columns = resultadoTXTPercepcionesARBA.columns;
+			  ///////////////////////////////////////////////////////////////////////////////////////////////
+			  //Armo TXT
+			  /*
+			  Cuit contribuyente Percibido
+			  Fecha Percepcion
+			  Tipo Comprobante
+			  Letra Comprobante
+			  Numero Sucursal
+			  Numero Emisión
+			  Monto Imponible
+			  Importe de Percepcion
+			  Tipo Operación
+			   */
+			  existenPercepciones = true;
+			  errorGlobal = false;
+			  descripcionError = "";
+			  var idPercepcionNetSuite = null; // En Percepciones No Hay Referencia a la Tabla Retenciones
+			  //var refComprobante = resultadoTXTPercepcionesARBA.getValue('internalid', null, 'group');
+			  var refComprobante = resultadoTXTPercepcionesARBA.getValue({
+				name: "internalid",
+				summary: search.Summary.GROUP
+			  });
+			  if (!isEmpty(refComprobante)) {
+				//var nroDocumento = resultadoTXTPercepcionesARBA.getValue('custbody_54_cuit_entity', null, 'max');
+				let nroDocumento = resultadoTXTPercepcionesARBA.getValue({
+				  name: "custbody_54_cuit_entity",
+				  summary: search.Summary.MAX
+				});
+				if (!isEmpty(nroDocumento)) {
+				  // Formateo el Documento
+				  nroDocumento = nroDocumento.replace(/-/g, "");
+				  nroDocumento = nroDocumento.replace(/\./g, "");
+				  // Elimino Blancos
+				  nroDocumento = nroDocumento.replace(/ /g, "&nbsp");
+				  if (!isEmpty(nroDocumento) && nroDocumento.length == 11) {
+					// Formateo el Documento con el Formato Solicitado por ARBA
+					const numeroDocumentoFinal = nroDocumento.substring(0, 2) + "-" + nroDocumento.substring(2, 10) + "-" + nroDocumento.substring(10, 11);
+					percepcionARBA.sujeto.numeroDocSujeto = padding_right(numeroDocumentoFinal, " ", 11);
+					// Obtengo la Fecha de Retencion
+					//var fechaPercepcion = resultadoTXTPercepcionesARBA.getValue('trandate', null, 'group');
+					const fechaPercepcion = resultadoTXTPercepcionesARBA.getValue({
+					  name: "trandate",
+					  summary: search.Summary.GROUP
+					});
+					if (!isEmpty(fechaPercepcion)) {
+					  // Formateo la Fecha
+					  //var fechaPercepcionDate = nlapiStringToDate(fechaPercepcion, 'datetimetz');
+					  const fechaPercepcionDate = format.parse({
+						value: fechaPercepcion,
+						type: format.Type.DATE
+					  });
+					  if (!isEmpty(fechaPercepcionDate)) {
+						// Obtengo las Componentes de la Fecha
+						const diaPercepcion = fechaPercepcionDate.getDate();
+						const mesPercepcion = parseInt(fechaPercepcionDate.getMonth(), 10) + parseInt(1, 10);
+						const anioPercepcion = fechaPercepcionDate.getFullYear();
+						const fechaPercepcionFinal = padding_left(diaPercepcion, "0", 2) + "/" + padding_left(mesPercepcion, "0", 2) + "/" + anioPercepcion;
+						percepcionARBA.percepcion.fechaPercepcion = fechaPercepcionFinal;
+						// Obtengo el Tipo de Comprobante
+                      
+                      var recordtype = resultadoTXTPercepcionesARBA.getValue({ name: "recordtype", summary: search.Summary.GROUP });
+                      var esND = resultadoTXTPercepcionesARBA.getValue({ name: "custbody_l54_nd", summary: search.Summary.GROUP });
+                      var esCE = resultadoTXTPercepcionesARBA.getValue({ name: "custbody_l54_es_credito_electronico", summary: search.Summary.MAX });
+                      var recordList = objList.filter(function (obj) {
+                        return (obj.name == recordtype)
+                      });
+                      log.debug("params", recordtype + '->> ' + esND + " ->> " + esCE)
+                      log.debug("recordList", JSON.stringify(recordList))
+                      let codigoComprobante = null;
+                      let idRecord = recordList;
+
+                      var objNumeradorResult = objNumerador.filter(function (obj) {
+                        return (obj.col2 == idRecord[0].id && obj.col3 == esND && obj.col4 == esCE)
+                      })
+                      log.debug("objNumeradorResult", JSON.stringify(objNumeradorResult))
+                      if(objNumeradorResult.length > 0){
+                        var objComprobantesResult = objComprobantes.filter(function (obj) {
+                          return (obj.col0 == objNumeradorResult[0].col1)
+                        })
+                        log.debug("objComprobantesResult", JSON.stringify(objComprobantesResult))
+                        if(objComprobantesResult.length > 0){
+                          codigoComprobante = objComprobantesResult[0].col3
+                        }
+                      }
+
+                      //const codigoComprobante = obtenerCodigoComprobante(refComprobante, "arba", subsidiaria);
+						if (!isEmpty(codigoComprobante)) {
+						  percepcionARBA.percepcion.codigoComprobante = codigoComprobante;
+						  // Obtengo el Numero de Emision (Numerador)
+						  //var numerador = resultadoTXTPercepcionesARBA.getValue('custbody_l54_numero_localizado', null, 'max');
+						  const numerador = resultadoTXTPercepcionesARBA.getValue({
+							name: "custbody_l54_numero_localizado",
+							summary: search.Summary.MAX
+						  });
+						  if (!isEmpty(numerador)) {
+							const numeroComprobante = numerador.toString().substr(-8);
+							if (!isEmpty(numeroComprobante)) {
+							  percepcionARBA.percepcion.numeroComprobante = padding_left(numeroComprobante, "0", 8);
+							  // Obtengo el Numero de Sucursal (Punto de Venta)
+							  const puntoVenta = resultadoTXTPercepcionesARBA.getValue(columns[20]);
+							  if (!isEmpty(puntoVenta)) {
+								// percepcionARBA.percepcion.puntoVenta = padding_left(puntoVenta, "0", 4);
+								percepcionARBA.percepcion.puntoVenta = padding_left(puntoVenta, "0", 5);
+								// Obtengo la Letra del Comprobante
+								//var letra = resultadoTXTPercepcionesARBA.getValue('custbody_l54_letra', null, 'max');
+								const letra = resultadoTXTPercepcionesARBA.getValue({
+								  name: "custbody_l54_letra",
+								  summary: search.Summary.MAX
+								});
+								//var letraStr = resultadoTXTPercepcionesARBA.getValue('custbody_l54_letra', null, 'max');
+								let letraStr = resultadoTXTPercepcionesARBA.getValue({
+								  name: "custbody_l54_letra",
+								  summary: search.Summary.MAX
+								});
+								if (!isEmpty(letraStr) && !isEmpty(letra)) {
+								  if (letraStr != "A" && letraStr != "B" && letraStr != "C") {
+									letraStr = " ";
+								  }
+								  percepcionARBA.percepcion.letra = letraStr;
+								  // Obtengo el Tipo de Cambio
+								  //var tipoCambio = resultadoTXTPercepcionesARBA.getValue('exchangerate', null, 'group');
+								  const tipoCambio = resultadoTXTPercepcionesARBA.getValue({
+									name: "exchangerate",
+									summary: search.Summary.GROUP
+								  });
+								  if (!isEmpty(tipoCambio)) {
+									// Obtengo el Importe de la Percepcion
+									// var importePercepcion = resultadoTXTPercepcionesARBA.getValue('taxamount', null, 'sum');
+									//var importePercepcion = resultadoTXTPercepcionesARBA.getValue(columns[19]);
+									const importePercepcion = resultadoTXTPercepcionesARBA.getValue({
+									  name: columns[19]
+									});
+									/* var cantDecImportePercepcion = countDecimales(importePercepcion);
+									var cantDecTipoCambio = countDecimales(tipoCambio);
+									var cantidadDecimalesFinal = cantDecImportePercepcion + cantDecTipoCambio;
+									var importePercepcionFinal = parseFloat((parseFloat(parseFloat(convertToInteger(importePercepcion), 10) * parseFloat(convertToInteger(tipoCambio), 10), 10) / Math.pow(10, cantidadDecimalesFinal)), 10); */
+									if (!isEmpty(importePercepcion) && !isNaN(importePercepcion) && ((codigoComprobante != "C" && (parseFloat(importePercepcion, 10) > 0.00)) || ((codigoComprobante == "C" || codigoComprobante == "H") && (Math.abs(parseFloat(importePercepcion, 10)) >= 0.00)))) {
+									  // Genero el Absoluto
+									  const importePercepcionFinal = Math.abs(importePercepcion);
+									  // Si es Nota de Credito, Va en Negativo
+									  let longitudImporte = 13;
+									  let caracterRelleno = "";
+									  if (codigoComprobante == "C" || codigoComprobante == "H") {
+										longitudImporte = parseInt(longitudImporte, 10) - parseInt(1, 10);
+										caracterRelleno = "-";
+									  }
+									  // percepcionARBA.percepcion.importePercepcion = caracterRelleno + padding_left(parseFloat(parseFloat(importePercepcion, 10) * parseFloat(1, 10), 10).toFixed(2).formatMoney(2, separadorMiles, separadorDecimal), '0', longitudImporte);
+									  // percepcionARBA.percepcion.importePercepcion = caracterRelleno + padding_left(parseFloat(numberTruncTwoDec(parseFloat(importePercepcionFinal, 10)), 10).formatMoney(2, separadorMiles, separadorDecimal), '0', longitudImporte);
+									  percepcionARBA.percepcion.importePercepcion = caracterRelleno + padding_left(parseFloat(importePercepcion, 10).formatMoney(2, separadorMiles, separadorDecimal), "0", longitudImporte);
+									  // Obtengo el Monto Imponible de Percepcion
+									  //var montoImponible = resultadoTXTPercepcionesARBA.getValue('custcol_l54_monto_imp_perc', null, 'sum');
+									  let montoImponible = resultadoTXTPercepcionesARBA.getValue(columns[17]);
+									  /* if (isEmpty(montoImponible) || montoImponible <= 0) {
+										var montoImponible = resultadoTXTPercepcionesARBA.getValue(columns[16]);
+									  } */
+									  if (!isEmpty(montoImponible) && !isNaN(montoImponible) && ((codigoComprobante != "C" && (parseFloat(montoImponible, 10) > 0.00)) || ((codigoComprobante == "C" || codigoComprobante == "H") && (Math.abs(parseFloat(montoImponible, 10)) >= 0.00)))) {
+										// Genero el Absoluto
+										montoImponible = Math.abs(montoImponible);
+										// Si es Nota de Credito, Va en Negativo
+										let longitudMontoImponible = 14;
+										let caracterRellenoMontoImp = "";
+										if (codigoComprobante == "C" || codigoComprobante == "H") {
+										  longitudMontoImponible = parseInt(longitudMontoImponible, 10) - parseInt(1, 10);
+										  caracterRellenoMontoImp = "-";
+										}
+										percepcionARBA.percepcion.montoImponible = caracterRellenoMontoImp + padding_left(parseFloat(montoImponible, 10).formatMoney(2, separadorMiles, separadorDecimal), "0", longitudMontoImponible);
+										// Obtengo el Tipo de Operacion
+										//var tipoOperacionPer = resultadoTXTPercepcionesARBA.getValue('formulatext', null, 'group');
+										const tipoOperacionPer = resultadoTXTPercepcionesARBA.getValue({
+										  name: "formulatext",
+										  summary: search.Summary.GROUP
+										});
+										if (!isEmpty(tipoOperacionPer) && tipoOperacionPer.length == 1) {
+										  percepcionARBA.percepcion.tipoOperacionPer = tipoOperacionPer;
+										  var alicuota =  resultadoTXTPercepcionesARBA.getValue(columns[13]);
+										  if (!isEmpty(alicuota)  && !isNaN(alicuota)) {
+												percepcionARBA.percepcion.alicuota = padding_left(parseFloat(alicuota, 10).formatMoney(2, separadorMiles, separadorDecimal), "0", 5);
+											} else {
+												errorGlobal = true;
+												descripcionError = "Error Obteniendo la alicuota";
+											}
+										} else {
+										  errorGlobal = true;
+										  descripcionError = "Error Obteniendo el Tipo de Operacion";
+										}
+									  } else {
+										errorGlobal = true;
+										descripcionError = "El Monto Imponible es Invalido";
+									  }
+									} else {
+									  errorGlobal = true;
+									  descripcionError = "El Importe de Percepcion es Invalido";
+									}
+								  } else {
+									errorGlobal = true;
+									descripcionError = "Error Obteniendo Tipo de Cambio de la Percepcion";
+								  }
+								} else {
+								  errorGlobal = true;
+								  descripcionError = "Error Obteniendo La Letra del Comprobante";
+								}
+							  } else {
+								errorGlobal = true;
+								descripcionError = "Error Obteniendo El Punto De Venta del Comprobante";
+							  }
+							} else {
+							  errorGlobal = true;
+							  descripcionError = "Error Obteniendo Numero de Comprobante";
+							}
+						  } else {
+							errorGlobal = true;
+							descripcionError = "Error Obteniendo Numero de Comprobante";
+						  }
+						} else {
+						  errorGlobal = true;
+						  descripcionError = "Error Obteniendo el Codigo de Comprobante";
+						}
+					  } else {
+						errorGlobal = true;
+						descripcionError = "Error Formateando la Fecha de Percepcion";
+					  }
+					} else {
+					  errorGlobal = true;
+					  descripcionError = "Error Obteniendo Fecha De Percepcion";
+					}
+				  } else {
+					errorGlobal = true;
+					descripcionError = "Numero de Documento del Cliente Invalido";
+				  }
+				} else {
+				  errorGlobal = true;
+				  descripcionError = "Error Obteniendo Numero de Documento del Cliente";
+				}
+			  } else {
+				errorGlobal = true;
+				descripcionError = "Error Obteniendo el Comprobante que Origino la Percepcion";
+			  }
+			  // Genero el Contenido
+			  if (errorGlobal == false) {
+				if (percepcionARBA.percepcion != null) {
+				  // Genero Contenido
+				  if (!isEmpty(contenidoTXT)) {
+					contenidoTXT += "\r\n";
+				  }
+				  const error = false;
+				  const descripcionMensaje = "TXT Percepciones Generado Correctamente";
+				  contenidoTXT += percepcionARBA.sujeto.numeroDocSujeto + percepcionARBA.percepcion.fechaPercepcion + percepcionARBA.percepcion.codigoComprobante +
+					percepcionARBA.percepcion.letra + percepcionARBA.percepcion.puntoVenta + percepcionARBA.percepcion.numeroComprobante +
+					percepcionARBA.percepcion.montoImponible + percepcionARBA.percepcion.alicuota +  percepcionARBA.percepcion.importePercepcion + percepcionARBA.percepcion.tipoOperacionPer;
+				  // Grabo Registro de TXT
+				  /*var estadoGeneracionTXT = null;
+				  estadoGeneracionTXT = generarTXT(periodo, tipoOperacion, tipoRegimen, contenidoTXT, idRegistroLOG, idPercepcionNetSuite);
+				  if (isEmpty(estadoGeneracionTXT) || !isEmpty(estadoGeneracionTXT) && estadoGeneracionTXT.errorGeneracion == true) {
+				  // Error Generando TXT
+				  error = true;
+				  descripcionMensaje = "Error Generando TXT Percepciones";
+				  if (isEmpty(estadoGeneracionTXT))
+				  descripcionMensaje = estadoGeneracionTXT.descripcionError;
+				  errorGeneral = true;
+				  descripcionError = descripcionMensaje;
+				  idRegistroLOG = grabarLogError('EST-LOG-ERROR', periodo, tipoOperacion, tipoRegimen, idRegistroLOG, 'Error Generando TXT Percepciones - Error : ' + descripcionError, idPercepcionNetSuite, refComprobante, subsidiaria);
+				  }*/
+				} else {
+				  errorGeneral = true;
+				  descripcionError = "Error Obteniendo informacion de la Percepcion";
+				  idRegistroLOG = grabarLogError("EST-LOG-ERROR", periodo, tipoOperacion, tipoRegimen, idRegistroLOG, "Error Generando TXT Percepciones - Error : " + descripcionError, idPercepcionNetSuite, refComprobante, subsidiaria);
+				}
+			  } else {
+				// Error Obteniendo Informacion de Percepciones
+				// Grabo el Error en NetSuite
+				errorGeneral = true;
+				//nlapiLogExecution('ERROR', 'Proceso Generacion TXT', 'Error Generando TXT Percepciones ARCIBA');
+				log.error({
+				  title: "Proceso Generacion TXT",
+				  details: "Error Generando TXT Percepciones ARCIBA"
+				});
+				idRegistroLOG = grabarLogError("EST-LOG-ERROR", periodo, tipoOperacion, tipoRegimen, idRegistroLOG, "Error Generando TXT Percepciones - Error : " + descripcionError, idPercepcionNetSuite, refComprobante, subsidiaria);
+			  }
+			  // Verifico si debo Encolar el Proceso
+			  //checkGovernance(1000);
+			}
+			if (errorGeneral == false) {
+			  if (existenPercepciones == false) {
+				if (!isEmpty(completeResultSet) && completeResultSet.length == 0) {
+				  // No se Encontraron Percepciones para el Periodo
+				  idRegistroLOG = grabarLogError("EST-LOG-OK", periodo, tipoOperacion, tipoRegimen, idRegistroLOG, "Generacion de TXT de Percepciones Correcta - No se Encontraron Percepciones", idPercepcionNetSuite, refComprobante, subsidiaria);
+				} else {
+				  // Error Obteniendo Percepciones
+				  errorGeneral = true;
+				  //nlapiLogExecution('ERROR', 'Proceso Generacion TXT', 'Error Obteniendo Percepciones ARBA');
+				  log.error({
+					title: "Proceso Generacion TXT",
+					details: "Error Obteniendo Percepciones ARBA"
+				  });
+				  idRegistroLOG = grabarLogError("EST-LOG-ERROR", periodo, tipoOperacion, tipoRegimen, idRegistroLOG, "Error Generando TXT Percepciones - Error : Error Obteniendo Percepciones", idPercepcionNetSuite, refComprobante, subsidiaria);
+				}
+			  }
+			}
+		  }
+		  if (!isEmpty(contenidoTXT)) {
+			contenidoTXT += "\r\n";
+		  }
+		} catch (e) {
+		  //nlapiLogExecution('ERROR', 'Proceso Generacion TXT', 'Error Generando TXT ARBA - Error : ' + e.message);
+		  log.error({
+			title: "Proceso Generacion TXT",
+			details: "Error Generando TXT ARBA - Error: " + e.message
+		  });
+		  errorGeneral = true;
+		  descripcionError = "Error Generando TXT ARBA - Error : " + e.message;
+		  idRegistroLOG = grabarLogError("EST-LOG-ERROR", periodo, tipoOperacion, tipoRegimen, idRegistroLOG, descripcionError, idPercepcionNetSuite, refComprobante, subsidiaria);
+		}
+		if (errorGeneral == true) {
+		  percepcionARBA = grabarError(true, "Error Generando TXT de Percepciones - ARBA", existenPercepciones, procesoEncolado, idRegistroLOG);
+		} else {
+		  percepcionARBA = grabarError(false, "Generacion de TXT de Percepciones Correcta - ARBA", existenPercepciones, procesoEncolado, idRegistroLOG);
+		  if (procesoEncolado == false) {
+			if (existenPercepciones == true)
+			  idRegistroLOG = grabarLogError("EST-LOG-OK", periodo, tipoOperacion, tipoRegimen, idRegistroLOG, "TXT Percepciones Generadas Correctamente - ARBA", null, null, subsidiaria);
+		  }
+		}
+		//nlapiLogExecution('DEBUG', 'Proceso Generacion TXT - ARBA', 'Finalizacion - Generacion TXT ARBA Percepciones');
+		log.debug({
+		  title: "Proceso Generacion TXT - ARBA",
+		  details: "Finalizacion - Generacion TXT ARBA Percepciones"
+		});
+		percepcionARBA.contenidoTXT = contenidoTXT;
+		return percepcionARBA;
+	  }
+
+	  function generarTXTArbaPercAct7Nuevo(periodo, email, tipoRegimen, tipoOperacion, ultimaRetencionProcesada, context, idLogErrores, url, separadorDecimal, separadorMiles, subsidiaria) {
+   
+		log.debug('Proceso Generacion TXT', 'Inicio - Generacion TXT ARBA Percepciones');
+		var procesoEncolado = false;
+		var idRegistroLOG = idLogErrores;
+		var errorGlobal = false;
+		var errorGeneral = false;
+		var existenPercepciones = false;
+		var mensajeError = "Error Generando TXT de Percepciones ARBA";
+		var descripcionError = "";
+		var tipoComprobanteNS = "";
+		var marcaGenerarTXT = true;
+		var errorParcial = false;
+		var contenidoTXT = "";
+	  
+		try {
+		  var percepcionARBA = new Object();
+		  percepcionARBA.retencion = new Object();
+		  percepcionARBA.sujeto = new Object();
+		  percepcionARBA.existenRetenciones = false;
+		  percepcionARBA.error = false;
+		  percepcionARBA.descripcionError = "";
+		  percepcionARBA.procesoEncolado = false;
+		  percepcionARBA.idLog = idRegistroLOG;
+		  percepcionARBA.retencion.importeRetencion = 0;
+		  percepcionARBA.contenidoTXT = "";
+	  
+		  // Grabo Registro de TXT
+		  var estadoGeneracionTXT = null;
+	  
+		  var filtro = new Array();
+		  var i = 0;
+   
+		  if (!isEmpty(periodo) && !isEmpty(periodo.fDesde) && !isEmpty(periodo.fHasta)) {
+			//filtro[i++] = new nlobjSearchFilter('trandate', null, 'within', periodo.fDesde, periodo.fHasta);
+			filtro[i++] = search.createFilter({
+			  name: "trandate",
+			  operator: search.Operator.WITHIN,
+			  values: [periodo.fDesde, periodo.fHasta]
+			});
+		  }
+   
+		  if (!isEmpty(subsidiaria)){
+			//filtro[i++] = new nlobjSearchFilter('subsidiary', null, 'is', subsidiaria);
+			filtro[i++] = search.createFilter({
+			  name: "subsidiary",
+			  operator: search.Operator.IS,
+			  values: subsidiaria
+			});
+		  }
+		   
+		  const search1 = search.load({
+			id: "customsearch_l54_per_arba",
+			type: "transaction"
+		  });
+		  search1.filters.push(...filtro);
+		  const searchResults = search1.run();
+		  let completeResultSet = [];
+		  // resultIndex points to record starting current "resultado" in the entire results array
+		  let resultIndex = 0;
+		  const resultStep = 1000; // Number of records returned in one step (maximum is 1000)
+		  let resultado; // temporary variable used to store the result set
+		  do {
+			// fetch one result set
+			//resultado = searchResults.getResults(resultIndex, resultIndex + resultStep);
+			resultado = searchResults.getRange({
+			  start: resultIndex,
+			  end: resultIndex + resultStep
+			});
+			if (!isEmpty(resultado) && resultado.length > 0) {
+			  if (resultIndex == 0)
+				completeResultSet = resultado; //Primera ve inicializa
+			  else
+				completeResultSet = completeResultSet.concat(resultado);
+			  //nlapiLogExecution('DEBUG', 'generarTXT_ARBA_per', 'resultIndex:' + resultIndex + ',resultado.length:' + resultado.length);
+			  log.debug({
+				title: "generarTXT_ARBA_per_act7",
+				details: "resultIndex:" + resultIndex + ", resultado.length: " + resultado.length
+			  });
+			}
+			// increase pointer
+			resultIndex = resultIndex + resultStep;
+			// Verifico si debo Encolar el Proceso
+			//checkGovernance(1000);
+			// once no records are returned we already got all of them
+		  } while (!isEmpty(resultado) && resultado.length > 0);
+   
+	  
+		  if (!isEmpty(completeResultSet)) {
+			log.debug('generarTXT_ARBA - Percepciones', 'Cantidad Percepciones:' + completeResultSet.length);
+	  
+			for (i = 0; i < completeResultSet.length; i++) {
+			  percepcionARBA.percepcion = new Object();
+			  percepcionARBA.sujeto = new Object();
+			  const resultadoTXTPercepcionesARBA = completeResultSet[i];
+			  const columns = resultadoTXTPercepcionesARBA.columns;
+			  ///////////////////////////////////////////////////////////////////////////////////////////////
+	  
+			  //Armo TXT
+	  
+			  /*
+			  Cuit contribuyente Percibido
+			  Fecha Percepcion
+			  Tipo Comprobante
+			  Letra Comprobante
+			  Numero Sucursal
+			  Numero Emisión
+			  Monto Imponible
+			  Importe de Percepcion
+			  Tipo Operación
+			   */
+	  
+			  existenPercepciones = true;
+			  errorGlobal = false;
+			  descripcionError = "";
+			  var idPercepcionNetSuite = null; // En Percepciones No Hay Referencia a la Tabla Retenciones
+			  var refComprobante = resultadoTXTPercepcionesARBA.getValue({
+				name: "internalid",
+				summary: search.Summary.GROUP
+			  });
+			  if (!isEmpty(refComprobante)) {
+				let nroDocumento = resultadoTXTPercepcionesARBA.getValue({
+				  name: "custbody_54_cuit_entity",
+				  summary: search.Summary.MAX
+				});
+				if (!isEmpty(nroDocumento)) {
+				  // Formateo el Documento
+				  nroDocumento = nroDocumento.replace(/-/g, '');
+				  nroDocumento = nroDocumento.replace(/\./g, '');
+				  // Elimino Blancos
+				  nroDocumento = nroDocumento.replace(/ /g, '&nbsp');
+				  if (!isEmpty(nroDocumento) && nroDocumento.length == 11) {
+					// Formateo el Documento con el Formato Solicitado por ARBA
+					var numeroDocumentoFinal = nroDocumento.substring(0, 2) + '-' + nroDocumento.substring(2, 10) + '-' + nroDocumento.substring(10, 11);
+					percepcionARBA.sujeto.numeroDocSujeto = padding_right(numeroDocumentoFinal, " ", 11);
+					// Obtengo la Fecha de Retencion
+					var fechaPercepcion = resultadoTXTPercepcionesARBA.getValue({
+					  name: "trandate",
+					  summary: search.Summary.GROUP
+					});
+					if (!isEmpty(fechaPercepcion)) {
+					  // Formateo la Fecha
+					  var fechaPercepcionDate = format.parse({
+						value: fechaPercepcion,
+						type: format.Type.DATE
+					  });
+					  if (!isEmpty(fechaPercepcionDate)) {
+						// Obtengo las Componentes de la Fecha
+						var diaPercepcion = fechaPercepcionDate.getDate();
+						var mesPercepcion = parseInt(fechaPercepcionDate.getMonth(), 10) + parseInt(1, 10);
+						var anioPercepcion = fechaPercepcionDate.getFullYear();
+						var fechaPercepcionFinal = padding_left(diaPercepcion, '0', 2) + "/" + padding_left(mesPercepcion, '0', 2) + "/" + anioPercepcion;
+						percepcionARBA.percepcion.fechaPercepcion = fechaPercepcionFinal;
+						// Obtengo el Tipo de Comprobante
+						var codigoComprobante = obtenerCodigoComprobante(refComprobante, 'arba', subsidiaria);
+						if (!isEmpty(codigoComprobante)) {
+						  percepcionARBA.percepcion.codigoComprobante = codigoComprobante;
+						  // Obtengo el Numero de Emision (Numerador)
+						  const numerador = resultadoTXTPercepcionesARBA.getValue({
+							name: "custbody_l54_numero_localizado",
+							summary: search.Summary.MAX
+						  });
+						  if (!isEmpty(numerador)) {
+							var numeroComprobante = numerador.toString().substr(-8);
+							if (!isEmpty(numeroComprobante)) {
+							  percepcionARBA.percepcion.numeroComprobante = padding_left(numeroComprobante, '0', 8);
+							  // Obtengo el Numero de Sucursal (Punto de Venta)
+							  var puntoVenta = resultadoTXTPercepcionesARBA.getValue(columns[20]);
+	  
+							  if (!isEmpty(puntoVenta)) {
+								// percepcionARBA.percepcion.puntoVenta = padding_left(puntoVenta, "0", 4);
+	  
+								percepcionARBA.percepcion.puntoVenta = padding_left(puntoVenta, "0", 5);
+	  
+								// Obtengo la Letra del Comprobante
+								const letra = resultadoTXTPercepcionesARBA.getValue({
+								  name: "custbody_l54_letra",
+								  summary: search.Summary.MAX
+								});
+								//var letraStr = resultadoTXTPercepcionesARBA.getValue('custbody_l54_letra', null, 'max');
+								let letraStr = resultadoTXTPercepcionesARBA.getValue({
+								  name: "custbody_l54_letra",
+								  summary: search.Summary.MAX
+								});
+								if (!isEmpty(letraStr) && !isEmpty(letra)) {
+								  if (letraStr != 'A' && letraStr != 'B' && letraStr != 'C') {
+									letraStr = ' ';
+								  }
+								  percepcionARBA.percepcion.letra = letraStr;
+								  // Obtengo el Tipo de Cambio
+								  const tipoCambio = resultadoTXTPercepcionesARBA.getValue({
+									name: "exchangerate",
+									summary: search.Summary.GROUP
+								  });
+								  if (!isEmpty(tipoCambio)) {
+	  
+									// Obtengo el Importe de la Percepcion
+									// var importePercepcion = resultadoTXTPercepcionesARBA.getValue('taxamount', null, 'sum');
+									var importePercepcion = resultadoTXTPercepcionesARBA.getValue(columns[19]);
+									/* var cantDecImportePercepcion = countDecimales(importePercepcion);
+									var cantDecTipoCambio = countDecimales(tipoCambio);
+									var cantidadDecimalesFinal = cantDecImportePercepcion + cantDecTipoCambio;
+									var importePercepcionFinal = parseFloat((parseFloat(parseFloat(convertToInteger(importePercepcion), 10) * parseFloat(convertToInteger(tipoCambio), 10), 10) / Math.pow(10, cantidadDecimalesFinal)), 10); */
+	  
+									if (!isEmpty(importePercepcion) && !isNaN(importePercepcion) && ((codigoComprobante != 'C' && (parseFloat(importePercepcion, 10) > 0.00)) || ((codigoComprobante == 'C' || codigoComprobante == 'H') && (Math.abs(parseFloat(importePercepcion, 10)) >= 0.00)))) {
+									  // Genero el Absoluto
+									  importePercepcionFinal = Math.abs(importePercepcion);
+									  // Si es Nota de Credito, Va en Negativo
+									  var longitudImporte = 13;
+									  var caracterRelleno = '';
+									  if (codigoComprobante == 'C' || codigoComprobante == 'H') {
+										longitudImporte = parseInt(longitudImporte, 10) - parseInt(1, 10);
+										caracterRelleno = '-';
+									  }
+									  // percepcionARBA.percepcion.importePercepcion = caracterRelleno + padding_left(parseFloat(parseFloat(importePercepcion, 10) * parseFloat(1, 10), 10).toFixed(2).formatMoney(2, separadorMiles, separadorDecimal), '0', longitudImporte);
+									  // percepcionARBA.percepcion.importePercepcion = caracterRelleno + padding_left(parseFloat(numberTruncTwoDec(parseFloat(importePercepcionFinal, 10)), 10).formatMoney(2, separadorMiles, separadorDecimal), '0', longitudImporte);
+									  percepcionARBA.percepcion.importePercepcion = caracterRelleno + padding_left(parseFloat(importePercepcion, 10).formatMoney(2, separadorMiles, separadorDecimal), '0', longitudImporte);
+	  
+									  // Obtengo el Monto Imponible de Percepcion
+									  //var montoImponible = resultadoTXTPercepcionesARBA.getValue('custcol_l54_monto_imp_perc', null, 'sum');
+									  var montoImponible = resultadoTXTPercepcionesARBA.getValue(columns[17]);
+									  /* if (isEmpty(montoImponible) || montoImponible <= 0) {
+										var montoImponible = resultadoTXTPercepcionesARBA.getValue(columns[16]);
+									  } */
+	  
+									  if (!isEmpty(montoImponible) && !isNaN(montoImponible) && ((codigoComprobante != 'C' && (parseFloat(montoImponible, 10) > 0.00)) || ((codigoComprobante == 'C' || codigoComprobante == 'H') && (Math.abs(parseFloat(montoImponible, 10)) >= 0.00)))) {
+										// Genero el Absoluto
+										montoImponible = Math.abs(montoImponible);
+										// Si es Nota de Credito, Va en Negativo
+										var longitudMontoImponible = 14;
+										var caracterRellenoMontoImp = '';
+										if (codigoComprobante == 'C' || codigoComprobante == 'H') {
+										  longitudMontoImponible = parseInt(longitudMontoImponible, 10) - parseInt(1, 10);
+										  caracterRellenoMontoImp = '-';
+										}
+										percepcionARBA.percepcion.montoImponible = caracterRellenoMontoImp + padding_left(parseFloat(montoImponible, 10).formatMoney(2, separadorMiles, separadorDecimal), '0', longitudMontoImponible);
+										// Obtengo el Tipo de Operacion
+										const tipoOperacionPer = resultadoTXTPercepcionesARBA.getValue({
+										  name: "formulatext",
+										  summary: search.Summary.GROUP
+										});
+										if (!isEmpty(tipoOperacionPer) && tipoOperacionPer.length == 1) {
+										  percepcionARBA.percepcion.tipoOperacionPer = tipoOperacionPer;
+										  var alicuota = resultadoTXTPercepcionesARBA.getValue(columns[13]);
+										  if (!isEmpty(alicuota)  && !isNaN(alicuota)) {
+												percepcionARBA.percepcion.alicuota = padding_left(parseFloat(alicuota, 10).formatMoney(2, separadorMiles, separadorDecimal), "0", 5);
+											} else {
+												errorGlobal = true;
+												descripcionError = "Error Obteniendo la alicuota";
+											}
+										} else {
+										  errorGlobal = true;
+										  descripcionError = "Error Obteniendo el Tipo de Operacion";
+										}
+									  } else {
+										errorGlobal = true;
+										descripcionError = "El Monto Imponible es Invalido";
+									  }
+									} else {
+									  errorGlobal = true;
+									  descripcionError = "El Importe de Percepcion es Invalido";
+									}
+								  } else {
+									errorGlobal = true;
+									descripcionError = "Error Obteniendo Tipo de Cambio de la Percepcion";
+								  }
+								} else {
+								  errorGlobal = true;
+								  descripcionError = "Error Obteniendo La Letra del Comprobante";
+								}
+							  } else {
+								errorGlobal = true;
+								descripcionError = "Error Obteniendo El Punto De Venta del Comprobante";
+							  }
+							} else {
+							  errorGlobal = true;
+							  descripcionError = "Error Obteniendo Numero de Comprobante";
+							}
+	  
+						  } else {
+							errorGlobal = true;
+							descripcionError = "Error Obteniendo Numerador de Comprobante";
+						  }
+						} else {
+						  errorGlobal = true;
+						  descripcionError = "Error Obteniendo el Codigo de Comprobante";
+						}
+					  } else {
+						errorGlobal = true;
+						descripcionError = "Error Formateando la Fecha de Percepcion";
+					  }
+					} else {
+					  errorGlobal = true;
+					  descripcionError = "Error Obteniendo Fecha De Percepcion";
+					}
+				  } else {
+					errorGlobal = true;
+					descripcionError = "Numero de Documento del Cliente Invalido";
+				  }
+				} else {
+				  errorGlobal = true;
+				  descripcionError = "Error Obteniendo Numero de Documento del Cliente";
+				}
+			  } else {
+				errorGlobal = true;
+				descripcionError = "Error Obteniendo el Comprobante que Origino la Percepcion";
+			  }
+	  
+			  // Genero el Contenido
+			  if (errorGlobal == false) {
+	  
+				if (percepcionARBA.percepcion != null) {
+	  
+				  // Genero Contenido
+				  if (!isEmpty(contenidoTXT)) {
+					contenidoTXT += "\r\n";
+				  }
+				  var error = false;
+				  var descripcionMensaje = "TXT Percepciones Generado Correctamente";
+				  contenidoTXT += percepcionARBA.sujeto.numeroDocSujeto + percepcionARBA.percepcion.fechaPercepcion + percepcionARBA.percepcion.codigoComprobante +
+					percepcionARBA.percepcion.letra + percepcionARBA.percepcion.puntoVenta + percepcionARBA.percepcion.numeroComprobante +
+					percepcionARBA.percepcion.montoImponible + percepcionARBA.percepcion.alicuota + percepcionARBA.percepcion.importePercepcion + percepcionARBA.percepcion.fechaPercepcion + percepcionARBA.percepcion.tipoOperacionPer;
+	  
+				  // Grabo Registro de TXT
+				  /*var estadoGeneracionTXT = null;
+	  
+				  estadoGeneracionTXT = generarTXT(periodo, tipoOperacion, tipoRegimen, contenidoTXT, idRegistroLOG, idPercepcionNetSuite);
+	  
+				  if (isEmpty(estadoGeneracionTXT) || !isEmpty(estadoGeneracionTXT) && estadoGeneracionTXT.errorGeneracion == true) {
+				  // Error Generando TXT
+				  error = true;
+				  descripcionMensaje = "Error Generando TXT Percepciones";
+				  if (isEmpty(estadoGeneracionTXT))
+				  descripcionMensaje = estadoGeneracionTXT.descripcionError;
+				  errorGeneral = true;
+				  descripcionError = descripcionMensaje;
+				  idRegistroLOG = grabarLogError('EST-LOG-ERROR', periodo, tipoOperacion, tipoRegimen, idRegistroLOG, 'Error Generando TXT Percepciones - Error : ' + descripcionError, idPercepcionNetSuite, refComprobante, subsidiaria);
+				  }*/
+	  
+				} else {
+				  errorGeneral = true;
+				  descripcionError = "Error Obteniendo informacion de la Percepcion";
+				  idRegistroLOG = grabarLogError('EST-LOG-ERROR', periodo, tipoOperacion, tipoRegimen, idRegistroLOG, 'Error Generando TXT Percepciones - Error : ' + descripcionError, idPercepcionNetSuite, refComprobante, subsidiaria);
+				}
+	  
+			  } else {
+				// Error Obteniendo Informacion de Percepciones
+				// Grabo el Error en NetSuite
+				errorGeneral = true;
+				log.error('Proceso Generacion TXT', 'Error Generando TXT Percepciones ARCIBA' + descripcionError);
+				idRegistroLOG = grabarLogError('EST-LOG-ERROR', periodo, tipoOperacion, tipoRegimen, idRegistroLOG, 'Error Generando TXT Percepciones - Error : ' + descripcionError, idPercepcionNetSuite, refComprobante, subsidiaria);
+			  }
+	  
+			  // Verifico si debo Encolar el Proceso
+			  //checkGovernance(1000);
+			}
+			if (errorGeneral == false) {
+	  
+			  if (existenPercepciones == false) {
+	  
+				if (!isEmpty(completeResultSet) && completeResultSet.length == 0) {
+				  // No se Encontraron Percepciones para el Periodo
+				  idRegistroLOG = grabarLogError('EST-LOG-OK', periodo, tipoOperacion, tipoRegimen, idRegistroLOG, 'Generacion de TXT de Percepciones Correcta - No se Encontraron Percepciones', idPercepcionNetSuite, refComprobante, subsidiaria);
+	  
+				} else {
+				  // Error Obteniendo Percepciones
+				  errorGeneral = true;
+				  log.error('Proceso Generacion TXT', 'Error Obteniendo Percepciones ARBA');
+				  idRegistroLOG = grabarLogError('EST-LOG-ERROR', periodo, tipoOperacion, tipoRegimen, idRegistroLOG, 'Error Generando TXT Percepciones - Error : Error Obteniendo Percepciones', idPercepcionNetSuite, refComprobante, subsidiaria);
+				}
+			  }
+			}
+		  }
+	  
+		  if (!isEmpty(contenidoTXT)) {
+			contenidoTXT += "\r\n";
+		  }
+	  
+		} catch (e) {
+		  log.error('Proceso Generacion TXT', 'Error Generando TXT ARBA - Error : ' + e.message);
+		  errorGeneral = true;
+		  descripcionError = "Error Generando TXT ARBA - Error : " + e.message;
+		  idRegistroLOG = grabarLogError('EST-LOG-ERROR', periodo, tipoOperacion, tipoRegimen, idRegistroLOG, descripcionError, idPercepcionNetSuite, refComprobante, subsidiaria);
+		}
+	  
+		if (errorGeneral == true) {
+		  percepcionARBA = grabarError(true, 'Error Generando TXT de Percepciones - ARBA', existenPercepciones, procesoEncolado, idRegistroLOG);
+		} else {
+		  percepcionARBA = grabarError(false, 'Generacion de TXT de Percepciones Correcta - ARBA', existenPercepciones, procesoEncolado, idRegistroLOG);
+		  if (procesoEncolado == false) {
+			if (existenPercepciones == true)
+			  idRegistroLOG = grabarLogError('EST-LOG-OK', periodo, tipoOperacion, tipoRegimen, idRegistroLOG, 'TXT Percepciones Generadas Correctamente - ARBA', null, null, subsidiaria);
+		  }
+		}
+	  
+		log.debug('Proceso Generacion TXT - ARBA', 'Finalizacion - Generacion TXT ARBA Percepciones');
+	  
+		percepcionARBA.contenidoTXT = contenidoTXT;
+		return percepcionARBA;
+	  }
+
+	  function generarTXTRetRegimenes(periodo, email, tipoRegimen, tipoOperacion, ultimaRetencionProcesada, context, idLogErrores, url, separadorDecimal, separadorMiles, subsidiaria){
+		log.debug('generarTXTRetRegimenes', 'Proceso Generacion TXT' + ' Inicio - Generacion TXT generarTXTRetRegimenes');
+		var procesoEncolado = false;
+		var idRegistroLOG = idLogErrores;
+		var errorGlobal = false;
+		var errorGeneral = false;
+		var existenPercepciones = false;
+		const mensajeError = "Error Generando TXT de Percepciones";
+		var descripcionError = "";
+		var tipoComprobanteNS = "";
+		var contenidoTXT = "";
+		var refComprobante = "";
+	  
+		try {
+		  var percepcionesCL = new Object();
+		  var resultadoTXTPercepcionesCL = savedSearchUtility("custrecord_l54_ret_fecha", periodo, "custrecord_l54_ret_subsidiaria", subsidiaria, "customrecord_l54_retencion", "customsearch_l54_ret_arba_regimen").resultados;
+	  
+		  if (!isEmpty(resultadoTXTPercepcionesCL)) {
+			log.debug('Retenciones', 'Cantidad Retenciones:' + resultadoTXTPercepcionesCL.length);
+	  
+			for (i = 0; i < resultadoTXTPercepcionesCL.length; i++) {
+			var columns = resultadoTXTPercepcionesCL[0].columns;
+			  existenPercepciones = true;
+			  errorGlobal = false;
+			  descripcionError = "";
+			  var internlID = resultadoTXTPercepcionesCL[i].getValue(columns[0]);
+			  var docProveedor = resultadoTXTPercepcionesCL[i].getValue(columns[1]);
+			  var sucursal = resultadoTXTPercepcionesCL[i].getValue(columns[2]);
+			  var fecha = resultadoTXTPercepcionesCL[i].getValue(columns[3]);
+			  var alicuota = resultadoTXTPercepcionesCL[i].getValue(columns[4]);
+			  var importe = resultadoTXTPercepcionesCL[i].getValue(columns[5]);
+		    
+			  if(isEmpty(docProveedor)){
+				errorGlobal = true;
+				descripcionError = "Error Obteniendo el Nro. Documento Proveedor";
+			  }else if(isEmpty(sucursal)){
+				errorGlobal = true;
+				descripcionError = "Error Obteniendo la Sucursal";
+			  }else if(isEmpty(fecha)){
+				errorGlobal = true;
+				descripcionError = "Error Obteniendo la Fecha Retención";
+			  }else if(isEmpty(alicuota)){
+				errorGlobal = true;
+				descripcionError = "Error Obteniendo la Alicuota";
+			  }else if(isEmpty(importe)){
+				errorGlobal = true;
+				descripcionError = "Error Obteniendo el Importe Retenido";
+			  }else{
+				percepcionesCL = {docProveedor,sucursal,fecha,alicuota,importe}
+			  }
+  
+			  if (!errorGlobal) {
+				// Genero Contenido
+				if(!isEmpty(percepcionesCL)){
+				  // Genero Contenido
+				  if (!isEmpty(contenidoTXT)) {
+					contenidoTXT += "\r\n";
+				  }
+				  var descripcionMensaje = "TXT Retenciones Generado Correctamente";
+				  contenidoTXT += docProveedor + sucursal + fecha + alicuota + importe ;
+				} else {
+				  errorGeneral = true;
+				  descripcionError = "Error Obteniendo informacion de la Percepcion";
+				  idRegistroLOG = grabarLogError('EST-LOG-ERROR', periodo, tipoOperacion, tipoRegimen, idRegistroLOG, 'Error Generando TXT Retenciones - Error : ' + descripcionError, internlID, null, subsidiaria);
+				}
+			  } else {
+				// Grabo el Error en NetSuite
+				errorGeneral = true;
+				log.error('Proceso Generacion TXT', descripcionError);
+				log.error('Proceso Generacion TXT', 'Error Generando TXT Percepciones CL'); 
+				idRegistroLOG = grabarLogError('EST-LOG-ERROR', periodo, tipoOperacion, tipoRegimen, idRegistroLOG, 'Error Generando TXT Retenciones - Error : ' + descripcionError, internlID,null, subsidiaria);
+			  }
+	  
+			  // Verifico si debo Encolar el Proceso
+			  //checkGovernance(1000);
+			}
+			if (errorGeneral == false) {
+	  
+			  if (existenPercepciones == false) {
+	  
+				if (!isEmpty(resultadoTXTPercepcionesCL) && resultadoTXTPercepcionesCL.length == 0) {
+				  // No se Encontraron Percepciones para el Periodo
+				  idRegistroLOG = grabarLogError('EST-LOG-OK', periodo, tipoOperacion, tipoRegimen, idRegistroLOG, 'Generacion de TXT de Retenciones Correcta - No se Encontraron Retenciones', null, null, subsidiaria);
+	  
+				} else {
+				  // Error Obteniendo Percepciones
+				  errorGeneral = true;
+				  log.error('Proceso Generacion TXT', 'Error Generando TXT Retenciones');
+				  idRegistroLOG = grabarLogError('EST-LOG-ERROR', periodo, tipoOperacion, tipoRegimen, idRegistroLOG, 'Error Generando TXT Retenciones - Error : Error Obteniendo Retenciones', null, null, subsidiaria);
+				}
+			  }
+			}
+		  } else {
+			log.debug('generarTxtPercepCL', 'No se encontraron Retenciones');
+		  }
+		  if (!isEmpty(contenidoTXT)) {
+			contenidoTXT += "\r\n";
+		  }
+	  
+		} catch (e) {
+		  log.error('Proceso Generacion TXT', 'Error Generando TXT Retenciones' + e.message);
+		  errorGeneral = true;
+		  descripcionError = "Error Generando TXT Retenciones - Error : " + e.message;
+		  idRegistroLOG = grabarLogError('EST-LOG-ERROR', periodo, tipoOperacion, tipoRegimen, idRegistroLOG, descripcionError, null,null, subsidiaria);
+		}
+	  
+		if (errorGeneral == true) {
+		  percepcionesCL = grabarError(true, 'Error Generando TXT de Retenciones', existenPercepciones, procesoEncolado, idRegistroLOG);
+		} else {
+		  percepcionesCL = grabarError(false, 'Generacion de TXT de Retenciones Correcta', existenPercepciones, procesoEncolado, idRegistroLOG);
+		  if (procesoEncolado == false) {
+			if (existenPercepciones == true)
+			  idRegistroLOG = grabarLogError('EST-LOG-OK', periodo, tipoOperacion, tipoRegimen, idRegistroLOG, 'TXT Retenciones Generadas Correctamente', null, null, subsidiaria);
+		  }
+		}
+	  
+		log.debug('Proceso Generacion TXT', 'Finalizacion - Generación TXT Retenciones');
+	  
+		percepcionesCL.contenidoTXT = contenidoTXT;
+		return percepcionesCL;
+	  }
+
+	  function generarTXTRetBaja(periodo, email, tipoRegimen, tipoOperacion, ultimaRetencionProcesada, context, idLogErrores, url, separadorDecimal, separadorMiles, subsidiaria){
+		log.debug('generarTXTRetRegimenes', 'Proceso Generacion TXT' + ' Inicio - Generacion TXT generarTXTRetRegimenes');
+		var procesoEncolado = false;
+		var idRegistroLOG = idLogErrores;
+		var errorGlobal = false;
+		var errorGeneral = false;
+		var existenPercepciones = false;
+		const mensajeError = "Error Generando TXT de Percepciones";
+		var descripcionError = "";
+		var tipoComprobanteNS = "";
+		var contenidoTXT = "";
+		var refComprobante = "";
+	  
+		try {
+		  var percepcionesCL = new Object();
+		  var resultadoTXTPercepcionesCL = savedSearchUtility("custrecord_l54_ret_fecha", periodo, "custrecord_l54_ret_subsidiaria", subsidiaria, "customrecord_l54_retencion", "customsearch_l54_ret_arba_baja").resultados;
+	  
+		  if (!isEmpty(resultadoTXTPercepcionesCL)) {
+			log.debug('Retenciones', 'Cantidad Retenciones:' + resultadoTXTPercepcionesCL.length);
+	  
+			for (i = 0; i < resultadoTXTPercepcionesCL.length; i++) {
+			var columns = resultadoTXTPercepcionesCL[0].columns;
+			  existenPercepciones = true;
+			  errorGlobal = false;
+			  descripcionError = "";
+			  var internlID = resultadoTXTPercepcionesCL[i].getValue(columns[0]);
+			  var docProveedor = resultadoTXTPercepcionesCL[i].getValue(columns[1]);
+			  var sucursal = resultadoTXTPercepcionesCL[i].getValue(columns[2]);
+			  var fecha = resultadoTXTPercepcionesCL[i].getValue(columns[3]);
+			  var alicuota = resultadoTXTPercepcionesCL[i].getValue(columns[4]);
+			  var importe = resultadoTXTPercepcionesCL[i].getValue(columns[5]);
+			  var nroComrpobante = resultadoTXTPercepcionesCL[i].getValue(columns[6]);
+		    
+			  if(isEmpty(docProveedor)){
+				errorGlobal = true;
+				descripcionError = "Error Obteniendo el Nro. Documento Proveedor";
+			  }else if(isEmpty(sucursal)){
+				errorGlobal = true;
+				descripcionError = "Error Obteniendo la Sucursal";
+			  }else if(isEmpty(fecha)){
+				errorGlobal = true;
+				descripcionError = "Error Obteniendo la Fecha Retención";
+			  }else if(isEmpty(alicuota)){
+				errorGlobal = true;
+				descripcionError = "Error Obteniendo la Alicuota";
+			  }else if(isEmpty(importe)){
+				errorGlobal = true;
+				descripcionError = "Error Obteniendo el Importe Retenido";
+			  }else if(isEmpty(nroComrpobante)){
+				errorGlobal = true;
+				descripcionError = "Error Obteniendo el Nro Comprobante";
+			  }else{
+				percepcionesCL = {docProveedor,sucursal,fecha,alicuota,importe, nroComrpobante}
+			  }
+  
+			  if (!errorGlobal) {
+				// Genero Contenido
+				if(!isEmpty(percepcionesCL)){
+				  // Genero Contenido
+				  if (!isEmpty(contenidoTXT)) {
+					contenidoTXT += "\r\n";
+				  }
+				  var descripcionMensaje = "TXT Retenciones Generado Correctamente";
+				  contenidoTXT += docProveedor + sucursal + fecha + alicuota + importe + nroComrpobante ;
+				} else {
+				  errorGeneral = true;
+				  descripcionError = "Error Obteniendo informacion de la Percepcion";
+				  idRegistroLOG = grabarLogError('EST-LOG-ERROR', periodo, tipoOperacion, tipoRegimen, idRegistroLOG, 'Error Generando TXT Retenciones - Error : ' + descripcionError, internlID, null, subsidiaria);
+				}
+			  } else {
+				// Grabo el Error en NetSuite
+				errorGeneral = true;
+				log.error('Proceso Generacion TXT', descripcionError);
+				log.error('Proceso Generacion TXT', 'Error Generando TXT Percepciones CL'); 
+				idRegistroLOG = grabarLogError('EST-LOG-ERROR', periodo, tipoOperacion, tipoRegimen, idRegistroLOG, 'Error Generando TXT Retenciones - Error : ' + descripcionError, internlID,null, subsidiaria);
+			  }
+	  
+			  // Verifico si debo Encolar el Proceso
+			  //checkGovernance(1000);
+			}
+			if (errorGeneral == false) {
+	  
+			  if (existenPercepciones == false) {
+	  
+				if (!isEmpty(resultadoTXTPercepcionesCL) && resultadoTXTPercepcionesCL.length == 0) {
+				  // No se Encontraron Percepciones para el Periodo
+				  idRegistroLOG = grabarLogError('EST-LOG-OK', periodo, tipoOperacion, tipoRegimen, idRegistroLOG, 'Generacion de TXT de Retenciones Correcta - No se Encontraron Retenciones', null, null, subsidiaria);
+	  
+				} else {
+				  // Error Obteniendo Percepciones
+				  errorGeneral = true;
+				  log.error('Proceso Generacion TXT', 'Error Generando TXT Retenciones');
+				  idRegistroLOG = grabarLogError('EST-LOG-ERROR', periodo, tipoOperacion, tipoRegimen, idRegistroLOG, 'Error Generando TXT Retenciones - Error : Error Obteniendo Retenciones', null, null, subsidiaria);
+				}
+			  }
+			}
+		  } else {
+			log.debug('generarTxtPercepCL', 'No se encontraron Retenciones');
+		  }
+		  if (!isEmpty(contenidoTXT)) {
+			contenidoTXT += "\r\n";
+		  }
+	  
+		} catch (e) {
+		  log.error('Proceso Generacion TXT', 'Error Generando TXT Retenciones' + e.message);
+		  errorGeneral = true;
+		  descripcionError = "Error Generando TXT Retenciones - Error : " + e.message;
+		  idRegistroLOG = grabarLogError('EST-LOG-ERROR', periodo, tipoOperacion, tipoRegimen, idRegistroLOG, descripcionError, null,null, subsidiaria);
+		}
+	  
+		if (errorGeneral == true) {
+		  percepcionesCL = grabarError(true, 'Error Generando TXT de Retenciones', existenPercepciones, procesoEncolado, idRegistroLOG);
+		} else {
+		  percepcionesCL = grabarError(false, 'Generacion de TXT de Retenciones Correcta', existenPercepciones, procesoEncolado, idRegistroLOG);
+		  if (procesoEncolado == false) {
+			if (existenPercepciones == true)
+			  idRegistroLOG = grabarLogError('EST-LOG-OK', periodo, tipoOperacion, tipoRegimen, idRegistroLOG, 'TXT Retenciones Generadas Correctamente', null, null, subsidiaria);
+		  }
+		}
+	  
+		log.debug('Proceso Generacion TXT', 'Finalizacion - Generación TXT Retenciones');
+	  
+		percepcionesCL.contenidoTXT = contenidoTXT;
+		return percepcionesCL;
 	  }
   
 	  return {

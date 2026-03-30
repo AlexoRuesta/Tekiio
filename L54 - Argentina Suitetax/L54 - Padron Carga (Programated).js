@@ -120,6 +120,9 @@ define(["N/runtime", "L54/utilidades", "N/record", "N/file", "N/url", "N/email",
                                 name: RegConfResultSearch.columns[6]
                             });
 
+                            var urlMiddlewarePadronEmbargo = RegConfResultSet[0].getValue({
+                                name: RegConfResultSearch.columns[7]
+                            });
                             //se consultan los tipos de contribuyente
                             var searchContribSet = util.searchSavedPro("customsearch_l54_padron_iibb_det_tipo_c");
                             
@@ -263,6 +266,7 @@ define(["N/runtime", "L54/utilidades", "N/record", "N/file", "N/url", "N/email",
                             var fieldCliente = "";
                             var fieldProveedor = "";
                             var periodoFormat = "";
+                            var periodoFormatEmbargos = "";
                             var consultarClientes = true;
 
                             //En caso de busqueda parcial se generan los objetos para el filtro
@@ -388,6 +392,9 @@ define(["N/runtime", "L54/utilidades", "N/record", "N/file", "N/url", "N/email",
                                 {
                                     periodoFormat = searchResult[0].getValue({
                                         name: resultSet.columns[3]
+                                    });
+                                    periodoFormatEmbargos = searchResult[0].getValue({
+                                        name: resultSet.columns[4]
                                     });
 
                                 }

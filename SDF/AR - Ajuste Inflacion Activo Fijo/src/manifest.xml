@@ -32,11 +32,13 @@
       <object>customrecord_ncfar_altdepreciation.custrecord_altdepr_currentcost</object>
       <object>customrecord_ncfar_altdepreciation.custrecord_altdeprcurrentage</object>
       <object>customlist_ncfar_taxmethodstatus</object>
+      <object>customrecord_ncfar_altdepreciation.custrecord_altdepr_assettype</object>
       <object>customrecord_ncfar_altdepreciation.custrecord_altdepr_depraccount</object>
       <object>customrecord_ncfar_altdepreciation.custrecord_altdepr_assetaccount</object>
       <object>customrecord_ncfar_altdepreciation.custrecord_altdeprnbv</object>
       <object>customrecord_ncfar_asset.custrecord_l54_ncfar_asset</object>
       <object>customrecord_ncfar_altdepreciation</object>
+      <object>customrecord_ncfar_assettype</object>
       <object>customrecord_ncfar_altdepreciation.custrecord_l54_account_auxiliar</object>
       <object>customrecord_ncfar_altdepreciation.custrecord_altdeprstartdeprdate</object>
       <object>customrecord_ncfar_altdepreciation.custrecord_altdepr_currency</object>

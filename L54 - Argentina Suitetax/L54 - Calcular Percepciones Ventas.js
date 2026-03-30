@@ -21,17 +21,7 @@ define(
         return m ? parseFloat(m[1]) : this.valueOf();
       }
       
-      /*
-      Agrega un boton en el modo Create o Copy para Calcular las Percepciones en VENTAS de una Transaccion.
-       */
-      function generarBotonCalcularPV(type, form) {
-        if (type == 'create' || type == 'edit' || type == 'copy') {
-          form.setScript('customscript_l54_calc_perc_ventas_cli');
-          form.addButton('custpage_boton_generar_pv', 'Calcular PV', "calcular_percepcion_ventas()");
-        }
-      }
-  
-       
+   
       function isEmpty(value) {
         return value === '' || value === null || value === undefined || value === 'null' || value === 'undefined';
       }
@@ -76,7 +66,6 @@ define(
         } else {
           return null;
         }
-        return codigoPercepcionIIBB;
       }
       
       function obtenerArreglo_pv_iibb_jur_producto() {
@@ -149,7 +138,7 @@ define(
         }
       }
       
-      function obtenerArreglo_impuesto(subsidiaria) {
+      function obtenerArreglo_impuesto() {
       
         var informacionArregloImpuesto = new Array();
         /*var informacionArregloImpuesto = new Object();
@@ -217,62 +206,6 @@ define(
         return informacionArregloImpuesto;
       }
 
-      function obtenerArreglo_impuestoOld(subsidiaria) {
-      
-        var informacionArregloImpuesto = new Array();
-        /*var informacionArregloImpuesto = new Object();
-        informacionArregloImpuesto.nombre="";
-        informacionArregloImpuesto.impuesto="";
-        informacionArregloImpuesto.descripcion="";
-        informacionArregloImpuesto.porcentaje="";
-        informacionArregloImpuesto.normaIIBB="";*/
-      
-        var filtroImpuesto = new Array();
-        filtroImpuesto[0] = search.createFilter({
-          name: "isinactive",
-          operator: search.Operator.IS,
-          values: false
-        });
-        /*if (!isEmpty(subsidiaria)) {
-          filtroImpuesto[1] = search.createFilter({
-            name: "subsidiary",
-            operator: search.Operator.IS,
-            values: subsidiaria
-          });
-        }*/
-      
-       
-        var columnaImpuesto = new Array();
-        columnaImpuesto[0] = search.createColumn("description");
-        columnaImpuesto[1] = search.createColumn("custrecord_l54_tasa_de_impuesto");;
-        columnaImpuesto[2] = search.createColumn("name");
-        columnaImpuesto[3] = search.createColumn("custrecord_l54_cod_norma");
-        columnaImpuesto[4] = search.createColumn("internalid");
-  
-        
-        var resultadoImpuesto = search.create({
-          type: "salestaxitem",
-          filters: filtroImpuesto,
-          columns: columnaImpuesto
-        }).run().getRange({
-          start: 0,
-          end: 1000
-        });
-      
-        if (resultadoImpuesto != null && resultadoImpuesto.length > 0) {
-          for (var i = 0; i < resultadoImpuesto.length; i++) {
-            informacionArregloImpuesto[i] = new Object();
-            informacionArregloImpuesto[i].impuesto = resultadoImpuesto[i].getValue(columnaImpuesto[4]);
-            informacionArregloImpuesto[i].descripcion = resultadoImpuesto[i].getValue(columnaImpuesto[0]);
-            informacionArregloImpuesto[i].porcentaje = resultadoImpuesto[i].getValue(columnaImpuesto[1]);
-            informacionArregloImpuesto[i].nombre = resultadoImpuesto[i].getValue(columnaImpuesto[2]);
-            // Nuevo - Norma de IIBB de Percepcion
-            informacionArregloImpuesto[i].normaIIBB = resultadoImpuesto[i].getValue(columnaImpuesto[3]);
-          }
-        }
-      
-        return informacionArregloImpuesto;
-      }
       
       /*
       Funcion Encargada de Calcular las Percepciones en VENTAS
@@ -293,7 +226,6 @@ define(
                   const jurisdiccionCFE = currentScript.getParameter("custscript_l54_calc_per_ve_juris_cfe");
                   const jurisdiccionBUE = currentScript.getParameter("custscript_l54_calc_per_ve_juris_bue");
                   const jurisdiccionTUCUMAN = currentScript.getParameter("custscript_l54_calc_per_ve_juris_tuc");
-                  const jurisdiccionCordoba = currentScript.getParameter("custscript_l54_calc_per_ve_juris_cord");
                   const param_codigo_IVA = currentScript.getParameter("custscript_l54_calc_percep_tip_per_iva");
                   const taxType = currentScript.getParameter("custscript_l54_ca_per_iibb_tax_type");
       
@@ -474,6 +406,8 @@ define(
       
                               if (isEmpty(subTotal)) {
                                   subTotal = total;
+                            }else if(!isEmpty(informacionTransaccion.discounttotal) && informacionTransaccion.discounttotal != 0){
+                              subTotal = subTotal - Math.abs(informacionTransaccion.discounttotal);
                               }
       
                               // Verificar si se deben Calcular Percepciones
@@ -521,7 +455,7 @@ define(
                                       // Fin Obtener Jurisdicciones Cliente
                                       if (objEstadoInscripcionJurIIBB != null) {
                                           if (objEstadoInscripcionJurIIBB.iibb = true) {
-                                             var codigosRetencionIIBB = obtenerCodigosPercepcionIIBB(clienteTransaccion, subsidiariaTransaccion, objEstadoInscripcionJurIIBB, recConfGeneral.idConfGeneral, tipoCambio, costoEnvio, tipoContribuyente, paramNoAplicaProvincia);
+                                             var codigosRetencionIIBB = obtenerCodigosPercepcionIIBB(clienteTransaccion, subsidiariaTransaccion, objEstadoInscripcionJurIIBB, recConfGeneral.idConfGeneral, tipoCambio, costoEnvio, tipoContribuyente, paramNoAplicaProvincia, periodo);
       
                                               if (codigosRetencionIIBB != null && codigosRetencionIIBB.error == false) {
                                                   if (codigosRetencionIIBB.warning == true) {
@@ -1084,7 +1018,11 @@ define(
                               }
                               // FIN Generacion de Impuesto Interno
                               
-                              // rellenarSegmentosLinea(subsidiariaTransaccion, respuestaPercepciones);
+                              //INICIO rellenarSegmentosLineav2
+                              log.debug('rellenarSegmentosLineav2 - articulo',informacionTransaccion.obligCampos)
+                              respuestaPercepciones.obligCampos = (informacionTransaccion.obligCampos);
+                              //rellenarSegmentosLineav2(informacionTransaccion.articulos, respuestaPercepciones);
+                              //FIN rellenarSegmentosLineav2
                             } else {
                               // Falta Ingresar Cliente o Articulos
                               if (isEmpty(clienteTransaccion)) {
@@ -1125,44 +1063,7 @@ define(
           responseSuitelet.write({ output: JSON.stringify(informacionRespuestaJSON) });
       }
   
-      function rellenarSegmentosLinea(subsidiariaTransaccion, respuestaPercepciones){
-        if(isEmpty(subsidiariaTransaccion)){
-          log.error("rellenarSegmentosLinea", "la subsidiaria esta vacia, es requerida para filtrar");
-          return;
-        }
-        const filtro = search.createFilter({
-          name: "custrecord_l54_seg_subsidiaria",
-          operator: "ANYOF",
-          values: subsidiariaTransaccion
-        });
-  
-        const searchConfigSegmentos = search.load({
-                  id: "customsearch_l54_segmentos_percepcion"
-        });
-        searchConfigSegmentos.filters.push(filtro);
-  
-        const resultSet = searchConfigSegmentos.run();
-  
-        const searchResult = resultSet.getRange({
-            start: 0,
-            end: 1
-        });
-  
-        if (!isEmpty(searchResult) && searchResult.length > 0) {
-  
-          respuestaPercepciones.segmentoClase = searchResult[0].getValue({
-              name: resultSet.columns[0]
-          });
-          respuestaPercepciones.segmentoDepartamento = searchResult[0].getValue({
-              name: resultSet.columns[1]
-          });
-          respuestaPercepciones.segmentoUbicacion = searchResult[0].getValue({
-              name: resultSet.columns[2]
-          });
-        }else{
-          log.error("rellenarSegmentosLinea", "no se encontro resultado en customsearch_l54_segmentos_percepcion con subsidiaria: "+subsidiariaTransaccion);
-        }
-      }
+
   
       function extraerAcumuladoPorJurisdiccion(infoCodigosPercepcionIIBB, clienteTransaccion, subsidiariaTransaccion, periodo, tipoCambio) {
       
@@ -1291,7 +1192,6 @@ define(
       
       function agregarJurisdiccionesIIBB(objPercepcion, jurisdiccion, importeNetoLinea, jurisdiccionTexto, esJurisdUtilizacion, esJurisdOrigen, esJurisdEntrega, importeBrutoLinea, lineNumber, esJurisdFact, infoLineaActual, paramAplicaEnLaProvincia, paramAplicaFueraProvincia, paramNoAplicaProvincia, esJurisdEmpresa) {
       
-        var proceso = 'agregarJurisdiccionesIIBB';
         var objInfo = '';
       
         try {
@@ -1474,12 +1374,11 @@ define(
       
         var proceso = 'obtenerAcumPorJurisdicciones';
         var respuesta = { error: false, mensaje: '', registros: [] };
-        var arrayAux = [];
+    
        log.debug( proceso, 'INICIO - obtenerAcumPorJurisdicciones / entidad: ' + entidad + ' / periodo: ' + periodo + ' / subsidiaria: ' + subsidiaria + ' / jurisdicciones: ' + JSON.stringify(jurisdicciones));
       
         try {
           /* Filtros */
-          var filtros = [];
           var i = 0;
   
           var saveSearch = search.load({
@@ -1872,9 +1771,10 @@ define(
               if (estado_regimen != idEstadoExento) {
       
                 log.debug( 'getClienteInscriptoRegimenIIBB', 'line 1128 - fecha_caducidad: ' + fecha_caducidad + ' - nlapiStringToDate(fecha_caducidad): ' + fecha_caducidad + ' - trandate: ' + trandate + ' - typeof trandate: ' + typeof trandate);
-      
-                if (isEmpty(fecha_caducidad) || (!isEmpty(fecha_caducidad) && format.parse({value:fecha_caducidad, type: format.Type.DATE}) < trandate)) {
-                  if ((!isEmpty(fecha_caducidad) && format.parse({value:fecha_caducidad, type: format.Type.DATE}) < trandate)) {
+                var fecha_caducidadFormateada = !isEmpty(fecha_caducidad) ? format.parse({value:fecha_caducidad, type: format.Type.DATE}) : null;
+
+                if (isEmpty(fecha_caducidad) || (fecha_caducidadFormateada && fecha_caducidadFormateada < trandate)) {
+                  if ((fecha_caducidadFormateada && fecha_caducidadFormateada < trandate)) {
                     avisoCertificadoExencionVencido = true;
                     //log.error( 'getClienteInscriptoRegimenIIBB', 'Ingreso a certificado de exención vencida: ' + avisoCertificadoExencionVencido + ' - jurisdiccionesCertfVencido: ' + jurisdiccionesCertfVencido);
       
@@ -2112,28 +2012,10 @@ define(
       
       }
       
-      // Verifica Si el Objeto de Items de Percepcion A Agregar Ya posee un Item para la misma Jurisdiccion,Item y Porcentaje
-      function buscarItemPercepcion(codigosPercepcionIIBB, jurisdiccion, itemPercepcion) {
-      
-       log.debug( 'buscarItemPercepcion', 'INICIO - buscarItemPercepcion - codigosPercepcionIIBB: ' + JSON.stringify(codigosPercepcionIIBB) + ' - jurisdiccion: ' + jurisdiccion + ' - itemPercepcion: ' + itemPercepcion);
-        var posicion = -1;
-        var encontrado = false;
-        // var porcentajeFinal = parseFloat(parseFloat(convertToInteger(porcentaje), 10)/(100 * Math.pow(10, countDecimales(porcentaje))), 10).toString();
-        //log.debug( 'buscarItemPercepcion', 'porcentajeFinal: ' + porcentajeFinal);
-        for (var i = 0; codigosPercepcionIIBB != null && codigosPercepcionIIBB.infoPer != null && i < codigosPercepcionIIBB.infoPer.length && encontrado == false; i++) {
-          // if (codigosPercepcionIIBB.infoPer[i].jurisdiccion == jurisdiccion && codigosPercepcionIIBB.infoPer[i].item == itemPercepcion && codigosPercepcionIIBB.infoPer[i].porcentajeImpuesto == porcentajeFinal) {
-          if (codigosPercepcionIIBB.infoPer[i].jurisdiccion == jurisdiccion && codigosPercepcionIIBB.infoPer[i].item == itemPercepcion) {
-            encontrado = true;
-            posicion = i;
-          }
-        }
-       log.debug( 'buscarItemPercepcion', 'FIN - buscarItemPercepcion - posicion: ' + posicion + ' - encontrado: ' + encontrado);
-        return posicion;
-      
-      }
+
       
       // Método que me devuelve por cada Jurisdiccion de IIBB los Codigos de Percepcion a utilizar
-      function obtenerCodigosPercepcionIIBB(id_cliente, subsidiaria, objEstadosIIBB, idConfGeneral, tipoCambio, costoEnvio, tipoContribuyente, paramNoAplicaProvincia) {
+      function obtenerCodigosPercepcionIIBB(id_cliente, subsidiaria, objEstadosIIBB, idConfGeneral, tipoCambio, costoEnvio, tipoContribuyente, paramNoAplicaProvincia, periodo) {
       
         try {
          log.debug( 'obtenerCodigosPercepcionIIBB', 'INICIO - obtenerCodigosPercepcionIIBB' + id_cliente);
@@ -2145,7 +2027,7 @@ define(
           codigosPercepcionIIBB.error = false;
           codigosPercepcionIIBB.mensajeError = "";
       
-          var jurisdiccionesNoCumplenMinimo
+
           var mensajeInformar = "";
           var indiceObjeto = 0;
       
@@ -2162,7 +2044,7 @@ define(
           var jurisdNoAplicaCalPercPorInscripcion = '';
               var errorAplicaCalPercPorInscrip = false;
       
-          var arregloCodigosPercepcionIIBB = obtenerArregloCodigosPercepcionPadronIIBB(id_cliente);
+        var arregloCodigosPercepcionIIBB = obtenerArregloCodigosPercepcionPadronIIBB(id_cliente, subsidiaria);
       
           var arregloCodigosPercepcionIIBBProducto = obtenerArreglo_pv_iibb_jur_producto();
       
@@ -2177,7 +2059,7 @@ define(
       
             for (var i = 0; objEstadosIIBB != null && objEstadosIIBB.jurisdicciones != null && i < objEstadosIIBB.jurisdicciones.length; i++) {
       
-              var infoConfigDetalle = null;
+ 
                       var buscarConfig = false;
                       var errorCalcPercInscrip = false;
       
@@ -2193,7 +2075,7 @@ define(
                 var errorParcial = false;
                 var errorObtCodigoPerPadron = false;
                 var errorPadronExcluyente = false;
-                var condicionParcial = "";
+          
                 
                log.debug( 'obtenerCodigosPercepcionIIBB', 'LINE 1217 - tipoContribuyente: ' + tipoContribuyente + ' / Jurisdicciones obligatorias sin padrón: ' + JSON.stringify(jurisdiccionesObligatoriasSinPadron) + ' - Jurisdicciones sin configuración: ' + JSON.stringify(jurisdiccionesSinConfiguracion) + ' - Jurisdicciones Excluyentes: ' + jurisdiccionesExcluyentes);
       
@@ -2265,6 +2147,7 @@ define(
                     resultadosConfDetalle[0].criterioPorcentajeEspecial = resultadoConfGeneral[0].criterioPorcentajeEspecial;
                     resultadosConfDetalle[0].idRegConfigDetalle = resultadoConfGeneral[0].idInterno;
                     resultadosConfDetalle[0].taxType = resultadoConfGeneral[0].taxType;
+                    resultadosConfDetalle[0].jurisdiccionSede = resultadoConfGeneral[0].jurisdiccionSede;
                   }
                 }
       
@@ -2285,10 +2168,11 @@ define(
                   var porcentajeEspecialUtilizarBI = resultadosConfDetalle[0].porcentajeEspecialUtilizarBI;
                   var importeMinPercepcion = resultadosConfDetalle[0].importeMinPercepcion;
                   var baseCalcAcumulada = resultadosConfDetalle[0].baseCalcAcumulada;
-                  var calcularSobreNeto = resultadosConfDetalle[0].calcularSobreNeto;
+                
                   var calcularSobreBruto = resultadosConfDetalle[0].calcularSobreBruto;
                   var criterioPorcentajeEspecial = resultadosConfDetalle[0].criterioPorcentajeEspecial;
                   var idRegConfigDetalle = resultadosConfDetalle[0].idRegConfigDetalle;
+                  var jurisdiccionSede = resultadosConfDetalle[0].jurisdiccionSede;
                   var montoFinal = 0.00;
       
                   if (!isEmpty(calcularSobreBruto) && calcularSobreBruto) {
@@ -2303,7 +2187,7 @@ define(
                     var alicuotaArticuloEncontrada = false;
                     if ((!isEmpty(padronUsar) && padronUsar > 0) || (!isEmpty(objEstadosIIBB.jurisdicciones[i].jurisdiccion) && !isEmpty(resultadosConfDetalle[0].impuestoGeneral))) {
                       // Consulto la Alicuota del Padron
-                      codigoPerIIBB = obtenerCodigoPercepcionPadronIIBB(arregloCodigosPercepcionIIBB, padronUsar, id_cliente, objEstadosIIBB.jurisdicciones[i].jurisdiccion, resultadosConfDetalle[0].impuestoGeneral);
+                      codigoPerIIBB = obtenerCodigoPercepcionPadronIIBB(arregloCodigosPercepcionIIBB, padronUsar, id_cliente, objEstadosIIBB.jurisdicciones[i].jurisdiccion, resultadosConfDetalle[0].impuestoGeneral, periodo);
                       if (!isEmpty(codigoPerIIBB) && !isEmpty(codigoPerIIBB.codigo) && !isEmpty(codigoPerIIBB.alicuota) && !isNaN(codigoPerIIBB.alicuota) && codigoPerIIBB.codigo > 0) {
                         alicuotaPadronEncontrada = true;
                         codigoPerIIBB.taxType = resultadosConfDetalle[0].taxType;
@@ -2437,7 +2321,7 @@ define(
                       // !!!!!!!! parseFloat(costoEnvio);
       
                       infoPercepcion.estadoInscripcionPadron = codigoPerIIBB.estadoInscripcionPadron;
-                      infoPercepcion.coeficientePercepcion = codigoPerIIBB.coeficientePercepcion;
+                      infoPercepcion.coeficientePercepcion = jurisdiccionSede ? 1 : codigoPerIIBB.coeficientePercepcion;
                       infoPercepcion.esPadron = codigoPerIIBB.esPadron;
                       infoPercepcion.porcentaje_alicuota_utilizar = porcentaje_alicuota_utilizar;
                       infoPercepcion.alicuota_especial = alicuota_especial;
@@ -2660,7 +2544,7 @@ define(
       }
       
       // MÃ©todo que me devuelve el Codigo de Percepcion para un Tipo de Padron de IIBB
-      function obtenerCodigoPercepcionPadronIIBB(arregloCodigosPercepcionIIBB, idTipoPadron, id_cliente, jurisdiccion, impuestoGeneral) {
+      function obtenerCodigoPercepcionPadronIIBB(arregloCodigosPercepcionIIBB, idTipoPadron, id_cliente, jurisdiccion, impuestoGeneral, periodo) { 
       
        log.debug( 'obtenerCodigoPercepcionPadronIIBB', 'INICIO - obtenerCodigoPercepcionPadronIIBB');
        log.debug('Parametros', idTipoPadron + ' .> ' + id_cliente + ' -> ' + jurisdiccion + ' .> ' + impuestoGeneral)
@@ -2673,7 +2557,7 @@ define(
       
           if (arregloCodigosPercepcionIIBB != null && arregloCodigosPercepcionIIBB.length > 0 && !isEmpty(idTipoPadron) && !isEmpty(id_cliente) && !isEmpty(impuestoGeneral)) {
             var resultadoCodigosPercepcionPadronIIBB = arregloCodigosPercepcionIIBB.filter(function (obj) {
-              return (obj.tipoPadron === idTipoPadron && obj.cliente === id_cliente && obj.codigo === impuestoGeneral);
+              return (obj.tipoPadron === idTipoPadron && obj.cliente === id_cliente && obj.codigo === impuestoGeneral && obj.periodo === periodo);
             });
           } else {
             if (!isEmpty(jurisdiccion) && !isEmpty(id_cliente) && !isEmpty(impuestoGeneral)) {
@@ -2719,7 +2603,7 @@ define(
       }
       
       // MÃ©todo que me devuelve el Codigo de Percepcion para un Tipo de Padron de IIBB
-      function obtenerArregloCodigosPercepcionPadronIIBB(id_cliente) {
+    function obtenerArregloCodigosPercepcionPadronIIBB(id_cliente, subsidiaria) {
       
        log.debug( 'obtenerArregloCodigosPercepcionPadronIIBB', 'INICIO - obtenerArregloCodigosPercepcionPadronIIBB '  +  id_cliente);
         //var codigoPercepcionIIBB = "";
@@ -2739,7 +2623,11 @@ define(
             operator: search.Operator.ANYOF,
             values: id_cliente
           });
-          
+          filtroPadron[2] = search.createFilter({
+            name: "custrecord_l54_pv_jc_subsidiaria",
+            operator: search.Operator.ANYOF,
+            values: subsidiaria
+          });
   
           var columnasPadron = new Array();
           columnasPadron[0] = search.createColumn("internalid");
@@ -2753,6 +2641,7 @@ define(
           columnasPadron[8] = search.createColumn('custrecord_l54_pv_jc_coeficiente_perc'); // Coeficiente Percepción
           columnasPadron[9] = search.createColumn('custrecord_l54_pv_jc_alic_coe_ali_perc');
           columnasPadron[10] = search.createColumn({ name: "taxtype", join: "custrecord_l54_pv_jc_codigo_impuesto" })
+          columnasPadron[11] = search.createColumn('custrecord_l54_pv_jc_id_periodo');
           
           var resultadosPadron = search.create({
             type: "customrecord_l54_pv_iibb_jur_cliente",
@@ -2777,7 +2666,8 @@ define(
               var coeficientePercepcion = resultadosPadron[i].getValue(columnasPadron[8]);
               var coeficienteAlicuotaPerc = resultadosPadron[i].getValue(columnasPadron[9]);
               var columTaxType = !isEmpty(resultadosPadron[i].getValue({ name: "taxtype", join: "custrecord_l54_pv_jc_codigo_impuesto" })) ? resultadosPadron[i].getValue({ name: "taxtype", join: "custrecord_l54_pv_jc_codigo_impuesto" }) : "";
-  
+              var periodo = resultadosPadron[i].getValue(columnasPadron[11]);
+
               arregloCodigosPercepcionIIBB[i] = new Object();
       
               arregloCodigosPercepcionIIBB[i].cliente = id_cliente;
@@ -2813,6 +2703,9 @@ define(
   
               if (!isEmpty(columTaxType))
                 arregloCodigosPercepcionIIBB[i].taxType = columTaxType;
+
+              if (!isEmpty(periodo))
+                arregloCodigosPercepcionIIBB[i].periodo = periodo;
   
             }
           }

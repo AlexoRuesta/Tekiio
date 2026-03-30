@@ -3,7 +3,7 @@
  *@NScriptType MapReduceScript
  *@NAmdConfig /SuiteScripts/L54 - configuration.json
  */
-define(["N/record", "N/runtime", "N/email", "N/error", "N/file", "N/format", "N/search", "N/url", "N/render", "L54/utilidades", "LIB - Search"],
+define(["N/record", "N/runtime", "N/email", "N/error", "N/file", "N/format", "N/search", "N/url", "N/render", "L54 - utilidades", "LIB - Search"],
 
     function (record, runtime, email, error, file, format, search, url, render, utilities, libSearch) {
 
@@ -25,6 +25,7 @@ define(["N/record", "N/runtime", "N/email", "N/error", "N/file", "N/format", "N/
                 var currScript = runtime.getCurrentScript();
 
                 informacion.pagos = currScript.getParameter("custscript_l54_txt_industrial_mr_pagos");
+                informacion.transferencia = currScript.getParameter("custscript_l54_txt_industrial_mr_trans");
                 informacion.usuario = currScript.getParameter("custscript_l54_txt_industrial_mr_userd");
                 informacion.subsidiaria = currScript.getParameter("custscript_l54_txt_industrial_mr_subs");
                 informacion.fechaCabecera = currScript.getParameter("custscript_l54_txt_industrial_mr_fecha");
@@ -53,7 +54,7 @@ define(["N/record", "N/runtime", "N/email", "N/error", "N/file", "N/format", "N/
                 }
                     
                 const filtros = buildFilters(params);
-                let filters = filtros.map(n => InitSearch.getFilter(n.name, n.operator, n.values, n.formula));
+                let filters = filtros.map(n => InitSearch.getFilter(n.name, n.join, n.operator, n.values, n.formula));
                 
                 const savedSearch = InitSearch.getSavedSearch("customsearch_l54_industrial_file_pagos", filters);
                 
@@ -71,6 +72,7 @@ define(["N/record", "N/runtime", "N/email", "N/error", "N/file", "N/format", "N/
                 let result = JSON.parse(context.value);
                 log.debug("result", JSON.stringify(result));
                 let objMap = {};
+                var flag = false;
 
                 if (!utilities.isEmpty(result)){
                     objMap.identificadorCliente = result.values["internalid.vendor"].value;
@@ -81,9 +83,25 @@ define(["N/record", "N/runtime", "N/email", "N/error", "N/file", "N/format", "N/
                     objMap.observaciones = result.values["memo"] || "";
                     objMap.cuitProveedor = result.values["custbody_54_cuit_entity"];
                     objMap.internalID = result.id;
-                }
 
-                context.write(1, objMap);
+                    if (result.values["formulanumeric"] == "1") {
+                         let arrTrasnferencias = getTransferencias(result.id);
+                            log.debug("arrTrasnferencias", arrTrasnferencias);
+                            if (arrTrasnferencias.length!= 0) {
+                                for (let i = 0; i < arrTrasnferencias.length; i++) {
+                                    const element = arrTrasnferencias[i];
+                                    flag = true;
+                                    objMap.cbu = element.pagoCBU;
+                                    objMap.importe = element.pagoImporte;
+                                    context.write(1, JSON.stringify(objMap));
+                                }
+                            }
+                    }
+                }
+                if(!flag){
+                    context.write(1, objMap);
+                }
+                                
                 log.audit(proceso, "Map - FIN");
 
             } catch (error) {
@@ -198,6 +216,7 @@ define(["N/record", "N/runtime", "N/email", "N/error", "N/file", "N/format", "N/
             try {
                 let parameters = getParameters(),
                     configuration = getConfiguration(parameters);
+                    log.debug("configuration", JSON.stringify(configuration))
                 let totalReduceErrors = 0,
                     author = parameters.usuario,
                     recipients = parameters.usuario,
@@ -226,13 +245,13 @@ define(["N/record", "N/runtime", "N/email", "N/error", "N/file", "N/format", "N/
                         arrayPrintEnd = new Array(),
                         print = "";
 
-                    arrayPrint[0] = configuration[0].col_2;
+                    arrayPrint[0] = configuration[0].custrecord_l54_pago_panel_header;
                     arrayPrint[1] = "PAGO";
-                    arrayPrint[2] = configuration[0].col_11;
+                    arrayPrint[2] = configuration[0].custrecord_l54_pago_panel_cuit;
                     arrayPrint[3] = "\n";
                    
 
-                    arrayPrintEnd[0] = configuration[0].col_6;
+                    arrayPrintEnd[0] = configuration[0].custrecord_l54_pago_panel_detalle;
                     arrayPrintEnd[1] = objResp.length;
                     arrayPrintEnd[2] = numberTruncTwoDec(objResp.amountTotal);
 
@@ -241,10 +260,10 @@ define(["N/record", "N/runtime", "N/email", "N/error", "N/file", "N/format", "N/
                     print += arrayPrintEnd;
 
                     let objFile = file.create({
-                        name: configuration[0].col_7 + "_" + parameters.fechaCabecera + ".csv",
+                        name: configuration[0].custrecord_l54_pago_panel_nombre_file + "_" + parameters.fechaCabecera + ".csv",
                         fileType: file.Type.CSV,
                         contents: print,
-                        folder: configuration[0].col_8,
+                        folder: configuration[0].custrecord_l54_pago_panel_id_carpeta,
                     });
 
                     var fileId = objFile.save();
@@ -381,7 +400,7 @@ define(["N/record", "N/runtime", "N/email", "N/error", "N/file", "N/format", "N/
                 values: parameters.banco
             });
 
-            let filters = filtros.map(n => InitSearch.getFilter(n.name, n.operator, n.values, n.formula));
+            let filters = filtros.map(n => InitSearch.getFilter(n.name, n.join, n.operator, n.values, n.formula));
             
             const savedSearch = InitSearch.getResultSearch("customsearch_l54_pagos_file_panel_conf", filters);
 
@@ -394,6 +413,52 @@ define(["N/record", "N/runtime", "N/email", "N/error", "N/file", "N/format", "N/
             x2 = x.length > 1 ? '.' + x[1] : '.00';
             x2 = x2.length < 3 ? x2 + '0' : x2.substring(0, 3);
             return x1 + x2;
+        }
+
+        function getTransferencias (pagosID) {
+            var informacion = getParameters();
+            log.debug("informacion", informacion)
+            let total = 0;
+            let filters = [
+                        ["custrecord_3k_cobranza_trn_payment_id", "ANYOF", pagosID],
+                        "AND",
+                        ["internalid", "ANYOF", JSON.parse(informacion.transferencia)],
+                        "AND",
+                        ["custrecord_3k_cobranza_trn_payment_id.custbody_l54_excluir_gen_arc_bank_arg", "is", 'F'],
+                        "AND",
+                        ["custrecord_3k_cobranza_trn_payment_id.type","anyof","VendPymt"],
+                        "AND", 
+                        ["custrecord_3k_cobranza_trn_payment_id.mainline","is","T"]
+                    ];
+
+            let columns = [ 
+                { name: 'formulatext',formula:'NS_CONCAT({internalid})', summary: 'MAX', alias: 'pagoID' },
+                { name: 'custrecord_3k_cobranza_trn_amount', summary: 'SUM', alias: 'pagoImporte' },
+                { name: 'custrecord_l54_gen_arc_datos_banc_cl_cbu', join: 'custrecord_l54_datos_bancarios_citibank', summary: 'GROUP', alias: 'pagoCBU'}
+            ];
+            
+            let array = InitSearch.getSearchCreated("customrecord_3k_cobranza_transferencias", filters, columns);
+
+            //total = array.reduce((acc, p) => acc + parseFloat(p.pagoImporte || 0), 0);
+            log.debug("Mirame", JSON.stringify(array))
+            array.forEach(pago => {
+                let spliTrans = pago.pagoID.split(",");
+                spliTrans.forEach(trasn => {
+                    record.submitFields({
+                        type: 'customrecord_3k_cobranza_transferencias',
+                        id: trasn,
+                        values: {
+                            custrecord_3k_cobranza_trn_include: true
+                        },
+                        options: {
+                            enableSourcing: true,
+                            ignoreMandatoryFields: true
+                        }
+                    });
+                })
+                 
+            });
+            return array;
         }
         
         return {
